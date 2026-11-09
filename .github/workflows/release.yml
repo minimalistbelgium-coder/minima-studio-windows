@@ -1,0 +1,37 @@
+name: Publier Minima Studio pour Windows
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Installer la CLI Tauri
+        run: npm install
+      - name: Compiler l'installeur
+        run: npx tauri build
+      - name: Publier la version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          EXE=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
+          cp "$EXE" MinimaStudio-Setup.exe
+          TAG="v$VERSION"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Minima Studio $VERSION" --notes "Minima Studio pour Windows, version $VERSION"
+          gh release upload "$TAG" MinimaStudio-Setup.exe --clobber

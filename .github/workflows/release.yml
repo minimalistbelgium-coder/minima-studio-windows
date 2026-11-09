@@ -2,6 +2,7 @@ name: Publier Minima Studio pour Windows
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -33,5 +34,5 @@ jobs:
           EXE=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
           cp "$EXE" MinimaStudio-Setup.exe
           TAG="v$VERSION"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Minima Studio $VERSION" --notes "Minima Studio pour Windows, version $VERSION"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "Minima Studio $VERSION" --notes "Minima Studio pour Windows, version $VERSION"
           gh release upload "$TAG" MinimaStudio-Setup.exe --clobber

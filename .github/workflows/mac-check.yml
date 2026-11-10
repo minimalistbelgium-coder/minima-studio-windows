@@ -9,13 +9,14 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Compiler
         id: build
         run: |
           cd mac
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" || true
           swift --version 2>&1 | tee ../build.log
           set +e
           swift build -c release 2>&1 | tee -a ../build.log

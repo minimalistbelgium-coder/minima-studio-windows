@@ -98,7 +98,7 @@ struct FlowLayout: Layout {
 /// Toutes les cartes ont exactement la même largeur et la même hauteur (celle de la plus haute),
 /// alignées en haut.
 struct StatGrid<Content: View>: View {
-    var min: CGFloat = 220
+    var min: CGFloat = 200
     @ViewBuilder var content: () -> Content
     var body: some View {
         // Pas de GlassEffectContainer (GlassGroup) ici : il dessine le verre par-dessus le contenu
@@ -131,11 +131,26 @@ struct EqualGrid: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let m = metrics(proposal, subviews)
         guard m.rows > 0 else { return .zero }
+        if m.cols == 1 {
+            // Une seule colonne : chaque carte garde sa propre hauteur (pas de vide inutile).
+            let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: m.cell.width, height: nil)).height }
+            return CGSize(width: m.width, height: heights.reduce(0, +) + CGFloat(subviews.count - 1) * spacing)
+        }
         return CGSize(width: m.width, height: CGFloat(m.rows) * m.cell.height + CGFloat(m.rows - 1) * spacing)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let m = metrics(ProposedViewSize(width: bounds.width, height: nil), subviews)
+        if m.cols == 1 {
+            var y = bounds.minY
+            for v in subviews {
+                let h = v.sizeThatFits(ProposedViewSize(width: m.cell.width, height: nil)).height
+                v.place(at: CGPoint(x: bounds.minX, y: y), anchor: .topLeading,
+                        proposal: ProposedViewSize(width: m.cell.width, height: h))
+                y += h + spacing
+            }
+            return
+        }
         for (i, v) in subviews.enumerated() {
             let c = i % m.cols, r = i / m.cols
             v.place(at: CGPoint(x: bounds.minX + CGFloat(c) * (m.cell.width + spacing),

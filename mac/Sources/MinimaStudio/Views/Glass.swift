@@ -10,6 +10,10 @@ import AppKit
 //   GlassGroup { ... }      regroupe plusieurs verres voisins (GlassEffectContainer)
 // Sur macOS 26 on utilise les vraies API (glassEffect). Avant, un matériau flou,
 // une bordure fine et un reflet léger donnent un rendu proche.
+// Piège à éviter : le verre doit toujours être DERRIÈRE le contenu (en fond, ou appliqué à
+// l'étiquette elle-même). Ne jamais envelopper des cartes dans GlassGroup : le verre est alors
+// dessiné par-dessus leurs textes, qui deviennent flous.
+// (En mode captures de mise en page, le repli est utilisé : le vrai verre ne se rend pas hors écran.)
 
 private struct GlassDepthKey: EnvironmentKey { static let defaultValue = 0 }
 
@@ -32,7 +36,7 @@ struct GlassBackground<S: InsettableShape>: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !SnapshotMode.on {
             Color.clear
                 .glassEffect(tint.map { Glass.regular.tint($0) } ?? Glass.regular, in: shape)
         } else {
@@ -74,7 +78,7 @@ extension View {
     @ViewBuilder
     func glassButton(tint: Color?, radius: CGFloat, prominent: Bool, hover: Bool = false) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !SnapshotMode.on {
             self.glassEffect((tint.map { Glass.regular.tint($0) } ?? Glass.regular).interactive(), in: shape)
         } else if prominent {
             self
@@ -131,7 +135,7 @@ struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 0
     @ViewBuilder var content: () -> Content
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !SnapshotMode.on {
             GlassEffectContainer(spacing: spacing) { content() }
         } else {
             content()

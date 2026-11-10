@@ -12,7 +12,7 @@ struct DailyHoursCard: View {
     @Environment(\.layoutWidth) private var width
 
     /// Largeur minimale du tableau personne × jour. En dessous, il défile horizontalement.
-    private static let minGrid: CGFloat = 600
+    private static let minGrid: CGFloat = 520
 
     private var days: [Date] {
         let start = AgendaCal.cal.date(byAdding: .day, value: 7 * weekOffset, to: AgendaCal.weekStart(Date())) ?? Date()
@@ -105,9 +105,13 @@ struct DailyHoursCard: View {
 
     private func grid(_ ds: [Date], _ cell: @escaping (String, Date) -> Double, _ total: @escaping (Date) -> Double, _ week: Double) -> some View {
         let active = people.filter { p in ds.contains { cell(p.id, $0) > 0 } }
+        // Carte étroite : colonnes du nom et du total resserrées pour garder 7 jours lisibles.
+        let tight = width - 40 < 620
+        let nameW: CGFloat = tight ? 92 : 110
+        let weekW: CGFloat = tight ? 62 : 76
         return VStack(spacing: 4) {
             HStack(spacing: 4) {
-                Color.clear.frame(width: 110, height: 1)
+                Color.clear.frame(width: nameW, height: 1)
                 ForEach(ds, id: \.self) { d in
                     let today = AgendaCal.cal.isDateInToday(d)
                     VStack(spacing: 2) {
@@ -116,7 +120,7 @@ struct DailyHoursCard: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                Muted("Semaine", size: 11).lineLimit(1).frame(width: 76)
+                Muted("Semaine", size: 11).lineLimit(1).frame(width: weekW)
             }
             if active.isEmpty { Muted("Aucun temps enregistré cette semaine.").padding(.vertical, 10) }
             ForEach(active) { p in
@@ -125,7 +129,7 @@ struct DailyHoursCard: View {
                         AvatarView(profile: p, size: 22)
                         Text(p.id == app.profile?.id ? "Moi" : p.firstName).font(.system(size: 13)).lineLimit(1)
                     }
-                    .frame(width: 110, alignment: .leading)
+                    .frame(width: nameW, alignment: .leading)
                     ForEach(ds, id: \.self) { d in
                         let v = cell(p.id, d)
                         let today = AgendaCal.cal.isDateInToday(d)
@@ -139,20 +143,20 @@ struct DailyHoursCard: View {
                     }
                     Text(TimeFmt.hm(ds.reduce(0) { $0 + cell(p.id, $1) })).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.75)
-                        .frame(width: 76, height: 34)
+                        .frame(width: weekW, height: 34)
                         .background(Theme.ink.opacity(0.025), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
             if active.count > 1 {
                 Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 2)
                 HStack(spacing: 4) {
-                    Text("Total").font(.system(size: 13, weight: .semibold)).frame(width: 110, alignment: .leading)
+                    Text("Total").font(.system(size: 13, weight: .semibold)).frame(width: nameW, alignment: .leading)
                     ForEach(ds, id: \.self) { d in
                         Text(total(d) > 0 ? TimeFmt.hm(total(d)) : "").font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
                             .foregroundStyle(Theme.text2).lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity)
                     }
                     Text(TimeFmt.hm(week)).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.75).frame(width: 76)
+                        .lineLimit(1).minimumScaleFactor(0.75).frame(width: weekW)
                 }
             }
         }

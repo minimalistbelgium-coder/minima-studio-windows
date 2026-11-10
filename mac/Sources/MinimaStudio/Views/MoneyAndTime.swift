@@ -21,7 +21,15 @@ struct FinancesView: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var data: DataStore
     @State private var month: Date = monthStart(Date())
+    @State private var wideScope = false
     @EnvironmentObject var presenter: Presenter
+
+    /// Dernier mois affiché dans le graphique : le mois courant, ou le mois choisi s'il sort des 12 derniers mois.
+    private var chartEnd: Date {
+        let now = monthStart(Date())
+        let oldest = Calendar.current.date(byAdding: .month, value: -11, to: now) ?? now
+        return (month > now || month < oldest) ? month : now
+    }
 
     var body: some View {
         let inMonth = data.missions.filter { monthStart($0.deadlineDate ?? DateFmt.parse($0.created_at)) == month }
@@ -29,26 +37,53 @@ struct FinancesView: View {
         let cost = inMonth.compactMap(\.editor_budget).reduce(0, +)
         let margin = revenue - cost
         let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true }
+        let trend = data.monthlyFinance(endingAt: chartEnd)
+        let scoped = wideScope ? data.missions(inMonths: trend.map(\.month)) : inMonth
 
         Page {
             PageHeader(kicker: "Visible uniquement par toi", title: "Finances") {
                 HStack(spacing: 8) {
-                    Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton())
+                    Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton()).help("Mois précédent")
                     Text(monthKey(month)).font(.system(size: 14, weight: .medium)).frame(minWidth: 140)
-                    Button { shift(1) } label: { Image(systemName: "chevron.right") }.buttonStyle(SecondaryButton())
+                    Button { shift(1) } label: { Image(systemName: "chevron.right") }.buttonStyle(SecondaryButton()).help("Mois suivant")
                 }
             }
 
             StatGrid {
-                StatCard(label: "Facturé aux clients", value: Money.eur(revenue))
-                StatCard(label: "Payé à l'équipe", value: Money.eur(cost))
+                StatCard(label: "Facturé aux clients", value: Money.eur(revenue), foot: "\(inMonth.count) mission\(inMonth.count > 1 ? "s" : "") ce mois")
+                StatCard(label: "Payé à l'équipe", value: Money.eur(cost), foot: revenue > 0 ? "\(Int((cost / revenue * 100).rounded())) % du CA" : "Budgets montage")
                 StatCard(label: "Marge", value: Money.eur(margin),
-                         foot: revenue > 0 ? "\(Int((margin / revenue * 100).rounded())) % du CA" : nil,
+                         foot: revenue > 0 ? "\(Int((margin / revenue * 100).rounded())) % du CA" : "Renseigne les prix clients",
                          footColor: margin >= 0 ? Theme.green : Theme.red)
                 StatCard(label: "À facturer", value: "\(toInvoice.count)", foot: "Missions validées non facturées")
             }
 
-            SectionTitle(text: "Par client")
+            FinanceTrendCard(points: trend, month: $month)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    SectionTitle(text: "Répartition")
+                    ChipPicker(selection: $wideScope, options: [
+                        .init(value: false, label: monthKey(month)),
+                        .init(value: true, label: "12 mois"),
+                    ])
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionTitle(text: "Répartition")
+                    ChipPicker(selection: $wideScope, options: [
+                        .init(value: false, label: monthKey(month)),
+                        .init(value: true, label: "12 mois"),
+                    ])
+                }
+            }
+            EqualGrid(minWidth: 360, spacing: 16) {
+                SliceBarsCard(title: "Par client", subtitle: "Facturé aux clients", slices: data.clientSlices(scoped),
+                              empty: "Aucun prix client renseigné sur cette période.")
+                SliceBarsCard(title: "Par monteur", subtitle: "Budget montage réparti selon le temps passé",
+                              slices: data.editorSlices(scoped), empty: "Aucun budget montage sur cette période.", showTime: true)
+            }
+
+            SectionTitle(text: "Détail par client · \(monthKey(month))", trailing: "Facturé · Équipe · Marge")
             VStack(spacing: 0) {
                 let byClient = Dictionary(grouping: inMonth) { $0.client_id ?? "" }
                 let keys = byClient.keys.sorted { (data.client($0)?.name ?? "") < (data.client($1)?.name ?? "") }
@@ -60,9 +95,9 @@ struct FinancesView: View {
                     let c = ms.compactMap(\.editor_budget).reduce(0, +)
                     HStack(spacing: 12) {
                         ClientDot(color: data.client(k)?.color, size: 9)
-                        Text(data.client(k)?.name ?? "Sans client").font(.system(size: 13.5, weight: .medium))
+                        Text(data.client(k)?.name ?? "Sans client").font(.system(size: 13.5, weight: .medium)).lineLimit(1)
                         Text("\(ms.count)").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                        Spacer()
+                        Spacer(minLength: 8)
                         moneyCol(r)
                         moneyCol(c)
                         moneyCol(r - c, color: r - c >= 0 ? Theme.green : Theme.red, bold: true)
@@ -90,7 +125,7 @@ struct FinancesView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        Spacer()
+                        Spacer(minLength: 8)
                         Text(p.map(Money.eur) ?? "–").font(.system(size: 13)).monospacedDigit().frame(width: 90, alignment: .trailing)
                         moneyCol(b)
                         if let p { moneyCol(p - b, color: p - b >= 0 ? Theme.green : Theme.red, bold: true) }
@@ -99,6 +134,7 @@ struct FinancesView: View {
                             .frame(width: 104, alignment: .trailing)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)
+                    .hoverRow()
                 }
             }
             .card(padding: 0)
@@ -107,11 +143,14 @@ struct FinancesView: View {
 
     private func moneyCol(_ v: Double, color: Color = Theme.text2, bold: Bool = false) -> some View {
         Text(Money.eur(v)).font(.system(size: 13, weight: bold ? .semibold : .regular)).monospacedDigit()
+            .lineLimit(1).minimumScaleFactor(0.8)
             .foregroundStyle(color).frame(width: 90, alignment: .trailing)
     }
 
     private func shift(_ n: Int) {
-        month = Calendar.current.date(byAdding: .month, value: n, to: month) ?? month
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            month = Calendar.current.date(byAdding: .month, value: n, to: month) ?? month
+        }
     }
 
     private func setInvoiced(_ m: Mission, _ price: Double?, _ v: Bool) {
@@ -146,6 +185,9 @@ struct TimeView: View {
                         .font(.system(size: 13)).foregroundStyle(Theme.muted)
                 }
                 .card()
+            } else if !loaded {
+                HStack(spacing: 10) { ProgressView().controlSize(.small); Muted("Chargement du temps enregistré…") }
+                    .frame(maxWidth: .infinity).padding(.vertical, 40)
             } else {
                 DailyHoursCard(people: data.profiles.filter { $0.active && ($0.role == "editor" || $0.role == "admin") },
                                title: "Heures par jour")
@@ -163,13 +205,10 @@ struct TimeView: View {
                         let secs = Double((byUser[uid] ?? []).compactMap(\.duration_sec).reduce(0, +))
                         HStack(spacing: 12) {
                             if let p = data.profile(uid) { AvatarView(profile: p, size: 26) }
-                            Text(data.profile(uid)?.displayName ?? "Inconnu").font(.system(size: 13.5))
-                            Spacer()
-                            GeometryReader { g in
-                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Theme.blue.opacity(0.7))
-                                    .frame(width: total > 0 ? g.size.width * secs / total : 0)
-                            }
-                            .frame(width: 220, height: 6)
+                            Text(data.profile(uid)?.displayName ?? "Inconnu").font(.system(size: 13.5)).lineLimit(1)
+                            Spacer(minLength: 8)
+                            ThinBar(value: total > 0 ? secs / total : 0, color: Theme.blue)
+                                .frame(minWidth: 60, maxWidth: 220)
                             Text(TimeFmt.hm(secs)).font(.system(size: 13)).monospacedDigit().frame(width: 80, alignment: .trailing)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 11)

@@ -119,17 +119,6 @@ struct Tag: View {
     }
 }
 
-extension Color {
-    /// Éclaircit une couleur pour un texte lisible sur fond teinté.
-    func mix(white amount: Double) -> Color {
-        let ns = NSColor(self).usingColorSpace(.sRGB) ?? .gray
-        let r = ns.redComponent + (1 - ns.redComponent) * amount
-        let g = ns.greenComponent + (1 - ns.greenComponent) * amount
-        let b = ns.blueComponent + (1 - ns.blueComponent) * amount
-        return Color(.sRGB, red: r, green: g, blue: b, opacity: 1)
-    }
-}
-
 /// Barre de progression fine.
 struct ThinBar: View {
     var value: Double

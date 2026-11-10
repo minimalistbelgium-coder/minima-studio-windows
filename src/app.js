@@ -16,7 +16,7 @@ const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
   versions: {}, settings: {}, comments: {},
-  filter: 'open', clientFilter: '', search: '', month: startOfMonth(new Date()), teamTab: 'members',
+  filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
   deepLink: new URLSearchParams(location.search).get('m'),
@@ -333,7 +333,8 @@ function homeAdmin() {
       <div class="card flush"><div class="card-head"><h2>En cours</h2><button class="btn sm" data-go="projects">Tout voir</button></div><div class="list">${open.filter((m) => !isDelivered(m)).slice(0, 6).map((m) => missionRow(m)).join('') || '<div class="empty">Aucune mission en cours.</div>'}</div></div>
     </div>
     <div class="narrow stack">${upcomingCard()}${liveCard()}</div>
-  </div>`;
+  </div>
+  ${hoursCard(team(), 'Heures par jour')}`;
 }
 function upcomingCard() {
   const from = new Date(); from.setHours(0, 0, 0, 0); const to = addDays(from, 7);
@@ -358,6 +359,30 @@ function liveCard() {
       <span class="mono" style="font-size:13px;color:${s ? 'var(--green)' : 'var(--muted)'}">${s ? hm(s.duration_sec) : ''}</span></div>`;
   }).join('');
   return `<div class="card flush"><div class="card-head"><h2>En direct</h2>${pill(live.length ? `${live.length} actif${live.length > 1 ? 's' : ''}` : 'Personne', live.length ? '#3DD68C' : '#8B8D94')}</div><div class="list">${rows || '<div class="empty">Aucun membre.</div>'}</div></div>`;
+}
+
+// --- Heures effectives par jour (temps mesuré dans Premiere)
+function dayKey(s) { return ymd(d(s.started_at)); }
+function hoursCard(people, title) {
+  const ws = addDays(startOfWeek(new Date()), 7 * S.hoursWeek);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+  const ids = people.map((p) => p.id);
+  const by = {};
+  S.sessions.forEach((s) => { if (!ids.includes(s.user_id)) return; const k = `${s.user_id}|${dayKey(s)}`; by[k] = (by[k] || 0) + (s.duration_sec || 0); });
+  const cell = (u, x) => by[`${u}|${ymd(x)}`] || 0;
+  const dayTotal = (x) => ids.reduce((a, u) => a + cell(u, x), 0);
+  const weekTotal = days.reduce((a, x) => a + dayTotal(x), 0);
+  const max = Math.max(3600, ...days.map(dayTotal));
+  const lbl = `${ws.getDate()} ${ws.toLocaleDateString('fr-BE', { month: 'short' })} au ${addDays(ws, 6).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}`;
+  const nav = `<div class="row" style="gap:6px"><button class="ic sm" data-hweek="-1" aria-label="Semaine précédente">${I.left}</button><span class="lbl" style="min-width:118px;text-align:center">${S.hoursWeek === 0 ? 'Cette semaine' : esc(lbl)}</span><button class="ic sm" data-hweek="1" aria-label="Semaine suivante" ${S.hoursWeek >= 0 ? 'disabled' : ''}>${I.right}</button></div>`;
+  const head = `<div class="card-head"><div><h2>${esc(title)}</h2><div class="lbl" style="margin-top:3px">Temps actif dans Premiere · ${hm(weekTotal)} sur la semaine</div></div>${nav}</div>`;
+  const bars = `<div class="hbars">${days.map((x) => { const t = dayTotal(x); return `<div class="hb ${isToday(x) ? 'today' : ''}"><span class="hv mono">${t ? hm(t) : ''}</span><div class="hcol"><div style="height:${Math.round((t / max) * 100)}%"></div></div><span class="hd">${x.toLocaleDateString('fr-BE', { weekday: 'short' }).replace('.', '')} ${x.getDate()}</span></div>`; }).join('')}</div>`;
+  if (people.length === 1) return `<div class="card">${head}${bars}</div>`;
+  const active = people.filter((p) => days.some((x) => cell(p.id, x)));
+  const table = `<div class="htab-wrap"><table class="htab"><thead><tr><th></th>${days.map((x) => `<th class="${isToday(x) ? 'today' : ''}">${x.toLocaleDateString('fr-BE', { weekday: 'short' }).replace('.', '')}<b>${x.getDate()}</b></th>`).join('')}<th>Semaine</th></tr></thead><tbody>
+    ${active.map((p) => `<tr><td><span class="row" style="gap:8px">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</span></td>${days.map((x) => { const v = cell(p.id, x); return `<td class="mono ${isToday(x) ? 'today' : ''}" style="${v ? `background:rgba(76,141,255,${(0.08 + 0.4 * Math.min(1, v / 28800)).toFixed(2)})` : ''}">${v ? hm(v) : '<span class="muted">·</span>'}</td>`; }).join('')}<td class="mono" style="font-weight:600">${hm(days.reduce((a, x) => a + cell(p.id, x), 0))}</td></tr>`).join('') || `<tr><td colspan="9" class="empty">Aucun temps enregistré cette semaine.</td></tr>`}
+    ${active.length > 1 ? `<tr class="tot"><td>Total</td>${days.map((x) => `<td class="mono">${dayTotal(x) ? hm(dayTotal(x)) : ''}</td>`).join('')}<td class="mono">${hm(weekTotal)}</td></tr>` : ''}</tbody></table></div>`;
+  return `<div class="card">${head}${table}</div>`;
 }
 
 // --- Accueil monteur
@@ -390,6 +415,7 @@ function homeEditor() {
       <div class="card flush"><div class="card-head"><h2>À faire maintenant</h2><span class="lbl">${todo.length}</span></div>
         <div class="list">${todo.map((t) => todoRow(t, act(t.m))).join('') || '<div class="empty">Rien à monter pour le moment.</div>'}</div></div>
       ${waiting.length ? `<div class="card flush"><div class="card-head"><h2>Livrées, en attente du client</h2></div><div class="list">${waiting.map((m) => missionRow(m)).join('')}</div></div>` : ''}
+      ${hoursCard([S.me], 'Mes heures par jour')}
     </div>
     <div class="narrow stack">${upcomingCard()}</div>
   </div>`;
@@ -619,7 +645,7 @@ function notifsPage() {
   const groups = {}; const t0 = new Date(); t0.setHours(0, 0, 0, 0);
   S.notifs.forEach((n) => { const x = d(n.created_at); const k = x >= t0 ? "Aujourd'hui" : x >= addDays(t0, -1) ? 'Hier' : x >= addDays(t0, -7) ? 'Cette semaine' : 'Plus tôt'; (groups[k] ||= []).push(n); });
   const body = Object.entries(groups).map(([k, l]) => `<div class="day-h">${k}</div>${l.map((n) => `
-    <div class="item ${n.read_at ? '' : 'unread'}" ${n.mission_id && mission(n.mission_id) ? `role="button" tabindex="0" data-open="${n.mission_id}"` : ''}><span class="dot" style="background:${KIND_COLOR[n.kind] || '#8B8D94'};opacity:${n.read_at ? 0.35 : 1}"></span>
+    <div class="item ${n.read_at ? '' : 'unread'}" role="button" tabindex="0" data-notif="${n.id}" ${n.mission_id && mission(n.mission_id) ? `data-open="${n.mission_id}"` : ''}><span class="dot" style="background:${KIND_COLOR[n.kind] || '#8B8D94'};opacity:${n.read_at ? 0.35 : 1}"></span>
       <div class="grow"><div class="t" style="white-space:normal">${esc(n.title)}</div><div class="s" style="white-space:normal">${esc(n.body || '')}${n.body ? ' · ' : ''}${relative(d(n.created_at))}</div></div></div>`).join('')}`).join('');
   return `${header(unread() ? `${unread()} non lue${unread() > 1 ? 's' : ''}` : 'Tout est lu', 'Activité', unread() ? '<button class="btn" data-act="readall">Tout marquer lu</button>' : '')}${pushCard()}
   <div class="card flush"><div class="list">${body || '<div class="empty">Rien de neuf.</div>'}</div></div>`;
@@ -982,13 +1008,15 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-go],[data-open],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color]');
+  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color]');
   if (!t) return;
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
   try {
     if (D.go) { closeSheet(); const same = S.route === D.go; S.route = D.go; render(!same); if (!same) window.scrollTo(0, 0); }
+    else if (D.notif) { if (D.open) openMission(D.open); markRead(D.open || null, D.notif); }
     else if (D.open) { openMission(D.open); markRead(D.open); }
+    else if (D.hweek) { S.hoursWeek = Math.min(0, S.hoursWeek + Number(D.hweek)); render(); }
     else if (t.hasAttribute('data-close')) closeSheet();
     else if (D.act && ACTIONS[D.act]) { e.preventDefault(); await ACTIONS[D.act](t); }
     else if (D.filter) { S.filter = D.filter; S.clientFilter = ''; render(); }
@@ -1122,8 +1150,8 @@ async function saveMission(f) {
   toast(mode === 'new' ? 'Mission créée' : mode === 'accept' ? 'Projet lancé, le client est prévenu' : 'Mission mise à jour');
 }
 
-async function markRead(mid) {
-  const ids = S.notifs.filter((n) => !n.read_at && n.mission_id === mid).map((n) => n.id);
+async function markRead(mid, nid = null) {
+  const ids = S.notifs.filter((n) => !n.read_at && ((mid && n.mission_id === mid) || n.id === nid)).map((n) => n.id);
   if (!ids.length) return;
   const now = new Date().toISOString();
   S.notifs.forEach((n) => { if (ids.includes(n.id)) n.read_at = now; });
@@ -1209,7 +1237,7 @@ async function boot() {
   if (S.me) await checkPush().catch(() => {});
   S.loading = false; render(true); window.dispatchEvent(new Event('ms-refresh'));
   if (ok) goLive();
-  if (S.deepLink && S.me) { const id = S.deepLink; S.deepLink = null; history.replaceState(null, '', '/'); if (mission(id)) openMission(id); }
+  if (S.deepLink && S.me) { const id = S.deepLink; S.deepLink = null; history.replaceState(null, '', '/'); if (mission(id)) { openMission(id); markRead(id); } }
 }
 
 sb.auth.onAuthStateChange((ev, session) => {

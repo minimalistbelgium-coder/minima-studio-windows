@@ -1,0 +1,75 @@
+import AppKit
+import ServiceManagement
+import UserNotifications
+
+/// Garde la fenêtre principale en vie : le bouton rouge la cache, un clic sur l'icône du Dock la rouvre.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    static weak var appState: AppState?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
+        SystemNotifier.requestPermission()
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let a = Self.appState {
+            if MiniWindow.shared.isVisible { MiniWindow.shared.hide(app: a) } else { a.showMainWindow() }
+            return false
+        }
+        return true
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+}
+
+/// Remplace l'action du bouton rouge (et de ⌘W) par « cacher la fenêtre ».
+@MainActor
+final class CloseHider: NSObject {
+    static let shared = CloseHider()
+    private var hooked = Set<ObjectIdentifier>()
+
+    func hook(_ w: NSWindow) {
+        guard !(w is NSPanel), !hooked.contains(ObjectIdentifier(w)) else { return }
+        guard let b = w.standardWindowButton(.closeButton) else { return }
+        hooked.insert(ObjectIdentifier(w))
+        w.isReleasedWhenClosed = false
+        b.target = self
+        b.action = #selector(hide(_:))
+    }
+
+    @objc func hide(_ sender: Any?) {
+        let w = (sender as? NSView)?.window ?? NSApp.keyWindow
+        w?.orderOut(nil)
+    }
+}
+
+/// Ouverture automatique au démarrage du Mac.
+enum LaunchAtLogin {
+    static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
+
+    static func set(_ on: Bool) throws {
+        if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+    }
+}
+
+
+/// Affiche les bannières même quand l'app est au premier plan, et rouvre la fenêtre au clic.
+final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationPresenter()
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        Task { @MainActor in
+            if let a = AppDelegate.appState {
+                if MiniWindow.shared.isVisible { MiniWindow.shared.hide(app: a) } else { a.showMainWindow() }
+            }
+        }
+        completionHandler()
+    }
+}

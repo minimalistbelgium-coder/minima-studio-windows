@@ -60,7 +60,7 @@ struct DailyHoursCard: View {
         d.formatted(.dateTime.weekday(.abbreviated).locale(AgendaCal.fr)).replacingOccurrences(of: ".", with: "")
     }
 
-    private func bars(_ ds: [Date], _ total: (Date) -> Double) -> some View {
+    private func bars(_ ds: [Date], _ total: @escaping (Date) -> Double) -> some View {
         let maxV = max(3600, ds.map(total).max() ?? 0)
         return HStack(alignment: .bottom, spacing: 10) {
             ForEach(ds, id: \.self) { d in
@@ -87,7 +87,7 @@ struct DailyHoursCard: View {
         }
     }
 
-    private func grid(_ ds: [Date], _ cell: @escaping (String, Date) -> Double, _ total: (Date) -> Double, _ week: Double) -> some View {
+    private func grid(_ ds: [Date], _ cell: @escaping (String, Date) -> Double, _ total: @escaping (Date) -> Double, _ week: Double) -> some View {
         let active = people.filter { p in ds.contains { cell(p.id, $0) > 0 } }
         return VStack(spacing: 4) {
             HStack(spacing: 4) {

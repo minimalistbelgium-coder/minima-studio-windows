@@ -289,7 +289,7 @@ final class SnapshotTests: XCTestCase {
         window("admin-finances-760x560", width: 760, height: 560) { shell(.finances) }
 
         // Bandeau de mise à jour.
-        updater.setPreviewRelease(AppRelease(id: "r1", version: "9.9.9", zip_path: "x.zip", dmg_path: "x.dmg",
+        updater.setPreviewRelease(AppRelease(id: "r1", version: "99.0.0", zip_path: "x.zip", dmg_path: "x.dmg",
                                              notes: "Nouveau calendrier, graphiques des finances et correctifs de mise en page pour les petites fenêtres",
                                              created_at: DateFmt.iso(Date())))
         for w in [700, 1200] as [CGFloat] {

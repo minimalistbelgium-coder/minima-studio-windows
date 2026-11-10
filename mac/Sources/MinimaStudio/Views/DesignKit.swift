@@ -34,9 +34,9 @@ struct StatGrid<Content: View>: View {
     var min: CGFloat = 200
     @ViewBuilder var content: () -> Content
     var body: some View {
-        GlassGroup {
-            EqualGrid(minWidth: min, spacing: 14) { content() }
-        }
+        // Pas de GlassEffectContainer ici : il dessine le verre par-dessus le contenu
+        // des cartes (chiffres floutés). Chaque carte garde son propre verre en fond.
+        EqualGrid(minWidth: min, spacing: 14) { content() }
     }
 }
 

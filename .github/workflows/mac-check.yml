@@ -36,9 +36,11 @@ jobs:
           echo "TESTS=${PIPESTATUS[0]}" >> ../test.log
           grep -nE "error:|TESTS=|Executed|passed|failed|Fatal|crash" ../test.log | grep -vE "Compiling" | tail -80 > ../test-short.log || true
           cd ..
+          du -sh shots | tee -a test-short.log
           tar -czf shots.tar.gz shots || true
       - name: Publier le journal
         if: always()
+        timeout-minutes: 10
         run: |
           touch test.log test-short.log
           mkdir -p shots

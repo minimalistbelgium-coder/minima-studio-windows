@@ -154,9 +154,13 @@ final class SnapshotTests: XCTestCase {
 
     // MARK: - Rendu
 
-    private func write(_ rep: NSBitmapImageRep, _ name: String) {
-        guard let png = rep.representation(using: .png, properties: [:]) else { report.append("\(name): PNG impossible"); return }
-        do { try png.write(to: outDir.appendingPathComponent(name + ".png")) } catch { report.append("\(name): \(error)") }
+    /// Les pages entières sont écrites en JPEG (dégradés lourds en PNG), les graphiques en PNG.
+    private func write(_ rep: NSBitmapImageRep, _ name: String, jpeg: Bool = false) {
+        let data = jpeg
+            ? rep.representation(using: .jpeg, properties: [.compressionFactor: 0.72])
+            : rep.representation(using: .png, properties: [:])
+        guard let data else { report.append("\(name): image impossible"); return }
+        do { try data.write(to: outDir.appendingPathComponent(name + (jpeg ? ".jpg" : ".png"))) } catch { report.append("\(name): \(error)") }
     }
 
     private func appearance(_ dark: Bool) -> NSAppearance? { NSAppearance(named: dark ? .darkAqua : .aqua) }
@@ -188,7 +192,7 @@ final class SnapshotTests: XCTestCase {
                                          bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
         rep.size = NSSize(width: width, height: height)
         host.cacheDisplay(in: host.bounds, to: rep)
-        write(rep, name)
+        write(rep, name, jpeg: true)
         return rep
     }
 

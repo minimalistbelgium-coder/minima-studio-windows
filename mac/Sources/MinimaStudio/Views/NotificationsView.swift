@@ -90,6 +90,7 @@ struct NotificationsPanel: View {
             && mission.map { data.hasClientAccount($0) } == true
         return VStack(alignment: .leading, spacing: 8) {
             Button {
+                Task { @MainActor in await data.markRead(n) }
                 if let id = n.mission_id { presenter.open(.existing(id)); onClose() }
             } label: {
                 HStack(alignment: .top, spacing: 10) {

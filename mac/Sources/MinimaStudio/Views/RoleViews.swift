@@ -23,7 +23,10 @@ struct MyDashboardView: View {
         Page {
             PageHeader(kicker: DateFmt.todayLabel(), title: "Salut \(app.profile?.firstName ?? "")") {
                 if let n = data.notifications.first(where: { !$0.isRead }) {
-                    Button { if let id = n.mission_id { presenter.open(.existing(id)) } } label: {
+                    Button {
+                        Task { @MainActor in await data.markRead(n) }
+                        if let id = n.mission_id { presenter.open(.existing(id)) }
+                    } label: {
                         Tag(text: n.title, color: Theme.blue, dot: true)
                     }
                     .buttonStyle(.plain)
@@ -46,6 +49,7 @@ struct MyDashboardView: View {
                     SectionTitle(text: "Mes missions", trailing: "Ta part · budget max")
                     EarningsList(missions: open)
                 }
+                if let me = app.profile { DailyHoursCard(people: [me], title: "Mes heures par jour") }
             } right: {
                 VStack(alignment: .leading, spacing: 0) {
                     Muted("Mes gains · \(Date().formatted(.dateTime.month(.wide).locale(Locale(identifier: "fr_BE"))))")

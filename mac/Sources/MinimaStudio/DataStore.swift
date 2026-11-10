@@ -340,6 +340,13 @@ final class DataStore: ObservableObject {
         await loadNotifications()
     }
 
+    /// Marque une notification comme lue dès qu'on clique dessus.
+    func markRead(_ n: AppNotification) async {
+        guard !n.isRead else { return }
+        _ = try? await supa.from("notifications").update(NotificationRead(read_at: DateFmt.iso(Date()))).eq("id", value: n.id).execute()
+        await loadNotifications()
+    }
+
     func markAllRead() async {
         guard unreadCount > 0 else { return }
         let now = DateFmt.iso(Date())

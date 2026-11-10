@@ -147,6 +147,8 @@ struct TimeView: View {
                 }
                 .card()
             } else {
+                DailyHoursCard(people: data.profiles.filter { $0.active && ($0.role == "editor" || $0.role == "admin") },
+                               title: "Heures par jour")
                 HStack(spacing: 14) {
                     StatCard(label: "Temps total", value: TimeFmt.hm(total))
                     StatCard(label: "Sessions", value: "\(sessions.count)")

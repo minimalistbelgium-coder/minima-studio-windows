@@ -45,6 +45,9 @@ struct TodayView: View {
                 ToDoCard()
             }
 
+            DailyHoursCard(people: data.profiles.filter { $0.active && ($0.role == "editor" || $0.role == "admin") },
+                           title: "Heures par jour")
+
             ActiveMissionsTable(missions: open)
         }
     }

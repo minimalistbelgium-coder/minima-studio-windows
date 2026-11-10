@@ -6,6 +6,8 @@ import UserNotifications
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var appState: AppState?
+    static weak var dataStore: DataStore?
+    static weak var presenter: Presenter?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
@@ -68,6 +70,12 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
         Task { @MainActor in
             if let a = AppDelegate.appState {
                 if MiniWindow.shared.isVisible { MiniWindow.shared.hide(app: a) } else { a.showMainWindow() }
+            }
+            // Le clic sur la bannière macOS marque la notification comme lue et ouvre sa mission.
+            let id = response.notification.request.identifier
+            if let data = AppDelegate.dataStore, let n = data.notifications.first(where: { $0.id == id }) {
+                await data.markRead(n)
+                if let mid = n.mission_id { AppDelegate.presenter?.open(.existing(mid)) }
             }
         }
         completionHandler()

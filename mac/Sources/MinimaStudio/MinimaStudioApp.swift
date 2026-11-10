@@ -27,6 +27,8 @@ struct MinimaStudioApp: App {
                     CloseHider.shared.hook(w)
                     TitleBarZoom.install()
                     AppDelegate.appState = app
+                    AppDelegate.dataStore = data
+                    AppDelegate.presenter = presenter
                 })
                 .onOpenURL { url in
                     Task { _ = try? await supa.auth.session(from: url) }

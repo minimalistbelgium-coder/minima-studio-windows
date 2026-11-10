@@ -25,6 +25,7 @@ struct MinimaStudioApp: App {
                     guard !(w is NSPanel) else { return }
                     app.mainWindow = w
                     CloseHider.shared.hook(w)
+                    TitleBarZoom.install()
                     AppDelegate.appState = app
                 })
                 .onOpenURL { url in

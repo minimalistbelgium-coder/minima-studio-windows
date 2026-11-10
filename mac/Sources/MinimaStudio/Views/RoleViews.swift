@@ -30,6 +30,7 @@ struct MyDashboardView: View {
                         Tag(text: n.title, color: Theme.blue, dot: true)
                     }
                     .buttonStyle(.plain)
+                    .frame(maxWidth: 260, alignment: .trailing)
                 }
             }
 
@@ -112,24 +113,31 @@ struct SessionHero: View {
     @EnvironmentObject var data: DataStore
     @EnvironmentObject var tracker: Tracker
     @EnvironmentObject var presenter: Presenter
+    @Environment(\.layoutWidth) private var width
 
     var body: some View {
         let next = data.missions.filter(\.isOpen).sorted { ($0.deadlineDate ?? .distantFuture) < ($1.deadlineDate ?? .distantFuture) }.first
         if let m = tracker.mission {
             let running = tracker.status == .running
             VStack(alignment: .leading, spacing: 0) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .center, spacing: 24) { heroText(m, running: running); Spacer(minLength: 0); heroActions(m) }
-                    VStack(alignment: .leading, spacing: 18) { heroText(m, running: running); heroActions(m) }
+                // Largeur de la carte moins ses marges : texte et actions côte à côte, ou empilés.
+                let side = width - 52 >= 640
+                let layout = side
+                    ? AnyLayout(HStackLayout(alignment: .center, spacing: 24))
+                    : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
+                layout {
+                    heroText(m, running: running).frame(maxWidth: .infinity, alignment: .leading)
+                    heroActions(m)
                 }
                 if let b = m.editor_budget, b > 0 {
                     let share = tracker.estimatedAmount ?? b
                     ThinBar(value: share / b, color: Theme.green).padding(.top, 22)
                     HStack {
-                        Muted("Ta part actuelle : \(Money.eur(share.rounded())) sur \(Money.eur(b))")
-                        Spacer()
+                        Muted("Ta part actuelle : \(Money.eur(share.rounded())) sur \(Money.eur(b))").lineLimit(1).minimumScaleFactor(0.8)
+                        Spacer(minLength: 8)
                         TimelineView(.periodic(from: .now, by: 5)) { ctx in
                             Muted(tracker.hourlyRate(at: ctx.date).map { "\(Money.eur($0.rounded())) / h" } ?? "Taux horaire après 5 min")
+                                .lineLimit(1).fixedSize()
                         }
                     }
                     .padding(.top, 8)
@@ -148,8 +156,9 @@ struct SessionHero: View {
                     Text("Aucune session en cours").font(.system(size: 15, weight: .semibold))
                     Muted(next.map { "Prochaine deadline : \($0.title), \(DateFmt.deadline($0.deadlineDate).lowercased())" }
                           ?? "Ouvre ton projet dans Premiere : le chrono démarre tout seul.")
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if let n = next { Button("Ouvrir la mission") { presenter.open(.existing(n.id)) }.buttonStyle(SecondaryButton()) }
             }
             .card()
@@ -186,7 +195,7 @@ struct SessionHero: View {
             Button("Ouvrir la mission") { presenter.open(.existing(m.id)) }.buttonStyle(SecondaryButton())
             Button("Mode mini") { MiniWindow.shared.show(app: app, data: data, tracker: tracker) }.buttonStyle(SecondaryButton())
         }
-        .frame(minWidth: 220, alignment: .leading)
+        .fixedSize()
     }
 }
 
@@ -219,7 +228,7 @@ struct MyFinancesView: View {
             PageHeader(kicker: "Ton récapitulatif", title: "Finances") {
                 HStack(spacing: 8) {
                     Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton())
-                    Text(label).font(.system(size: 14, weight: .medium)).lineLimit(1).frame(minWidth: 130)
+                    Text(label).font(.system(size: 14, weight: .medium)).lineLimit(1).frame(width: 136)
                     Button { shift(1) } label: { Image(systemName: "chevron.right") }.buttonStyle(SecondaryButton())
                 }
             }
@@ -238,81 +247,99 @@ struct MyFinancesView: View {
                           slices: data.projectEarnings(user: app.profile?.id ?? "", missions: rows.map(\.mission)),
                           empty: "Aucune mission sur ce mois.", showTime: true)
 
-            VStack(alignment: .leading, spacing: 0) {
-                CardTitle(text: "Détail des missions · \(label)") {
-                    Button { copyRecap(rows, total: total, label: label) } label: {
-                        Label("Copier le récap", systemImage: "doc.on.doc")
+            WidthReader { w in
+                // Une seule décision pour l'en-tête et les lignes : tableau complet ou lignes compactes.
+                let wide = w >= 720
+                VStack(alignment: .leading, spacing: 0) {
+                    CardTitle(text: "Détail des missions · \(label)") {
+                        Button { copyRecap(rows, total: total, label: label) } label: {
+                            Label("Copier le récap", systemImage: "doc.on.doc")
+                        }
+                        .buttonStyle(SecondaryButton())
+                        .disabled(rows.isEmpty)
                     }
-                    .buttonStyle(SecondaryButton())
-                    .disabled(rows.isEmpty)
-                }
-                .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) {
-                        Muted("Mission", size: 12).frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
-                        Muted("Statut", size: 12).frame(width: 120, alignment: .leading)
-                        Muted("Temps", size: 12).frame(width: 70, alignment: .trailing)
-                        Muted("Montant", size: 12).frame(width: 90, alignment: .trailing)
-                        Muted("Rentabilité", size: 12).frame(width: 100, alignment: .trailing)
+                    .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
+                    Group {
+                        if wide {
+                            HStack(spacing: 12) {
+                                Muted("Mission", size: 12).frame(maxWidth: .infinity, alignment: .leading)
+                                Muted("Statut", size: 12).frame(width: 132, alignment: .leading)
+                                Muted("Temps", size: 12).frame(width: 70, alignment: .trailing)
+                                Muted("Montant", size: 12).frame(width: 90, alignment: .trailing)
+                                Muted("Rentabilité", size: 12).frame(width: 100, alignment: .trailing)
+                            }
+                        } else {
+                            HStack { Muted("Mission", size: 12); Spacer(); Muted("Montant", size: 12) }
+                        }
                     }
-                    HStack { Muted("Mission", size: 12); Spacer(); Muted("Montant", size: 12) }
-                }
-                .padding(.horizontal, 20).padding(.bottom, 10)
-                if rows.isEmpty { EmptyHint(text: "Aucune mission sur ce mois.", icon: "tray") }
-                ForEach(rows) { r in
+                    .lineLimit(1)
+                    .padding(.horizontal, 20).padding(.bottom, 10)
+                    if rows.isEmpty { EmptyHint(text: "Aucune mission sur ce mois.", icon: "tray") }
+                    ForEach(rows) { r in
+                        Rectangle().fill(Theme.line).frame(height: 1)
+                        row(r, avg: avg, wide: wide)
+                    }
                     Rectangle().fill(Theme.line).frame(height: 1)
-                    row(r, avg: avg)
+                    HStack {
+                        Text("Total à facturer").font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(Money.eur((total * 100).rounded() / 100)).font(.system(size: 16, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Theme.green).lineLimit(1).fixedSize()
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 14)
                 }
-                Rectangle().fill(Theme.line).frame(height: 1)
-                HStack {
-                    Text("Total à facturer").font(.system(size: 14, weight: .semibold))
-                    Spacer()
-                    Text(Money.eur((total * 100).rounded() / 100)).font(.system(size: 16, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Theme.green)
-                }
-                .padding(.horizontal, 20).padding(.vertical, 14)
+                .glassCard()
             }
-            .glassCard()
 
             Muted("Les montants « estimés » peuvent encore bouger : ils sont définitifs quand Gaston valide la mission. Tu peux coller le récap dans ta facture.", size: 12)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func row(_ r: Row, avg: Double?) -> some View {
+    private func row(_ r: Row, avg: Double?, wide: Bool) -> some View {
         let c = data.client(r.mission.client_id)
         let rateColor: Color = {
             guard let x = r.rate, let a = avg, a > 0 else { return Theme.text2 }
             return x >= a ? Theme.green : (x >= a * 0.7 ? Theme.amber : Theme.red)
         }()
+        let amount = Money.eur((r.amount * 100).rounded() / 100)
+        let rate = r.rate.map { "\(Money.eur($0.rounded())) / h" } ?? "–"
         return Button { presenter.open(.existing(r.mission.id)) } label: {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
+            Group {
+                if wide {
+                    HStack(spacing: 12) {
+                        HStack(spacing: 10) {
+                            ClientDot(color: c?.color)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(r.mission.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
+                                Muted(c?.name ?? "Sans client", size: 12).lineLimit(1)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        StatusPill(status: r.mission.status, flexible: true).frame(width: 132, alignment: .leading)
+                        Text(TimeFmt.hm(r.seconds)).font(.system(size: 13, design: .monospaced))
+                            .lineLimit(1).minimumScaleFactor(0.8).frame(width: 70, alignment: .trailing)
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(amount).font(.system(size: 13.5, weight: .semibold, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.8)
+                            if r.estimated { Muted("estimation", size: 10.5).lineLimit(1) }
+                        }
+                        .frame(width: 90, alignment: .trailing)
+                        Text(rate).font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(rateColor).lineLimit(1).minimumScaleFactor(0.8).frame(width: 100, alignment: .trailing)
+                    }
+                } else {
                     HStack(spacing: 10) {
                         ClientDot(color: c?.color)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.mission.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
-                            Muted(c?.name ?? "Sans client", size: 12)
+                            Muted("\(TimeFmt.hm(r.seconds)) · \(rate)\(r.estimated ? " · estimation" : "")", size: 12).lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Text(amount).font(.system(size: 13.5, weight: .semibold, design: .monospaced)).lineLimit(1).fixedSize()
+                            StatusPill(status: r.mission.status)
                         }
                     }
-                    .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
-                    StatusPill(status: r.mission.status).frame(width: 120, alignment: .leading)
-                    Text(TimeFmt.hm(r.seconds)).font(.system(size: 13, design: .monospaced)).frame(width: 70, alignment: .trailing)
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text(Money.eur((r.amount * 100).rounded() / 100)).font(.system(size: 13.5, weight: .semibold, design: .monospaced))
-                        if r.estimated { Muted("estimation", size: 10.5) }
-                    }
-                    .frame(width: 90, alignment: .trailing)
-                    Text(r.rate.map { "\(Money.eur($0.rounded())) / h" } ?? "–").font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(rateColor).frame(width: 100, alignment: .trailing)
-                }
-                HStack(spacing: 10) {
-                    ClientDot(color: c?.color)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(r.mission.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
-                        Muted("\(TimeFmt.hm(r.seconds)) · \(r.rate.map { "\(Money.eur($0.rounded())) / h" } ?? "–")", size: 12)
-                    }
-                    Spacer()
-                    Text(Money.eur((r.amount * 100).rounded() / 100)).font(.system(size: 13.5, weight: .semibold, design: .monospaced))
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 11)
@@ -371,37 +398,47 @@ struct MyFinancesView: View {
 struct EarningsList: View {
     @EnvironmentObject var data: DataStore
     @EnvironmentObject var presenter: Presenter
+    @Environment(\.layoutWidth) private var width
     let missions: [Mission]
 
     var body: some View {
+        // Colonnes complètes quand la liste est large, deux lignes par mission sinon.
+        let wide = width >= 620
         VStack(spacing: 0) {
             if missions.isEmpty { EmptyHint(text: "Aucune mission pour le moment.", icon: "film.stack") }
             ForEach(Array(missions.enumerated()), id: \.element.id) { i, m in
                 if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                 let share = data.myShare(of: m)
+                let live = !data.liveSession(for: m.id).isEmpty
                 Button { presenter.open(.existing(m.id)) } label: {
                     HStack(spacing: 12) {
                         RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Color(hex: data.client(m.client_id)?.color ?? "8B8D94")).frame(width: 3, height: 32)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(m.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
+                            HStack(spacing: 6) {
+                                Text(m.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
+                                if live && !wide { Circle().fill(Theme.green).frame(width: 6, height: 6).help("En cours") }
+                            }
                             Text("\(data.client(m.client_id)?.name ?? "Sans client") · \(DateFmt.deadline(m.deadlineDate))")
                                 .font(.system(size: 12)).foregroundStyle(m.isLate ? Theme.red : Theme.muted).lineLimit(1)
                         }
-                        Spacer(minLength: 8)
-                        if !data.liveSession(for: m.id).isEmpty { Pill(text: "En cours", color: Theme.green) }
-                        Text(TimeFmt.hm(data.mySplit[m.id]?.seconds)).font(.system(size: 12.5)).monospacedDigit().foregroundStyle(Theme.muted)
-                            .frame(width: 70, alignment: .trailing)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if wide {
+                            if live { Pill(text: "En cours", color: Theme.green) }
+                            Text(TimeFmt.hm(data.mySplit[m.id]?.seconds)).font(.system(size: 12.5)).monospacedDigit().foregroundStyle(Theme.muted)
+                                .lineLimit(1).frame(width: 70, alignment: .trailing)
+                        }
                         VStack(alignment: .trailing, spacing: 1) {
                             Text(Money.eur((share.amount * 100).rounded() / 100)).font(.system(size: 14, weight: .semibold)).monospacedDigit()
-                                .foregroundStyle(Theme.green)
+                                .foregroundStyle(Theme.green).lineLimit(1).minimumScaleFactor(0.8)
                             if let b = m.editor_budget, b > 0 {
                                 Text("max \(Money.eur(b))").font(.system(size: 10.5)).monospacedDigit().foregroundStyle(Theme.muted)
+                                    .lineLimit(1).minimumScaleFactor(0.8)
                             } else if share.estimated {
-                                Text("estimation").font(.system(size: 10.5)).foregroundStyle(Theme.muted)
+                                Text("estimation").font(.system(size: 10.5)).foregroundStyle(Theme.muted).lineLimit(1)
                             }
                         }
                         .frame(width: 90, alignment: .trailing)
-                        StatusPill(status: m.status).frame(width: 96, alignment: .trailing)
+                        StatusPill(status: m.status, flexible: true).frame(width: wide ? 132 : 104, alignment: .trailing)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 11)
                     .contentShape(Rectangle())
@@ -431,7 +468,7 @@ struct MyMissionsView: View {
                 ])
             }
             Text("Le chrono démarre tout seul quand tu travailles dans Premiere sur le projet lié à la mission. Pas besoin d'y penser.")
-                .font(.system(size: 13)).foregroundStyle(Theme.muted)
+                .font(.system(size: 13)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             EarningsList(missions: showDone ? done : open)
         }
     }
@@ -457,14 +494,16 @@ struct ClientProjectsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(m.title).font(.system(size: 14, weight: .medium)).lineLimit(2)
+                                Text(m.title).font(.system(size: 14, weight: .medium)).lineLimit(2).multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
                                 Text(DateFmt.deadline(m.deadlineDate)).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                             }
-                            Spacer(minLength: 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             if m.rushes_url == nil {
                                 Button("Déposer mes rushes") { editing = m.id; link = "" }.buttonStyle(SecondaryButton())
                             } else {
                                 Label("Rushes reçus", systemImage: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.green)
+                                    .lineLimit(1).fixedSize()
                             }
                             StatusPill(status: m.status)
                         }
@@ -533,7 +572,7 @@ struct UpdatesView: View {
                         .disabled(zipURL == nil || version.isEmpty || publishing)
                     if let t = updater.progressText, publishing {
                         ProgressView().controlSize(.small)
-                        Text(t).font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                        Text(t).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
                 }
             }
@@ -585,7 +624,7 @@ struct UpdatesView: View {
             }
             .card()
         }
-        .task { await updater.check() }
+        .task { if !SnapshotMode.on { await updater.check() } }
     }
 
     private func choose() {

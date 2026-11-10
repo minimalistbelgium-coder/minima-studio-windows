@@ -18,10 +18,11 @@ struct MinimaStudioApp: App {
                 .environmentObject(tracker)
                 .environmentObject(updater)
                 .environmentObject(presenter)
-                .frame(minWidth: 860, minHeight: 580)
+                .frame(minWidth: MainWindow.minSize.width, minHeight: MainWindow.minSize.height)
                 .tint(Theme.blue)
                 .background(WindowAccessor { w in
                     guard !(w is NSPanel) else { return }
+                    w.contentMinSize = MainWindow.minSize
                     app.mainWindow = w
                     CloseHider.shared.hook(w)
                     TitleBarZoom.install()
@@ -34,6 +35,7 @@ struct MinimaStudioApp: App {
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
         .defaultSize(width: 1320, height: 840)
         .commands {
             CommandGroup(replacing: .newItem) {}
@@ -48,6 +50,12 @@ struct MinimaStudioApp: App {
             }
         }
     }
+}
+
+/// Taille minimale de la fenêtre principale. 700 points de large : la moitié de l'écran d'un
+/// MacBook 13 pouces (735 points) reste possible, et toutes les pages sont prévues pour cette largeur.
+enum MainWindow {
+    static let minSize = NSSize(width: 700, height: 540)
 }
 
 struct RootView: View {

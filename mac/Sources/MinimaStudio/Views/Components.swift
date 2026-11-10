@@ -63,7 +63,8 @@ struct ClientDot: View {
 
 struct StatusPill: View {
     let status: String
-    var body: some View { Pill(text: MissionStatus.label(status), color: Color(hex: MissionStatus.color(status))) }
+    var flexible = false
+    var body: some View { Pill(text: MissionStatus.label(status), color: Color(hex: MissionStatus.color(status)), flexible: flexible) }
 }
 
 struct MemberStack: View {
@@ -86,8 +87,9 @@ struct SectionTitle: View {
     var body: some View {
         HStack {
             Text(text).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+                .layoutPriority(1)
             Spacer(minLength: 8)
-            if let trailing { Text(trailing).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.8) }
+            if let trailing { Text(trailing).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.tail) }
         }
     }
 }
@@ -108,7 +110,7 @@ struct MissionRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(mission.title).font(.system(size: 14, weight: .medium)).lineLimit(1)
                     HStack(spacing: 6) {
-                        Text(client?.name ?? "Sans client")
+                        Text(client?.name ?? "Sans client").lineLimit(1)
                         if mission.rushes_url != nil {
                             Text("·")
                             Image(systemName: "link").font(.system(size: 10))
@@ -126,13 +128,15 @@ struct MissionRow: View {
                     Text(DateFmt.relative(mission.deadlineDate).isEmpty ? "Sans deadline" : DateFmt.relative(mission.deadlineDate))
                         .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(mission.isLate ? Theme.red : Theme.text2)
+                        .lineLimit(1).minimumScaleFactor(0.85)
                     if let d = mission.deadlineDate {
                         Text(d.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(Locale(identifier: "fr_BE"))))
                             .font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                            .lineLimit(1).minimumScaleFactor(0.85)
                     }
                 }
                 .frame(width: 110, alignment: .trailing)
-                StatusPill(status: mission.status).frame(width: 96, alignment: .trailing)
+                StatusPill(status: mission.status, flexible: true).frame(width: 116, alignment: .trailing)
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
             .contentShape(Rectangle())

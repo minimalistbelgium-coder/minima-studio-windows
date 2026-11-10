@@ -149,6 +149,7 @@ struct CardStyle: ViewModifier {
     var padding: CGFloat = 20
     func body(content: Content) -> some View {
         content
+            .transformEnvironment(\.layoutWidth) { $0 = Swift.max(0, $0 - 2 * padding) }
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassCard()
@@ -176,6 +177,7 @@ struct PrimaryButton: ButtonStyle {
                 .font(.system(size: small ? 12 : 13.5, weight: .semibold))
                 .foregroundStyle(Theme.onAccent)
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, small ? 12 : 16).frame(minHeight: small ? 28 : 36)
                 .glassButton(tint: Theme.blue, radius: small ? 8 : 10, prominent: true)
                 .brightness(hover && enabled ? 0.05 : 0)
@@ -206,6 +208,7 @@ struct SecondaryButton: ButtonStyle {
                 .font(.system(size: small ? 12 : 13, weight: .medium))
                 .foregroundStyle(danger ? Theme.dangerText : Theme.text)
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, small ? 11 : 14).frame(minHeight: small ? 28 : 32)
                 .glassButton(tint: danger ? Theme.red.opacity(0.14) : nil, radius: small ? 8 : 9, prominent: false, hover: hover)
                 .scaleEffect(configuration.isPressed ? 0.97 : 1)
@@ -223,12 +226,15 @@ struct SecondaryButton: ButtonStyle {
 struct Pill: View {
     let text: String
     var color: Color = Theme.muted
+    /// Dans une colonne de largeur fixe : la pastille se tronque (…) au lieu de déborder.
+    var flexible = false
     var body: some View {
         Text(text)
             .font(.system(size: 11.5, weight: .medium))
             .foregroundStyle(color.readable)
             .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: !flexible, vertical: false)
             .padding(.horizontal, 9).padding(.vertical, 3)
             .background(color.opacity(0.16), in: Capsule())
             .overlay(Capsule().strokeBorder(color.opacity(0.18), lineWidth: 0.5))
@@ -281,7 +287,8 @@ struct StatCard: View {
                 .foregroundStyle(Theme.text)
                 .lineLimit(1).minimumScaleFactor(0.6)
             Text(foot ?? " ").font(.system(size: 12.5)).foregroundStyle(footColor).padding(.top, 8)
-                .lineLimit(1).minimumScaleFactor(0.75)
+                .lineLimit(2).multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityHidden(foot == nil)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -298,17 +305,17 @@ struct PageHeader<Trailing: View>: View {
     let kicker: String?
     let title: String
     @ViewBuilder var trailing: () -> Trailing
+    @Environment(\.layoutWidth) private var width
+
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .bottom) {
-                heading
-                Spacer(minLength: 16)
-                trailing()
-            }
-            VStack(alignment: .leading, spacing: 14) {
-                heading
-                trailing()
-            }
+        // Le titre prend la place restante (deux lignes au besoin), les boutons gardent leur taille.
+        let stacked = width < 520
+        let layout = stacked
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
+            : AnyLayout(HStackLayout(alignment: .bottom, spacing: 16))
+        layout {
+            heading.frame(maxWidth: .infinity, alignment: .leading)
+            trailing().layoutPriority(1)
         }
     }
 
@@ -316,7 +323,7 @@ struct PageHeader<Trailing: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             if let kicker { Text(kicker).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1) }
             Text(title).font(.system(size: 28, weight: .semibold)).tracking(-0.4).foregroundStyle(Theme.text)
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -329,11 +336,22 @@ extension PageHeader where Trailing == EmptyView {
 
 struct Page<Content: View>: View {
     @Environment(\.compactLayout) private var compact
+    /// Largeur de la zone de contenu (fenêtre moins la barre latérale).
+    @Environment(\.layoutWidth) private var area
     @ViewBuilder var content: () -> Content
+
+    /// Place prise par la barre de défilement quand elle est toujours visible (réglage macOS).
+    /// On la retire d'office pour que la mise en page ne change pas quand elle apparaît.
+    private var scrollerWidth: CGFloat {
+        NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+    }
+
     var body: some View {
+        let pad: CGFloat = compact ? 20 : 36
         ScrollView {
             VStack(alignment: .leading, spacing: 22) { content() }
-                .padding(.horizontal, compact ? 20 : 36).padding(.top, compact ? 26 : 34).padding(.bottom, 48)
+                .layoutWidth(Swift.min(area - scrollerWidth, 1320) - 2 * pad)
+                .padding(.horizontal, pad).padding(.top, compact ? 26 : 34).padding(.bottom, 48)
                 .frame(maxWidth: 1320, alignment: .leading)
                 .frame(maxWidth: .infinity)
         }

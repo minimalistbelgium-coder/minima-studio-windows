@@ -59,6 +59,8 @@ private struct MissionDetail: View {
     @State private var version = ""
     @State private var comments: [MissionComment] = []
     @State private var newComment = ""
+    /// Largeur de la fiche (transmise par PanelHost).
+    @Environment(\.layoutWidth) private var sheetWidth
 
     private static let personColors = ["A78BFA", "4C8DFF", "34D399", "F5A524", "F472B6", "2DD4BF"]
 
@@ -92,9 +94,12 @@ private struct MissionDetail: View {
                     StepProgress(mission: mission, notes: stepNotes(rows)).card()
 
                     Columns(minLeft: 380, rightWidth: 300) {
-                        ViewThatFits(in: .horizontal) {
-                            HStack(alignment: .top, spacing: 12) { rushesCard; deliveryCard }
-                            VStack(spacing: 12) { rushesCard; deliveryCard }
+                        WidthReader { w in
+                            // Rushes et dépôt côte à côte, ou l'un sous l'autre si la colonne est étroite.
+                            let layout = w >= 520
+                                ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                                : AnyLayout(VStackLayout(spacing: 12))
+                            layout { rushesCard; deliveryCard }
                         }
                         if app.isTeam { versionCard }
                         if app.isTeam { VersionsHistory(mission: mission) }
@@ -112,6 +117,7 @@ private struct MissionDetail: View {
                         }
                     }
                 }
+                .layoutWidth(sheetWidth - 52)
                 .padding(26)
             }
 
@@ -149,12 +155,13 @@ private struct MissionDetail: View {
                     }
                 }
                 if busy { ProgressView().controlSize(.small) }
-                Spacer()
+                Spacer(minLength: 0)
                 Button("Fermer", action: onClose).buttonStyle(SecondaryButton()).keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 22).padding(.vertical, 14)
         }
         .task(id: mission.id) {
+            guard !SnapshotMode.on else { return }
             split = await data.split(for: mission.id)
             comments = await data.comments(for: mission.id)
         }
@@ -174,32 +181,34 @@ private struct MissionDetail: View {
 
     // MARK: blocs
 
+    /// Les boutons restent sur la première ligne, le titre a toute la largeur en dessous :
+    /// rien ne se chevauche, même quand la fiche est étroite.
     private func header(_ client: Client?) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Muted("Missions / \(client?.name ?? "Sans client")")
-                HStack(spacing: 10) {
-                    Text(mission.title).font(.system(size: 24, weight: .semibold)).tracking(-0.3)
-                        .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 10) {
+                Muted("Missions / \(client?.name ?? "Sans client")").lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if app.isAdmin && mission.status != "requested" {
+                    Button("Dupliquer", action: duplicate).buttonStyle(SecondaryButton())
+                        .help("Crée la même mission une semaine plus tard")
                 }
-                HStack(spacing: 8) {
-                    if let c = client { Tag(text: c.name, color: Color(hex: c.color)) }
-                    StatusPill(status: mission.status)
-                    Muted(DateFmt.deadline(mission.deadlineDate), size: 12.5)
-                        .foregroundStyle(mission.isLate ? Theme.red : Theme.muted)
+                if app.isAdmin { Button("Modifier", action: onEdit).buttonStyle(SecondaryButton()) }
+                Button(action: onClose) {
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.muted)
+                        .frame(width: 30, height: 30).background(Theme.card2, in: Circle())
                 }
+                .buttonStyle(.plain).help("Fermer (Échap)")
             }
-            Spacer(minLength: 8)
-            if app.isAdmin && mission.status != "requested" {
-                Button("Dupliquer", action: duplicate).buttonStyle(SecondaryButton())
-                    .help("Crée la même mission une semaine plus tard")
+            Text(mission.title).font(.system(size: 24, weight: .semibold)).tracking(-0.3)
+                .lineLimit(3).multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            FlowLayout(spacing: 8, lineSpacing: 6) {
+                if let c = client { Tag(text: c.name, color: Color(hex: c.color)) }
+                StatusPill(status: mission.status)
+                Muted(DateFmt.deadline(mission.deadlineDate), size: 12.5)
+                    .foregroundStyle(mission.isLate ? Theme.red : Theme.muted)
+                    .lineLimit(1).padding(.vertical, 3)
             }
-            if app.isAdmin { Button("Modifier", action: onEdit).buttonStyle(SecondaryButton()) }
-            Button(action: onClose) {
-                Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.muted)
-                    .frame(width: 30, height: 30).background(Theme.card2, in: Circle())
-            }
-            .buttonStyle(.plain).help("Fermer (Échap)")
         }
     }
 
@@ -330,12 +339,13 @@ private struct MissionDetail: View {
                 HStack(spacing: 10) {
                     if let p = data.profile(s.user_id) { AvatarView(profile: p, size: 22) }
                     Text(s.user_id == app.profile?.id ? "Toi" : (data.profile(s.user_id)?.firstName ?? "?"))
-                        .font(.system(size: 13.5))
-                    if s.source == "manual" { Muted("chrono manuel", size: 11.5) }
+                        .font(.system(size: 13.5)).lineLimit(1)
+                    if s.source == "manual" { Muted("chrono manuel", size: 11.5).lineLimit(1) }
                     if s.isLiveNow { Tag(text: "En cours", color: Theme.green, dot: true) }
                     Spacer(minLength: 8)
-                    Muted(sessionRange(s), size: 12).lineLimit(1)
+                    Muted(sessionRange(s), size: 12).lineLimit(1).minimumScaleFactor(0.85)
                     Text(TimeFmt.hm(Double(s.duration_sec ?? 0))).font(.system(size: 13, design: .monospaced))
+                        .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(width: 64, alignment: .trailing)
                 }
                 .padding(.vertical, 9)
@@ -349,8 +359,10 @@ private struct MissionDetail: View {
             Image(systemName: "film").foregroundStyle(Theme.muted)
             if let k = mission.premiere_key {
                 Text("Projet Premiere lié : \(k).prproj").font(.system(size: 12.5)).foregroundStyle(Theme.text2)
+                    .lineLimit(2).truncationMode(.middle)
             } else {
                 Muted("Aucun projet Premiere lié. Ouvre ton projet dans Premiere, l'app te proposera de l'associer.")
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -375,10 +387,10 @@ private struct MissionDetail: View {
             ForEach(rows) { r in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(name(r.user_id)).font(.system(size: 13.5))
-                        if shared && data.profile(r.user_id)?.role == "admin" { Muted("(× \(weightLabel))", size: 12) }
-                        Spacer()
-                        Text(TimeFmt.hm(r.seconds)).font(.system(size: 13, design: .monospaced))
+                        Text(name(r.user_id)).font(.system(size: 13.5)).lineLimit(1)
+                        if shared && data.profile(r.user_id)?.role == "admin" { Muted("(× \(weightLabel))", size: 12).lineLimit(1).fixedSize() }
+                        Spacer(minLength: 8)
+                        Text(TimeFmt.hm(r.seconds)).font(.system(size: 13, design: .monospaced)).lineLimit(1).fixedSize()
                     }
                     ThinBar(value: maxS > 0 ? (r.seconds ?? 0) / maxS : 0, color: color(for: r.user_id, in: rows), height: 8)
                 }
@@ -401,7 +413,8 @@ private struct MissionDetail: View {
             Muted("Budget de la mission")
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(Money.eur(budget)).font(.system(size: 30, weight: .semibold)).tracking(-0.5)
-                Muted("HTVA", size: 13)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Muted("HTVA", size: 13).lineLimit(1).fixedSize()
             }
             .padding(.top, 6).padding(.bottom, 14)
             if !rows.isEmpty {
@@ -451,6 +464,7 @@ private struct MissionDetail: View {
         return VStack(alignment: .leading, spacing: 0) {
             Muted("Budget de la mission")
             Text(mission.editor_budget.map(Money.eur) ?? "–").font(.system(size: 30, weight: .semibold)).tracking(-0.5)
+                .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.top, 6).padding(.bottom, 14)
             kv(dot: Theme.green, share.estimated ? "Ta part (estimation)" : "Ta part", Money.eur((share.amount * 100).rounded() / 100),
                bold: true, color: Theme.green)
@@ -471,9 +485,9 @@ private struct MissionDetail: View {
             ForEach(people) { p in
                 HStack(spacing: 10) {
                     AvatarView(profile: p, size: 26)
-                    Text(p.id == me ? "\(p.firstName) (toi)" : p.firstName).font(.system(size: 13.5))
-                    Spacer()
-                    Muted(p.roleLabel, size: 12)
+                    Text(p.id == me ? "\(p.firstName) (toi)" : p.firstName).font(.system(size: 13.5)).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Muted(p.roleLabel, size: 12).lineLimit(1).fixedSize()
                 }
             }
         }
@@ -485,9 +499,10 @@ private struct MissionDetail: View {
             Rectangle().fill(Theme.line).frame(height: 1)
             HStack(spacing: 8) {
                 if let dot { Circle().fill(dot).frame(width: 8, height: 8) }
-                Text(label).font(.system(size: 13.5))
-                Spacer()
+                Text(label).font(.system(size: 13.5)).lineLimit(1).minimumScaleFactor(0.85)
+                Spacer(minLength: 8)
                 Text(value).font(.system(size: 13.5, weight: bold ? .semibold : .regular, design: .monospaced)).foregroundStyle(color)
+                    .lineLimit(1).fixedSize()
             }
             .padding(.vertical, 10)
         }
@@ -521,11 +536,11 @@ private struct MissionDetail: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: icon).foregroundStyle(color)
-                Text(title).font(.system(size: 13.5, weight: .semibold))
-                Spacer()
+                Text(title).font(.system(size: 13.5, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
+                Spacer(minLength: 4)
                 if canEdit && !editing.wrappedValue {
                     Button(url == nil ? "Ajouter" : "Modifier") { text.wrappedValue = url ?? ""; editing.wrappedValue = true }
-                        .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.blue)
+                        .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.blue).lineLimit(1).fixedSize()
                 }
             }
             if editing.wrappedValue {
@@ -540,8 +555,8 @@ private struct MissionDetail: View {
             } else if let url {
                 Button { Links.open(url) } label: {
                     HStack(spacing: 8) {
-                        Text(action).font(.system(size: 13, weight: .semibold))
-                        Spacer()
+                        Text(action).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
+                        Spacer(minLength: 4)
                         Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .bold))
                     }
                     .foregroundStyle(color)
@@ -552,10 +567,12 @@ private struct MissionDetail: View {
                 .buttonStyle(.plain)
                 Text(url).font(.system(size: 11.5)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
             } else {
-                Text(empty).font(.system(size: 13)).foregroundStyle(Theme.muted).frame(minHeight: 38)
+                Text(empty).font(.system(size: 13)).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true).frame(minHeight: 38)
             }
             if let footnote, !editing.wrappedValue {
                 Text(footnote).font(.system(size: 11)).foregroundStyle(Theme.muted.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -608,6 +625,8 @@ struct MissionEditor: View {
     @State private var saving = false
     @State private var confirmDelete = false
     @State private var didLoad = false
+    /// Largeur de la fiche (transmise par PanelHost).
+    @Environment(\.layoutWidth) private var sheetWidth
 
     static func defaultDeadline() -> Date {
         let cal = Calendar.current
@@ -619,7 +638,7 @@ struct MissionEditor: View {
         VStack(spacing: 0) {
             HStack {
                 Text(mission == nil ? "Nouvelle mission" : "Modifier la mission")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold)).lineLimit(1)
                 Spacer()
                 Button(action: onCancel) {
                     Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.muted)
@@ -691,6 +710,7 @@ struct MissionEditor: View {
                         }
                     }
                 }
+                .layoutWidth(sheetWidth - 56)
                 .padding(.horizontal, 28).padding(.vertical, 16)
             }
 
@@ -823,7 +843,7 @@ struct EditorSection<Content: View>: View {
             HStack(spacing: 10) {
                 Text("\(number)").font(.system(size: 11.5, weight: .bold)).foregroundStyle(Theme.blue)
                     .frame(width: 22, height: 22).background(Theme.blue.opacity(0.15), in: Circle())
-                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(1)
             }
             VStack(alignment: .leading, spacing: 16) { content() }
         }
@@ -859,12 +879,13 @@ struct TeamPicker: View {
                 Text("Moi").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
                 grid(me)
                 Text(soloHint).font(.system(size: 11.5)).foregroundStyle(Theme.muted.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if editors.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "person.badge.plus").foregroundStyle(Theme.muted)
                     Text("Aucun monteur dans l'équipe pour l'instant. Ajoute-les dans l'onglet Équipe.")
-                        .font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                        .font(.system(size: 12.5)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
                 }
             } else {
                 Text("Monteurs").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
@@ -896,7 +917,7 @@ struct TeamPicker: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(p.id == app.profile?.id ? "Je monte moi-même" : p.displayName)
                                 .font(.system(size: 13, weight: .medium)).lineLimit(1)
-                            Text(openCount(p)).font(.system(size: 11)).foregroundStyle(Theme.muted)
+                            Text(openCount(p)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
                         }
                         Spacer(minLength: 4)
                         Image(systemName: on ? "checkmark.circle.fill" : "circle")
@@ -924,6 +945,8 @@ struct DeadlinePicker: View {
     @Binding var date: Date
     @Binding var enabled: Bool
     @State private var month: Date
+    /// Largeur utile de la section (fiche moins ses marges).
+    @Environment(\.layoutWidth) private var width
 
     private var cal: Calendar {
         var c = Calendar(identifier: .gregorian)
@@ -942,25 +965,31 @@ struct DeadlinePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             // Raccourcis
-            HStack(spacing: 6) {
+            // Les raccourcis passent à la ligne quand la fiche est étroite (jamais écrasés).
+            FlowLayout(spacing: 6, lineSpacing: 6) {
                 quick("Aujourd'hui", dayOffset: 0)
                 quick("Demain", dayOffset: 1)
                 quick("Après-demain", dayOffset: 2)
                 quick("Lundi", weekday: 2)
                 quick("Jeudi", weekday: 5)
                 quick("Dans 1 sem.", dayOffset: 7)
-                Spacer()
                 Toggle("Sans deadline", isOn: Binding(get: { !enabled }, set: { enabled = !$0 }))
-                    .toggleStyle(.checkbox).font(.system(size: 12.5))
+                    .toggleStyle(.checkbox).font(.system(size: 12.5)).fixedSize()
+                    .frame(height: 28).padding(.leading, 6)
             }
 
             if enabled {
-                HStack(alignment: .top, spacing: 18) {
+                // Calendrier et heure côte à côte, ou l'un sous l'autre si la place manque.
+                let side = width >= 620
+                let layout = side
+                    ? AnyLayout(HStackLayout(alignment: .top, spacing: 18))
+                    : AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+                layout {
                     calendarView.frame(width: 300)
                     VStack(alignment: .leading, spacing: 14) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(dayLabel).font(.system(size: 20, weight: .semibold))
-                            Text("à \(timeLabel) · \(DateFmt.relative(date))").font(.system(size: 13.5)).foregroundStyle(Theme.muted)
+                            Text(dayLabel).font(.system(size: 20, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                            Text("à \(timeLabel) · \(DateFmt.relative(date))").font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
                         }
                         Text("Heure").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
                         LazyVGrid(columns: Array(repeating: GridItem(.fixed(62), spacing: 6), count: 4), alignment: .leading, spacing: 6) {
@@ -1105,7 +1134,7 @@ struct DeadlinePicker: View {
             setDay(target)
             month = cal.dateInterval(of: .month, for: date)?.start ?? month
         } label: {
-            Text(label).font(.system(size: 12, weight: .medium))
+            Text(label).font(.system(size: 12, weight: .medium)).lineLimit(1).fixedSize()
                 .padding(.horizontal, 10).frame(height: 28)
                 .background(Theme.card2, in: Capsule())
                 .overlay(Capsule().stroke(Theme.ink.opacity(0.08)))
@@ -1139,6 +1168,7 @@ struct AttachmentsField: View {
                 VStack(spacing: 6) {
                     Image(systemName: "doc.badge.plus").font(.system(size: 20)).foregroundStyle(Theme.blue)
                     Text("Glisse un PDF ici ou clique pour choisir").font(.system(size: 12.5)).foregroundStyle(Theme.text2)
+                        .lineLimit(1).minimumScaleFactor(0.8)
                 }
                 .frame(maxWidth: .infinity).frame(height: 76)
                 .background(hovering ? Theme.blue.opacity(0.08) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))

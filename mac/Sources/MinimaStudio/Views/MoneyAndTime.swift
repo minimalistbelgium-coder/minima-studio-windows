@@ -44,7 +44,7 @@ struct FinancesView: View {
             PageHeader(kicker: "Visible uniquement par toi", title: "Finances") {
                 HStack(spacing: 8) {
                     Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton()).help("Mois précédent")
-                    Text(monthKey(month)).font(.system(size: 14, weight: .medium)).frame(minWidth: 140)
+                    Text(monthKey(month)).font(.system(size: 14, weight: .medium)).lineLimit(1).minimumScaleFactor(0.85).frame(width: 140)
                     Button { shift(1) } label: { Image(systemName: "chevron.right") }.buttonStyle(SecondaryButton()).help("Mois suivant")
                 }
             }
@@ -60,21 +60,13 @@ struct FinancesView: View {
 
             FinanceTrendCard(points: trend, month: $month)
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    SectionTitle(text: "Répartition")
-                    ChipPicker(selection: $wideScope, options: [
-                        .init(value: false, label: monthKey(month)),
-                        .init(value: true, label: "12 mois"),
-                    ])
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle(text: "Répartition")
-                    ChipPicker(selection: $wideScope, options: [
-                        .init(value: false, label: monthKey(month)),
-                        .init(value: true, label: "12 mois"),
-                    ])
-                }
+            HStack(spacing: 12) {
+                Text("Répartition").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+                Spacer(minLength: 8)
+                ChipPicker(selection: $wideScope, options: [
+                    .init(value: false, label: monthKey(month)),
+                    .init(value: true, label: "12 mois"),
+                ])
             }
             EqualGrid(minWidth: 360, spacing: 16) {
                 SliceBarsCard(title: "Par client", subtitle: "Facturé aux clients", slices: data.clientSlices(scoped),
@@ -96,7 +88,7 @@ struct FinancesView: View {
                     HStack(spacing: 12) {
                         ClientDot(color: data.client(k)?.color, size: 9)
                         Text(data.client(k)?.name ?? "Sans client").font(.system(size: 13.5, weight: .medium)).lineLimit(1)
-                        Text("\(ms.count)").font(.system(size: 12)).foregroundStyle(Theme.muted)
+                        Text("\(ms.count)").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
                         Spacer(minLength: 8)
                         moneyCol(r)
                         moneyCol(c)
@@ -108,36 +100,79 @@ struct FinancesView: View {
             .card(padding: 0)
 
             SectionTitle(text: "Missions du mois", trailing: "Prix client · Équipe · Marge · Facture envoyée ?")
-            VStack(spacing: 0) {
-                if inMonth.isEmpty { EmptyHint(text: "Aucune mission ce mois-ci.") }
-                ForEach(Array(inMonth.enumerated()), id: \.element.id) { i, m in
-                    if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
-                    let f = data.finances[m.id]
-                    let p = f?.client_price
-                    let b = m.editor_budget ?? 0
-                    HStack(spacing: 12) {
-                        Button { presenter.open(.existing(m.id)) } label: {
-                            HStack(spacing: 10) {
-                                ClientDot(color: data.client(m.client_id)?.color)
-                                Text(m.title).font(.system(size: 13.5)).lineLimit(1)
-                                StatusPill(status: m.status)
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        Spacer(minLength: 8)
-                        Text(p.map(Money.eur) ?? "–").font(.system(size: 13)).monospacedDigit().frame(width: 90, alignment: .trailing)
-                        moneyCol(b)
-                        if let p { moneyCol(p - b, color: p - b >= 0 ? Theme.green : Theme.red, bold: true) }
-                        else { Text("–").frame(width: 90, alignment: .trailing).foregroundStyle(Theme.muted) }
-                        InvoicedButton(on: f?.invoiced ?? false) { setInvoiced(m, p, !(f?.invoiced ?? false)) }
-                            .frame(width: 104, alignment: .trailing)
+            WidthReader { w in
+                // Colonnes alignées quand la page est large, deux lignes par mission quand elle est étroite.
+                let wide = w >= 780
+                VStack(spacing: 0) {
+                    if inMonth.isEmpty { EmptyHint(text: "Aucune mission ce mois-ci.") }
+                    ForEach(Array(inMonth.enumerated()), id: \.element.id) { i, m in
+                        if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
+                        missionRow(m, wide: wide)
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-                    .hoverRow()
                 }
+                .card(padding: 0)
             }
-            .card(padding: 0)
+        }
+    }
+
+    @ViewBuilder
+    private func missionRow(_ m: Mission, wide: Bool) -> some View {
+        let f = data.finances[m.id]
+        let p = f?.client_price
+        let b = m.editor_budget ?? 0
+        let invoiced = f?.invoiced ?? false
+        if wide {
+            HStack(spacing: 12) {
+                Button { presenter.open(.existing(m.id)) } label: {
+                    HStack(spacing: 10) {
+                        ClientDot(color: data.client(m.client_id)?.color)
+                        Text(m.title).font(.system(size: 13.5)).lineLimit(1)
+                        StatusPill(status: m.status)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(p.map(Money.eur) ?? "–").font(.system(size: 13)).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.8).frame(width: 90, alignment: .trailing)
+                moneyCol(b)
+                if let p { moneyCol(p - b, color: p - b >= 0 ? Theme.green : Theme.red, bold: true) }
+                else { Text("–").frame(width: 90, alignment: .trailing).foregroundStyle(Theme.muted) }
+                InvoicedButton(on: invoiced) { setInvoiced(m, p, !invoiced) }
+                    .frame(width: 104, alignment: .trailing)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .hoverRow()
+        } else {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 10) {
+                    Button { presenter.open(.existing(m.id)) } label: {
+                        HStack(spacing: 10) {
+                            ClientDot(color: data.client(m.client_id)?.color)
+                            Text(m.title).font(.system(size: 13.5)).lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    InvoicedButton(on: invoiced) { setInvoiced(m, p, !invoiced) }
+                }
+                HStack(spacing: 10) {
+                    StatusPill(status: m.status)
+                    Spacer(minLength: 4)
+                    Text("\(p.map(Money.eur) ?? "–") · \(Money.eur(b))").font(.system(size: 12.5)).monospacedDigit()
+                        .foregroundStyle(Theme.text2).lineLimit(1).minimumScaleFactor(0.8)
+                    if let p {
+                        Text(Money.eur(p - b)).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
+                            .foregroundStyle(p - b >= 0 ? Theme.green : Theme.red).lineLimit(1).fixedSize()
+                    }
+                }
+                .padding(.leading, 18)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .hoverRow()
         }
     }
 
@@ -182,7 +217,7 @@ struct TimeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Pas encore de temps enregistré").font(.system(size: 15, weight: .semibold))
                     Text("Le suivi automatique dans Premiere Pro arrive à la prochaine étape. Dès qu'il est installé, chaque minute passée sur un projet lié à une mission apparaîtra ici, et la répartition des budgets se calculera toute seule.")
-                        .font(.system(size: 13)).foregroundStyle(Theme.muted)
+                        .font(.system(size: 13)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 .card()
             } else if !loaded {
@@ -206,10 +241,10 @@ struct TimeView: View {
                         HStack(spacing: 12) {
                             if let p = data.profile(uid) { AvatarView(profile: p, size: 26) }
                             Text(data.profile(uid)?.displayName ?? "Inconnu").font(.system(size: 13.5)).lineLimit(1)
-                            Spacer(minLength: 8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             ThinBar(value: total > 0 ? secs / total : 0, color: Theme.blue)
                                 .frame(minWidth: 60, maxWidth: 220)
-                            Text(TimeFmt.hm(secs)).font(.system(size: 13)).monospacedDigit().frame(width: 80, alignment: .trailing)
+                            Text(TimeFmt.hm(secs)).font(.system(size: 13)).monospacedDigit().lineLimit(1).frame(width: 80, alignment: .trailing)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 11)
                     }
@@ -228,10 +263,10 @@ struct TimeView: View {
                         HStack(spacing: 12) {
                             ClientDot(color: data.client(m?.client_id)?.color)
                             Text(m?.title ?? "Mission supprimée").font(.system(size: 13.5)).lineLimit(1)
-                            Spacer()
-                            Text(TimeFmt.hm(secs)).font(.system(size: 13)).monospacedDigit().frame(width: 80, alignment: .trailing)
+                            Spacer(minLength: 8)
+                            Text(TimeFmt.hm(secs)).font(.system(size: 13)).monospacedDigit().lineLimit(1).frame(width: 80, alignment: .trailing)
                             Text(hourly(m?.editor_budget, secs)).font(.system(size: 13)).monospacedDigit()
-                                .foregroundStyle(Theme.muted).frame(width: 90, alignment: .trailing)
+                                .foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.8).frame(width: 90, alignment: .trailing)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 11)
                     }
@@ -240,6 +275,7 @@ struct TimeView: View {
             }
         }
         .task {
+            if SnapshotMode.on { sessions = data.sessions; loaded = true; return }
             do {
                 let list: [WorkSession] = try await supa.from("sessions").select().order("started_at", ascending: false).limit(5000).execute().value
                 sessions = list
@@ -267,8 +303,9 @@ private struct InvoicedButton: View {
             HStack(spacing: 5) {
                 Image(systemName: on ? "checkmark.circle.fill" : "doc.text")
                     .font(.system(size: 11, weight: .semibold))
-                Text(on ? "Facturée" : "À facturer").font(.system(size: 11.5, weight: .semibold))
+                Text(on ? "Facturée" : "À facturer").font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
             }
+            .fixedSize()
             .foregroundStyle(on ? Theme.green : Theme.amber)
             .padding(.horizontal, 9).frame(height: 24)
             .background((on ? Theme.green : Theme.amber).opacity(0.13), in: Capsule())

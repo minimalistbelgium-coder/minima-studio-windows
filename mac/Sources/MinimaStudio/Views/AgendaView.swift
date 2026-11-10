@@ -170,9 +170,9 @@ struct AgendaView: View {
             Text(mode == "week" ? AgendaCal.weekLabel(anchor) : AgendaCal.monthLabel(anchor))
                 .font(.system(size: 17, weight: .semibold))
                 .lineLimit(1).minimumScaleFactor(0.8)
-                .frame(minWidth: 170)
+                .frame(width: 190)
             AgendaNavButton(icon: "chevron.right") { withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { shift(1) } }
-            Spacer()
+            Spacer(minLength: 8)
             Button("Aujourd'hui") {
                 anchor = Date()
                 selected = AgendaCal.day(Date())
@@ -228,28 +228,33 @@ struct AgendaView: View {
     private func monthBlock(_ map: [Date: [Mission]]) -> some View {
         let days = AgendaCal.monthGrid(anchor)
         let month = AgendaCal.cal.component(.month, from: AgendaCal.monthStart(anchor))
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 0, alignment: .top), count: 7)
+        let columns = Array(repeating: GridItem(.flexible(minimum: 20), spacing: 0, alignment: .top), count: 7)
         return VStack(alignment: .leading, spacing: 14) {
-            VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    ForEach(AgendaCal.weekdays, id: \.self) { w in
-                        Text(w.uppercased())
-                            .font(.system(size: 10.5, weight: .semibold)).tracking(0.6)
-                            .foregroundStyle(Theme.muted)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 10).padding(.vertical, 9)
+            WidthReader { w in
+                // Cases étroites : on masque l'heure dans les pastilles pour garder le titre lisible.
+                let narrow = w / 7 < 120
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        ForEach(AgendaCal.weekdays, id: \.self) { d in
+                            Text(d.uppercased())
+                                .font(.system(size: 10.5, weight: .semibold)).tracking(0.6)
+                                .foregroundStyle(Theme.muted).lineLimit(1)
+                                .padding(.horizontal, narrow ? 6 : 10).padding(.vertical, 9)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    LazyVGrid(columns: columns, spacing: 0) {
+                        ForEach(days, id: \.self) { d in
+                            AgendaDayCell(day: d,
+                                          inMonth: AgendaCal.cal.component(.month, from: d) == month,
+                                          missions: map[d] ?? [],
+                                          selected: d == selected,
+                                          narrow: narrow) { selected = d }
+                        }
                     }
                 }
-                LazyVGrid(columns: columns, spacing: 0) {
-                    ForEach(days, id: \.self) { d in
-                        AgendaDayCell(day: d,
-                                      inMonth: AgendaCal.cal.component(.month, from: d) == month,
-                                      missions: map[d] ?? [],
-                                      selected: d == selected) { selected = d }
-                    }
-                }
+                .glassCard()
             }
-            .glassCard()
 
             dayPanel(map[selected] ?? [])
         }
@@ -274,17 +279,17 @@ struct AgendaView: View {
     // MARK: légende
 
     private var legend: some View {
-        HStack(spacing: 16) {
+        FlowLayout(spacing: 16, lineSpacing: 6) {
             legendItem(Theme.red, "En retard")
             legendItem(Theme.muted.opacity(0.5), "Terminée (estompée)")
-            Muted("La couleur est celle du client.", size: 12)
+            Muted("La couleur est celle du client.", size: 12).lineLimit(1)
         }
     }
 
     private func legendItem(_ color: Color, _ text: String) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 3, style: .continuous).fill(color).frame(width: 14, height: 8)
-            Muted(text, size: 12)
+            Muted(text, size: 12).lineLimit(1)
         }
     }
 }
@@ -351,6 +356,7 @@ struct AgendaDayCell: View {
     let inMonth: Bool
     let missions: [Mission]
     let selected: Bool
+    var narrow = false
     var onSelect: () -> Void
 
     var body: some View {
@@ -362,11 +368,11 @@ struct AgendaDayCell: View {
                 .foregroundStyle(today ? Theme.onAccent : Theme.text2)
                 .frame(width: 24, height: 24)
                 .background(today ? Theme.blue : Color.clear, in: Circle())
-            ForEach(Array(missions.prefix(3))) { m in AgendaChip(mission: m) }
-            if extra > 0 { Muted("+ \(extra) autre\(extra > 1 ? "s" : "")", size: 11).padding(.leading, 4) }
+            ForEach(Array(missions.prefix(3))) { m in AgendaChip(mission: m, showTime: !narrow) }
+            if extra > 0 { Muted(narrow ? "+ \(extra)" : "+ \(extra) autre\(extra > 1 ? "s" : "")", size: 11).lineLimit(1).padding(.leading, 4) }
             Spacer(minLength: 0)
         }
-        .padding(8)
+        .padding(narrow ? 4 : 8)
         .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
         .opacity(inMonth ? 1 : 0.4)
         .background(selected ? Theme.blue.opacity(0.10) : Color.clear)
@@ -383,6 +389,7 @@ struct AgendaChip: View {
     @EnvironmentObject var data: DataStore
     @EnvironmentObject var presenter: Presenter
     let mission: Mission
+    var showTime = true
 
     var body: some View {
         let color = AgendaCal.color(mission, data.client(mission.client_id))
@@ -390,8 +397,10 @@ struct AgendaChip: View {
         let request = mission.status == "requested"
         Button { presenter.open(.existing(mission.id)) } label: {
             HStack(spacing: 5) {
-                Text(AgendaCal.time(mission.deadlineDate)).font(.system(size: 10)).monospacedDigit()
-                    .foregroundStyle(Theme.text2.opacity(0.8))
+                if showTime {
+                    Text(AgendaCal.time(mission.deadlineDate)).font(.system(size: 10)).monospacedDigit()
+                        .foregroundStyle(Theme.text2.opacity(0.8)).lineLimit(1).fixedSize()
+                }
                 Text((done ? "✓ " : "") + mission.title).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
                 Spacer(minLength: 0)
             }
@@ -404,7 +413,7 @@ struct AgendaChip: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(mission.title)
+        .help("\(AgendaCal.time(mission.deadlineDate)) · \(mission.title)")
     }
 }
 
@@ -423,7 +432,7 @@ struct AgendaRow: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(AgendaCal.time(mission.deadlineDate)).font(.system(size: 12.5, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(Theme.text2)
+                        .foregroundStyle(Theme.text2).lineLimit(1)
                     if showDate, let d = mission.deadlineDate {
                         Text(AgendaCal.short(d)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
@@ -433,7 +442,7 @@ struct AgendaRow: View {
                     Text(mission.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
                     Text(subtitle(client)).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                 }
-                Spacer(minLength: 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if !app.isClient { MemberStack(profiles: data.memberProfiles(of: mission.id), size: 20) }
                 StatusPill(status: mission.status)
             }
@@ -465,9 +474,34 @@ struct AgendaWeek: View {
     let days: [Date]
     let map: [Date: [Mission]]
 
+    @Environment(\.layoutWidth) private var width
+
+    /// Largeur minimale d'une colonne de jour. En dessous, la semaine défile horizontalement
+    /// au lieu d'écraser les colonnes (textes coupés, pastilles qui débordent).
+    private static let minColumn: CGFloat = 132
+    private static let gap: CGFloat = 8
+
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            ForEach(days, id: \.self) { d in column(d) }
+        if width >= Self.minColumn * 7 + Self.gap * 6 {
+            HStack(alignment: .top, spacing: Self.gap) {
+                ForEach(days, id: \.self) { d in column(d) }
+            }
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: true) {
+                    HStack(alignment: .top, spacing: Self.gap) {
+                        ForEach(days, id: \.self) { d in
+                            column(d).frame(width: Self.minColumn + 12).id(d)
+                        }
+                    }
+                    .padding(.top, 2).padding(.bottom, 14)
+                }
+                .onAppear {
+                    if let today = days.first(where: { AgendaCal.cal.isDateInToday($0) }) {
+                        proxy.scrollTo(today, anchor: .center)
+                    }
+                }
+            }
         }
     }
 
@@ -478,8 +512,9 @@ struct AgendaWeek: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(weekday).font(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(Theme.muted)
+                    .lineLimit(1).fixedSize()
                 Text("\(AgendaCal.cal.component(.day, from: d))").font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(today ? Theme.blue : Theme.text)
+                    .foregroundStyle(today ? Theme.blue : Theme.text).lineLimit(1).fixedSize()
                 Spacer(minLength: 0)
                 if app.isAdmin {
                     Button { presenter.openNew(on: d) } label: {
@@ -520,10 +555,11 @@ struct AgendaWeekCard: View {
                 Text(mission.title).font(.system(size: 12.5, weight: .medium)).lineLimit(2).multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
                     Text(AgendaCal.time(mission.deadlineDate)).font(.system(size: 11)).monospacedDigit().foregroundStyle(Theme.text2)
+                        .lineLimit(1).fixedSize()
                     Spacer(minLength: 0)
                     if !app.isClient { MemberStack(profiles: data.memberProfiles(of: mission.id), size: 18) }
                 }
-                StatusPill(status: mission.status)
+                StatusPill(status: mission.status, flexible: true)
             }
             .padding(.leading, 11).padding(.trailing, 8).padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -589,7 +625,7 @@ struct AgendaList: View {
             ForEach(list) { b in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(b.id).font(.system(size: 15, weight: .semibold)).foregroundStyle(b.late ? Theme.red : Theme.text)
+                        Text(b.id).font(.system(size: 15, weight: .semibold)).foregroundStyle(b.late ? Theme.red : Theme.text).lineLimit(1)
                         Spacer()
                         Muted("\(b.items.count)")
                     }

@@ -79,7 +79,7 @@ struct NotificationsPanel: View {
             }
         }
         .frame(width: 360, height: 420)
-        .task { allowed = await SystemNotifier.isAuthorized() }
+        .task { if !SnapshotMode.on { allowed = await SystemNotifier.isAuthorized() } }
         .foregroundStyle(Theme.text)
     }
 

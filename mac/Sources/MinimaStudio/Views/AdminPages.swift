@@ -88,6 +88,7 @@ struct LiveNowCard: View {
                         Spacer(minLength: 6)
                         Text(s != nil ? TimeFmt.hm(Double(s?.duration_sec ?? 0)) : TimeFmt.hm(today))
                             .font(.system(size: 13, weight: s != nil ? .semibold : .regular, design: .monospaced))
+                            .lineLimit(1).fixedSize()
                             .foregroundStyle(s != nil ? Theme.green : Theme.muted)
                     }
                     .padding(.horizontal, 8).padding(.vertical, 5)
@@ -189,6 +190,12 @@ struct ActiveMissionsTable: View {
     var title = "Missions actives"
     var emptyText = "Aucune mission en cours."
 
+    @Environment(\.layoutWidth) private var width
+
+    /// Tableau complet à partir de cette largeur, lignes compactes en dessous.
+    /// Une seule décision pour l'en-tête et toutes les lignes (elles restent alignées).
+    private var wide: Bool { width >= 800 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             CardTitle(text: title) { Muted("\(missions.count)") }
@@ -205,21 +212,25 @@ struct ActiveMissionsTable: View {
     }
 
     private var header: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                Muted("Mission", size: 12).frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
-                Muted("Monteur", size: 12).frame(width: 130, alignment: .leading)
-                Muted("Étape", size: 12).frame(width: 130, alignment: .leading)
-                Muted("Deadline", size: 12).frame(width: 110, alignment: .leading)
-                Muted("Temps", size: 12).frame(width: 70, alignment: .trailing)
-                Muted("Budget", size: 12).frame(width: 80, alignment: .trailing)
-            }
-            HStack {
-                Muted("Mission", size: 12)
-                Spacer()
-                Muted("Étape", size: 12)
+        Group {
+            if wide {
+                HStack(spacing: 12) {
+                    Muted("Mission", size: 12).frame(maxWidth: .infinity, alignment: .leading)
+                    Muted("Monteur", size: 12).frame(width: 130, alignment: .leading)
+                    Muted("Étape", size: 12).frame(width: 132, alignment: .leading)
+                    Muted("Deadline", size: 12).frame(width: 110, alignment: .leading)
+                    Muted("Temps", size: 12).frame(width: 70, alignment: .trailing)
+                    Muted("Budget", size: 12).frame(width: 80, alignment: .trailing)
+                }
+            } else {
+                HStack {
+                    Muted("Mission", size: 12)
+                    Spacer()
+                    Muted("Étape · Budget", size: 12)
+                }
             }
         }
+        .lineLimit(1)
         .padding(.horizontal, 20).padding(.bottom, 10)
     }
 
@@ -228,32 +239,40 @@ struct ActiveMissionsTable: View {
         let people = data.memberProfiles(of: m.id)
         let names = people.map(\.firstName).joined(separator: " + ")
         return Button { presenter.open(.existing(m.id)) } label: {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    titleCell(m, c).frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
-                    HStack(spacing: 6) {
-                        MemberStack(profiles: people, size: 20)
-                        Text(names.isEmpty ? "–" : names).font(.system(size: 13)).foregroundStyle(Theme.text2).lineLimit(1)
+            Group {
+                if wide {
+                    HStack(spacing: 12) {
+                        titleCell(m, c).frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 6) {
+                            MemberStack(profiles: people, size: 20)
+                            Text(names.isEmpty ? "–" : names).font(.system(size: 13)).foregroundStyle(Theme.text2).lineLimit(1)
+                        }
+                        .frame(width: 130, alignment: .leading)
+                        StatusPill(status: m.status, flexible: true).frame(width: 132, alignment: .leading)
+                        Text(deadline(m)).font(.system(size: 13)).foregroundStyle(m.isLate ? Theme.red : Theme.text2)
+                            .lineLimit(1).minimumScaleFactor(0.85)
+                            .frame(width: 110, alignment: .leading)
+                        Text(TimeFmt.hm(data.seconds(mission: m.id))).font(.system(size: 13, design: .monospaced))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .frame(width: 70, alignment: .trailing)
+                        Text(m.editor_budget.map(Money.eur) ?? "–").font(.system(size: 13, design: .monospaced))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .frame(width: 80, alignment: .trailing)
                     }
-                    .frame(width: 130, alignment: .leading)
-                    StatusPill(status: m.status).frame(width: 130, alignment: .leading)
-                    Text(deadline(m)).font(.system(size: 13)).foregroundStyle(m.isLate ? Theme.red : Theme.text2)
-                        .lineLimit(1).minimumScaleFactor(0.85)
-                        .frame(width: 110, alignment: .leading)
-                    Text(TimeFmt.hm(data.seconds(mission: m.id))).font(.system(size: 13, design: .monospaced))
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                        .frame(width: 70, alignment: .trailing)
-                    Text(m.editor_budget.map(Money.eur) ?? "–").font(.system(size: 13, design: .monospaced))
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                        .frame(width: 80, alignment: .trailing)
-                }
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        titleCell(m, c)
-                        Muted("\(names.isEmpty ? "Personne" : names) · \(deadline(m))", size: 12).lineLimit(1)
+                } else {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            titleCell(m, c)
+                            Text("\(names.isEmpty ? "Personne" : names) · \(deadline(m))").font(.system(size: 12))
+                                .foregroundStyle(m.isLate ? Theme.red : Theme.muted).lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(alignment: .trailing, spacing: 3) {
+                            StatusPill(status: m.status)
+                            Text(m.editor_budget.map(Money.eur) ?? "–").font(.system(size: 11.5, design: .monospaced))
+                                .foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
+                        }
                     }
-                    Spacer(minLength: 6)
-                    StatusPill(status: m.status)
                 }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
@@ -303,15 +322,15 @@ struct MissionsView: View {
                     .buttonStyle(PrimaryButton())
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    statusPicker
-                    Spacer()
-                    searchField.frame(width: 240)
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    statusPicker
-                    searchField
+            WidthReader { w in
+                // Filtres et recherche côte à côte, ou l'un sous l'autre quand la page est étroite.
+                let stacked = w < 640
+                let layout = stacked
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                    : AnyLayout(HStackLayout(spacing: 12))
+                layout {
+                    statusPicker.frame(maxWidth: .infinity, alignment: .leading)
+                    searchField.frame(maxWidth: stacked ? .infinity : 240)
                 }
             }
             ClientFilterBar(selection: $clientFilter, missions: byStatus)
@@ -395,7 +414,9 @@ struct ClientsView: View {
                         Text(c.name).font(.system(size: 14, weight: .medium)).lineLimit(1)
                         Spacer(minLength: 8)
                         Text("\(missions.count) mission\(missions.count > 1 ? "s" : "")").font(.system(size: 12.5)).foregroundStyle(Theme.muted)
-                        Text(Money.eur(price)).font(.system(size: 13)).monospacedDigit().frame(width: 90, alignment: .trailing)
+                            .lineLimit(1).fixedSize()
+                        Text(Money.eur(price)).font(.system(size: 13)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+                            .frame(width: 90, alignment: .trailing)
                         Button { toDelete = c } label: { Image(systemName: "trash") }
                             .buttonStyle(.plain).foregroundStyle(Theme.muted)
                             .help(missions.isEmpty ? "Supprimer" : "Impossible : ce client a des missions")

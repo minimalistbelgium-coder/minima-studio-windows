@@ -3,26 +3,93 @@ import AppKit
 
 // MARK: - Mise en page qui s'adapte à la largeur
 
+// Règle de l'app : aucune disposition ne dépend de la taille du contenu (pas de ViewThatFits).
+// La largeur utile est calculée à partir de la largeur de la fenêtre, puis transmise
+// de conteneur en conteneur (page, colonnes, cartes, fiche). Les seuils sont donc stables :
+// pas de bascule pendant un survol, ni quand la barre de défilement apparaît.
+
+private struct LayoutWidthKey: EnvironmentKey { static let defaultValue: CGFloat = 1000 }
+
+extension EnvironmentValues {
+    /// Largeur utile du conteneur courant, déduite de la largeur de la fenêtre.
+    var layoutWidth: CGFloat {
+        get { self[LayoutWidthKey.self] }
+        set { self[LayoutWidthKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Annonce au contenu la largeur dont il dispose.
+    func layoutWidth(_ width: CGFloat) -> some View { environment(\.layoutWidth, Swift.max(0, width)) }
+}
+
+/// Donne la largeur utile du conteneur à son contenu.
+struct WidthReader<Content: View>: View {
+    @Environment(\.layoutWidth) private var width
+    @ViewBuilder var content: (CGFloat) -> Content
+    var body: some View { content(width) }
+}
+
 /// Deux colonnes côte à côte quand il y a la place, l'une sous l'autre sinon.
+/// Les deux dispositions gardent les mêmes vues (l'état des cartes est conservé).
 struct Columns<Left: View, Right: View>: View {
     var minLeft: CGFloat = 480
     var rightWidth: CGFloat = 320
     var spacing: CGFloat = 16
     @ViewBuilder var left: () -> Left
     @ViewBuilder var right: () -> Right
+    @Environment(\.layoutWidth) private var width
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: spacing) {
-                VStack(alignment: .leading, spacing: spacing) { left() }
-                    .frame(minWidth: minLeft, maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: spacing) { right() }
-                    .frame(width: rightWidth)
+        let wide = width >= minLeft + rightWidth + spacing
+        let layout = wide
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: spacing))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+        layout {
+            VStack(alignment: .leading, spacing: spacing) { left() }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutWidth(wide ? width - rightWidth - spacing : width)
+            VStack(alignment: .leading, spacing: spacing) { right() }
+                .frame(maxWidth: wide ? rightWidth : .infinity, alignment: .leading)
+                .layoutWidth(wide ? rightWidth : width)
+        }
+    }
+}
+
+/// Éléments placés à la suite, avec retour à la ligne quand la largeur manque.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 6
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> (size: CGSize, frames: [CGRect]) {
+        var frames: [CGRect] = []
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxX: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0 && x + s.width > width {
+                x = 0
+                y += rowHeight + lineSpacing
+                rowHeight = 0
             }
-            VStack(alignment: .leading, spacing: spacing) {
-                left()
-                right()
-            }
+            frames.append(CGRect(x: x, y: y, width: s.width, height: s.height))
+            x += s.width + spacing
+            rowHeight = Swift.max(rowHeight, s.height)
+            maxX = Swift.max(maxX, x - spacing)
+        }
+        return (CGSize(width: maxX, height: y + rowHeight), frames)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        return arrange(width: width.isFinite ? width : .greatestFiniteMagnitude, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let frames = arrange(width: bounds.width, subviews: subviews).frames
+        for (i, v) in subviews.enumerated() {
+            let f = frames[i]
+            v.place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY), anchor: .topLeading,
+                    proposal: ProposedViewSize(width: f.width, height: f.height))
         }
     }
 }
@@ -31,10 +98,10 @@ struct Columns<Left: View, Right: View>: View {
 /// Toutes les cartes ont exactement la même largeur et la même hauteur (celle de la plus haute),
 /// alignées en haut.
 struct StatGrid<Content: View>: View {
-    var min: CGFloat = 200
+    var min: CGFloat = 220
     @ViewBuilder var content: () -> Content
     var body: some View {
-        // Pas de GlassEffectContainer ici : il dessine le verre par-dessus le contenu
+        // Pas de GlassEffectContainer (GlassGroup) ici : il dessine le verre par-dessus le contenu
         // des cartes (chiffres floutés). Chaque carte garde son propre verre en fond.
         EqualGrid(minWidth: min, spacing: 14) { content() }
     }
@@ -85,9 +152,10 @@ struct CardTitle<Trailing: View>: View {
     @ViewBuilder var trailing: () -> Trailing
     var body: some View {
         HStack(alignment: .center) {
-            Text(text).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+            Text(text).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
+                .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
-            trailing()
+            trailing().layoutPriority(1)
         }
     }
 }
@@ -205,10 +273,11 @@ struct WeekAgenda: View {
         VStack(alignment: .leading, spacing: 16) {
             CardTitle(text: weekOffset == 0 ? "Cette semaine" : (weekOffset == 1 ? "Semaine prochaine" : "Semaine")) {
                 HStack(spacing: 8) {
-                    Muted(rangeLabel(days)).lineLimit(1)
+                    Muted(rangeLabel(days)).lineLimit(1).fixedSize()
                     navButton("chevron.left") { withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { weekOffset -= 1 } }
                     if weekOffset != 0 {
                         Button("Aujourd'hui") { weekOffset = 0 }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.blue)
+                            .lineLimit(1).fixedSize()
                     }
                     navButton("chevron.right") { withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { weekOffset += 1 } }
                 }
@@ -228,11 +297,11 @@ struct WeekAgenda: View {
         let today = cal.isDateInToday(d)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text(dayLabel(d)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(today ? Theme.blue : Theme.text)
+                Text(dayLabel(d)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(today ? Theme.blue : Theme.text).lineLimit(1)
                 if today { Circle().fill(Theme.blue).frame(width: 5, height: 5) }
             }
             if list.isEmpty {
-                Muted("Rien de prévu", size: 12).padding(.vertical, 8)
+                Muted("Rien de prévu", size: 12).lineLimit(1).padding(.vertical, 8)
             }
             ForEach(list) { m in chip(m) }
         }
@@ -312,6 +381,7 @@ struct StepProgress: View {
                     Text(now ? MissionStatus.label(mission.status) : MissionStatus.label(s))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(now ? color.mix(white: 0.35) : (done ? Theme.text : Theme.muted))
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     Muted(notes[s] ?? (done || now ? "" : "En attente"), size: 11.5).lineLimit(1)
                 }
             }

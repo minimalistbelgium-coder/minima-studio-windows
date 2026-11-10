@@ -39,7 +39,7 @@ struct TeamView: View {
                             Text("Choisir le client…").tag("")
                             ForEach(data.clients) { c in Text(c.name).tag(c.id) }
                         }
-                        .labelsHidden().frame(width: 220)
+                        .labelsHidden().frame(minWidth: 140, maxWidth: 220)
                     }
                     Button("Ajouter", action: invite).buttonStyle(PrimaryButton())
                         .disabled(!canInvite || busy)
@@ -53,24 +53,29 @@ struct TeamView: View {
                     if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                     let count = data.members.filter { $0.user_id == p.id }.compactMap { data.mission($0.mission_id) }.filter(\.isOpen).count
                     let live = data.liveSessions.contains { $0.user_id == p.id }
-                    HStack(spacing: 12) {
-                        AvatarView(profile: p, size: 32)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(p.displayName).font(.system(size: 14, weight: .medium))
-                                if live { Pill(text: "En train de monter", color: Theme.green) }
+                    WidthReader { w in
+                        // Page étroite : le nombre de missions passe sous le nom, à la place de la colonne.
+                        let narrow = w < 660
+                        let load = loadLabel(p, count: count)
+                        HStack(spacing: 12) {
+                            AvatarView(profile: p, size: 32)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(p.displayName).font(.system(size: 14, weight: .medium)).lineLimit(1)
+                                    if live && narrow { Circle().fill(Theme.green).frame(width: 7, height: 7).help("En train de monter") }
+                                    if live && !narrow { Pill(text: "En train de monter", color: Theme.green) }
+                                }
+                                Text(narrow ? "\(load) · \(p.email)" : p.email).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                                    .lineLimit(1).truncationMode(.tail)
                             }
-                            Text(p.email).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle)
-                        }
-                        Spacer(minLength: 8)
-                        if p.role == "client" {
-                            Text(data.client(p.client_id)?.name ?? "Client non défini").font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1)
-                        } else {
-                            Text("\(count) mission\(count > 1 ? "s" : "") en cours").font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1)
-                        }
-                        roleMenu(p)
-                        if p.id != app.profile?.id {
-                            Button("Retirer") { toRemove = p }.buttonStyle(SecondaryButton(danger: true))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            if !narrow {
+                                Text(load).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
+                            }
+                            roleMenu(p)
+                            if p.id != app.profile?.id {
+                                Button("Retirer") { toRemove = p }.buttonStyle(SecondaryButton(danger: true))
+                            }
                         }
                     }
                     .padding(.horizontal, 16).padding(.vertical, 12)
@@ -87,9 +92,10 @@ struct TeamView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "envelope").foregroundStyle(Theme.muted)
                             Text(inv.email).font(.system(size: 13.5)).lineLimit(1).truncationMode(.middle)
+                                .layoutPriority(1)
                             Pill(text: Roles.label(inv.role ?? "editor"), color: Color(hex: Roles.color(inv.role ?? "editor")))
                             if inv.role == "client", let c = data.client(inv.client_id) {
-                                Text(c.name).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                                Text(c.name).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                             }
                             Spacer(minLength: 8)
                             Text("Ajouté le \(DateFmt.short(inv.invited_at))").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
@@ -112,7 +118,7 @@ struct TeamView: View {
                                 Text(p.displayName).font(.system(size: 13.5)).lineLimit(1)
                                 Text(p.email).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle)
                             }
-                            Spacer(minLength: 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             Menu("Accepter comme…") {
                                 Button("Monteur") { change(p, to: "editor", client: nil) }
                                 Button("Admin") { change(p, to: "admin", client: nil) }
@@ -128,12 +134,18 @@ struct TeamView: View {
                 .card(padding: 0)
             }
         }
-        .task { await loadInvites() }
+        .task { if !SnapshotMode.on { await loadInvites() } }
         .confirmationDialog("Retirer \(toRemove?.displayName ?? "") de l'équipe ?", isPresented: Binding(get: { toRemove != nil }, set: { if !$0 { toRemove = nil } })) {
             Button("Retirer", role: .destructive) { if let p = toRemove { remove(p) } }
         } message: {
             Text("Il n'aura plus accès à l'app. Son historique de temps est conservé.")
         }
+    }
+
+    /// Ce que fait la personne : son client (compte client) ou son nombre de missions en cours.
+    private func loadLabel(_ p: Profile, count: Int) -> String {
+        if p.role == "client" { return data.client(p.client_id)?.name ?? "Client non défini" }
+        return "\(count) mission\(count > 1 ? "s" : "") en cours"
     }
 
     private var canInvite: Bool {
@@ -234,7 +246,7 @@ private struct RoleChoice: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Circle().fill(Color(hex: Roles.color(role))).frame(width: 8, height: 8)
-                    Text(Roles.label(role)).font(.system(size: 13.5, weight: .semibold))
+                    Text(Roles.label(role)).font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
                 }
                 Text(description).font(.system(size: 11.5)).foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)

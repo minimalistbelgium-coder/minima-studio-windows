@@ -11,6 +11,8 @@ struct NextStepCard: View {
     @State private var showField = false
     @State private var busy = false
     @State private var askClient: String?
+    /// Largeur utile de la fiche.
+    @Environment(\.layoutWidth) private var width
 
     private var canAct: Bool {
         app.isAdmin || data.memberIds(of: mission.id).contains(app.profile?.id ?? "")
@@ -39,14 +41,20 @@ struct NextStepCard: View {
     var body: some View {
         if let text {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center, spacing: 14) {
+                // Texte et boutons côte à côte, ou les boutons sous le texte quand la fiche est étroite.
+                let layout = width >= 620
+                    ? AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+                    : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                layout {
                     VStack(alignment: .leading, spacing: 4) {
                         Muted("Prochaine étape", size: 11.5)
                         Text(text).font(.system(size: 13.5)).fixedSize(horizontal: false, vertical: true)
                     }
-                    Spacer(minLength: 8)
-                    if busy { ProgressView().controlSize(.small) }
-                    actions
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 8) {
+                        if busy { ProgressView().controlSize(.small) }
+                        actions
+                    }
                 }
                 if showField { deliverField }
             }
@@ -164,10 +172,10 @@ struct VersionsHistory: View {
     private func row(_ v: MissionVersion, latest: Bool) -> some View {
         HStack(spacing: 10) {
             Tag(text: v.label, color: latest ? Theme.green : Theme.muted)
-            Muted(detail(v), size: 12)
+            Muted(detail(v), size: 12).lineLimit(1)
             Spacer(minLength: 8)
             Button("Ouvrir") { Links.open(v.url) }
-                .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.blue)
+                .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.blue).lineLimit(1).fixedSize()
         }
         .padding(.vertical, 8)
     }

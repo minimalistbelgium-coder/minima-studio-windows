@@ -16,13 +16,23 @@ struct ShellView: View {
     @EnvironmentObject var updater: Updater
     @EnvironmentObject var presenter: Presenter
     @State private var route: Route = .today
+    /// Page ouverte au lancement (sinon celle du rôle). Sert aux captures de mise en page.
+    var initialRoute: Route? = nil
+
+    init(initialRoute: Route? = nil) { self.initialRoute = initialRoute }
+
+    /// Sous cette largeur de fenêtre, la barre latérale se replie en icônes.
+    static let sidebarBreak: CGFloat = 1120
 
     var body: some View {
         GeometryReader { g in
-            let compact = g.size.width < 1060
+            // Tout découle de la largeur de la fenêtre : barre latérale, marges et dispositions des pages.
+            let compact = g.size.width < Self.sidebarBreak
+            let side: CGFloat = compact ? 76 : 248
+            let area = Swift.max(0, g.size.width - side)
             HStack(spacing: 0) {
                 Sidebar(route: $route, compact: compact)
-                    .frame(width: compact ? 76 : 248)
+                    .frame(width: side)
                 VStack(spacing: 0) {
                     UpdateBanner()
                     content
@@ -30,11 +40,13 @@ struct ShellView: View {
                         .id(route)
                         .transition(.opacity)
                 }
+                .frame(width: area)
             }
-            .environment(\.compactLayout, g.size.width < 980)
+            .environment(\.compactLayout, area < 860)
+            .environment(\.layoutWidth, area)
         }
         .overlay { PanelHost() }
-        .onAppear { route = defaultRoute }
+        .onAppear { route = initialRoute ?? defaultRoute }
         .onChange(of: app.profile?.role) { _ in route = defaultRoute }
     }
 
@@ -90,8 +102,16 @@ struct PanelHost: View {
     @EnvironmentObject var presenter: Presenter
 
     var body: some View {
+        GeometryReader { g in
+            host(size: g.size)
+        }
+    }
+
+    private func host(size: CGSize) -> some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        ZStack {
+        // Largeur réelle de la fiche : celle de la fenêtre moins les marges, plafonnée.
+        let sheetWidth = Swift.min(1040, Swift.max(0, size.width - 56))
+        return ZStack {
             if let t = presenter.mission {
                 Rectangle().fill(.ultraThinMaterial)
                     .overlay(Theme.scrim)
@@ -103,6 +123,7 @@ struct PanelHost: View {
 
                 MissionSheet(target: t, presetDeadline: presenter.presetDeadline, onClose: { presenter.close() })
                     .frame(maxWidth: 1040, maxHeight: 820)
+                    .layoutWidth(sheetWidth)
                     .foregroundStyle(Theme.text)
                     .clipShape(shape)
                     .glassSurface(shape, tint: Theme.bg.opacity(0.55), fill: Theme.bg.opacity(0.82))
@@ -113,6 +134,7 @@ struct PanelHost: View {
                     .zIndex(1)
             }
         }
+        .frame(width: size.width, height: size.height)
         .animation(.spring(response: 0.36, dampingFraction: 0.86), value: presenter.mission)
     }
 }
@@ -129,6 +151,7 @@ struct UpdateBanner: View {
                 Image(systemName: "arrow.down.circle.fill").font(.system(size: 16)).foregroundStyle(Theme.blue)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Nouvelle version \(r.version) disponible").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.text)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     if let n = r.notes, !n.isEmpty {
                         Text(n).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
@@ -139,7 +162,7 @@ struct UpdateBanner: View {
                 Spacer(minLength: 8)
                 if updater.installing {
                     ProgressView().controlSize(.small)
-                    Text(updater.progressText ?? "").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
+                    Text(updater.progressText ?? "").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
                 } else {
                     Button("Mettre à jour") { Task { @MainActor in await updater.install(r, tracker: tracker) } }
                         .buttonStyle(PrimaryButton())
@@ -186,27 +209,12 @@ private struct Sidebar: View {
                 .padding(.horizontal, 10).padding(.top, 38).padding(.bottom, 22)
             }
 
-            if app.isAdmin {
-                item("Aujourd'hui", "sun.max", .today, live: data.liveSessions.count)
-                item("Missions", "film.stack", .missions, badge: data.missions.filter(\.isOpen).count)
-                item("Agenda", "calendar", .agenda)
-                item("Clients", "person.2", .clients)
-                item("Équipe", "person.3", .team)
-                section("Admin")
-                item("Finances", "eurosign.circle", .finances)
-                item("Analyse du temps", "clock", .time)
-                item("Mises à jour", "arrow.down.circle", .updates)
-            } else if app.isClient {
-                item("Mes projets", "film.stack", .clientProjects)
-                item("Calendrier", "calendar", .agenda)
-            } else {
-                item("Tableau de bord", "chart.bar", .myDashboard)
-                item("Mes missions", "film.stack", .myMissions, badge: data.missions.filter(\.isOpen).count)
-                item("Agenda", "calendar", .agenda)
-                item("Finances", "eurosign.circle", .myFinances)
+            // La liste défile si la fenêtre est trop basse : le pied (chrono, thème, compte) reste visible.
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 2) { items }
             }
-
-            Spacer(minLength: 8)
+            .frame(maxHeight: .infinity)
+            .padding(.bottom, 8)
 
             if app.isTeam && !compact {
                 TrackerCard()
@@ -240,6 +248,29 @@ private struct Sidebar: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), fill: Theme.card.opacity(0.5))
         .padding(.leading, 8).padding(.vertical, 8)
+    }
+
+    @ViewBuilder private var items: some View {
+            if app.isAdmin {
+                item("Aujourd'hui", "sun.max", .today, live: data.liveSessions.count)
+                item("Missions", "film.stack", .missions, badge: data.missions.filter(\.isOpen).count)
+                item("Agenda", "calendar", .agenda)
+                item("Clients", "person.2", .clients)
+                item("Équipe", "person.3", .team)
+                section("Admin")
+                item("Finances", "eurosign.circle", .finances)
+                item("Analyse du temps", "clock", .time)
+                item("Mises à jour", "arrow.down.circle", .updates)
+            } else if app.isClient {
+                item("Mes projets", "film.stack", .clientProjects)
+                item("Calendrier", "calendar", .agenda)
+            } else {
+                item("Tableau de bord", "chart.bar", .myDashboard)
+                item("Mes missions", "film.stack", .myMissions, badge: data.missions.filter(\.isOpen).count)
+                item("Agenda", "calendar", .agenda)
+                item("Finances", "eurosign.circle", .myFinances)
+            }
+
     }
 
     private func accountMenu<L: View>(@ViewBuilder label: () -> L) -> some View {
@@ -367,7 +398,7 @@ struct TrackerCard: View {
             HStack(spacing: 7) {
                 StatusDot(status: tracker.status)
                 Text(tracker.mission?.title ?? "Chrono").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text).lineLimit(1)
-                Spacer()
+                Spacer(minLength: 4)
                 Button {
                     MiniWindow.shared.show(app: app, data: data, tracker: tracker)
                 } label: {

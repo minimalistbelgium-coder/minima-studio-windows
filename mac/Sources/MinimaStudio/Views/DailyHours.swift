@@ -8,6 +8,11 @@ struct DailyHoursCard: View {
     let people: [Profile]
     let title: String
     @State private var weekOffset = 0
+    /// Largeur du conteneur de la carte (la carte retire ensuite ses marges).
+    @Environment(\.layoutWidth) private var width
+
+    /// Largeur minimale du tableau personne × jour. En dessous, il défile horizontalement.
+    private static let minGrid: CGFloat = 600
 
     private var days: [Date] {
         let start = AgendaCal.cal.date(byAdding: .day, value: 7 * weekOffset, to: AgendaCal.weekStart(Date())) ?? Date()
@@ -33,24 +38,33 @@ struct DailyHoursCard: View {
         let week = ds.reduce(0) { $0 + dayTotal($1) }
 
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 15, weight: .semibold))
+                    Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(1)
                     Muted("Temps actif dans Premiere · \(TimeFmt.hm(week)) sur la semaine", size: 12)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6) {
                     AgendaNavButton(icon: "chevron.left") { weekOffset -= 1 }
                     Text(weekOffset == 0 ? "Cette semaine" : AgendaCal.weekLabel(ds[0]))
-                        .font(.system(size: 12)).foregroundStyle(Theme.muted).frame(minWidth: 120)
+                        .font(.system(size: 12)).foregroundStyle(Theme.muted)
+                        .lineLimit(1).minimumScaleFactor(0.8).frame(width: 116)
                     AgendaNavButton(icon: "chevron.right") { if weekOffset < 0 { weekOffset += 1 } }
                         .opacity(weekOffset < 0 ? 1 : 0.35)
                 }
             }
             if people.count == 1 {
                 bars(ds, dayTotal)
-            } else {
+            } else if width - 40 >= Self.minGrid {
                 grid(ds, cell, dayTotal, week)
+            } else {
+                // Carte trop étroite pour 7 colonnes lisibles : le tableau garde sa largeur et défile.
+                ScrollView(.horizontal, showsIndicators: true) {
+                    grid(ds, cell, dayTotal, week)
+                        .frame(width: Self.minGrid)
+                        .padding(.bottom, 12)
+                }
             }
         }
         .card()
@@ -68,6 +82,7 @@ struct DailyHoursCard: View {
                 let today = AgendaCal.cal.isDateInToday(d)
                 VStack(spacing: 6) {
                     Text(v > 0 ? TimeFmt.hm(v) : " ").font(.system(size: 11)).monospacedDigit().foregroundStyle(Theme.text2)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     GeometryReader { g in
                         VStack(spacing: 0) {
                             Spacer(minLength: 0)
@@ -81,6 +96,7 @@ struct DailyHoursCard: View {
                     Text("\(dayLabel(d)) \(AgendaCal.cal.component(.day, from: d))")
                         .font(.system(size: 11.5, weight: today ? .semibold : .regular))
                         .foregroundStyle(today ? Theme.blue : Theme.muted)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -95,12 +111,12 @@ struct DailyHoursCard: View {
                 ForEach(ds, id: \.self) { d in
                     let today = AgendaCal.cal.isDateInToday(d)
                     VStack(spacing: 2) {
-                        Text(dayLabel(d).capitalized).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(today ? Theme.blue : Theme.muted)
-                        Text("\(AgendaCal.cal.component(.day, from: d))").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(today ? Theme.blue : Theme.text2)
+                        Text(dayLabel(d).capitalized).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(today ? Theme.blue : Theme.muted).lineLimit(1)
+                        Text("\(AgendaCal.cal.component(.day, from: d))").font(.system(size: 13.5, weight: .semibold)).foregroundStyle(today ? Theme.blue : Theme.text2).lineLimit(1)
                     }
                     .frame(maxWidth: .infinity)
                 }
-                Muted("Semaine", size: 11).frame(width: 76)
+                Muted("Semaine", size: 11).lineLimit(1).frame(width: 76)
             }
             if active.isEmpty { Muted("Aucun temps enregistré cette semaine.").padding(.vertical, 10) }
             ForEach(active) { p in
@@ -115,12 +131,14 @@ struct DailyHoursCard: View {
                         let today = AgendaCal.cal.isDateInToday(d)
                         Text(v > 0 ? TimeFmt.hm(v) : "·").font(.system(size: 12.5)).monospacedDigit()
                             .foregroundStyle(v > 0 ? Theme.text : Theme.muted)
+                            .lineLimit(1).minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity).frame(height: 34)
                             .background(v > 0 ? Theme.blue.opacity(0.08 + 0.4 * min(1, v / 28800)) : Theme.ink.opacity(0.025),
                                         in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(today ? Theme.blue.opacity(0.45) : .clear))
                     }
                     Text(TimeFmt.hm(ds.reduce(0) { $0 + cell(p.id, $1) })).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.75)
                         .frame(width: 76, height: 34)
                         .background(Theme.ink.opacity(0.025), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
@@ -131,9 +149,10 @@ struct DailyHoursCard: View {
                     Text("Total").font(.system(size: 13, weight: .semibold)).frame(width: 110, alignment: .leading)
                     ForEach(ds, id: \.self) { d in
                         Text(total(d) > 0 ? TimeFmt.hm(total(d)) : "").font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
-                            .foregroundStyle(Theme.text2).frame(maxWidth: .infinity)
+                            .foregroundStyle(Theme.text2).lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity)
                     }
-                    Text(TimeFmt.hm(week)).font(.system(size: 12.5, weight: .semibold)).monospacedDigit().frame(width: 76)
+                    Text(TimeFmt.hm(week)).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.75).frame(width: 76)
                 }
             }
         }

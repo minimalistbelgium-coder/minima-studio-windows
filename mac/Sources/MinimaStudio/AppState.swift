@@ -11,6 +11,12 @@ enum Config {
 
 let supa = SupabaseClient(supabaseURL: Config.supabaseURL, supabaseKey: Config.supabaseKey)
 
+/// Mode captures de mise en page (tests uniquement, jamais activé dans l'app) :
+/// les vues n'appellent pas le réseau et affichent les données qu'on leur donne.
+enum SnapshotMode {
+    static var on = false
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published var session: Session?
@@ -37,8 +43,9 @@ final class AppState: ObservableObject {
         }
     }
 
-    init() {
-        Task { await listen() }
+    /// `observeAuth: false` ne sert qu'aux captures de mise en page (aucun appel réseau).
+    init(observeAuth: Bool = true) {
+        if observeAuth { Task { await listen() } }
     }
 
     private func listen() async {

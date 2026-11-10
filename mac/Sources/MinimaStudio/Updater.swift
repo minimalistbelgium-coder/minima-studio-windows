@@ -17,6 +17,9 @@ final class Updater: ObservableObject {
         return l
     }
 
+    /// Pour les captures de mise en page : affiche le bandeau sans interroger le serveur.
+    func setPreviewRelease(_ release: AppRelease?) { latest = release }
+
     func start() {
         Task { await check() }
         guard timer == nil else { return }

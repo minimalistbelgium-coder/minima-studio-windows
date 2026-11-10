@@ -23,15 +23,32 @@ jobs:
           rc=${PIPESTATUS[0]}
           echo "RESULTAT=$rc" >> ../build.log
           echo "code=$rc" >> "$GITHUB_OUTPUT"
+      - name: Captures de mise en page
+        if: steps.build.outputs.code == '0'
+        continue-on-error: true
+        timeout-minutes: 25
+        run: |
+          cd mac
+          mkdir -p ../shots
+          export SNAPSHOT_DIR="$PWD/../shots"
+          set +e
+          swift test 2>&1 | tee ../test.log
+          echo "TESTS=${PIPESTATUS[0]}" >> ../test.log
+          grep -nE "error:|TESTS=|Executed|passed|failed|Fatal|crash" ../test.log | grep -vE "Compiling" | tail -80 > ../test-short.log || true
+          cd ..
+          tar -czf shots.tar.gz shots || true
       - name: Publier le journal
         if: always()
         run: |
+          touch test.log test-short.log
+          mkdir -p shots
           grep -nE "error:|RESULTAT=|Build complete|Compiling|warning: var|Swift version" build.log | grep -vE "^[0-9]+:\[[0-9]+/[0-9]+\] Compiling" | tail -150 > short.log || true
           git config user.name "ci"
           git config user.email "ci@users.noreply.github.com"
           git checkout -q --orphan mac-log
           git rm -rfq --cached .
-          git add -f build.log short.log
+          git add -f build.log short.log test.log test-short.log shots
+          if [ -f shots.tar.gz ]; then git add -f shots.tar.gz; fi
           git commit -qm "Journal de compilation"
           git push -f origin mac-log
       - name: Résultat

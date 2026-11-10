@@ -16,7 +16,7 @@ const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
   versions: {}, settings: {}, comments: {},
-  filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members',
+  filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
   deepLink: new URLSearchParams(location.search).get('m'),
@@ -97,8 +97,9 @@ const isOpen = (m) => !['validated', 'paid'].includes(m.status);
 const isDelivered = (m) => ['v1_delivered', 'fix_delivered', 'validated', 'paid'].includes(m.status);
 const awaitsClient = (m) => ['v1_delivered', 'fix_delivered'].includes(m.status);
 const isLate = (m) => d(m.deadline) && d(m.deadline) < new Date() && ['assigned', 'editing'].includes(m.status);
-function pill(text, color) { return `<span class="pill" style="background:${color}26;color:${tint(color)}">${esc(text)}</span>`; }
-function tint(hex) { const n = parseInt(hex.slice(1), 16); const r = n >> 16, g = (n >> 8) & 255, b = n & 255; const f = (c) => Math.round(c + (255 - c) * 0.45); return `rgb(${f(r)},${f(g)},${f(b)})`; }
+function pill(text, color) { return `<span class="pill" style="--c:${color}">${esc(text)}</span>`; }
+// Couleur de texte lisible sur fond teinté : éclaircie en thème sombre, assombrie en thème clair (variables CSS).
+function tint(color) { return `color-mix(in srgb,${color} var(--tint-p),var(--tint-to))`; }
 const statusColor = (s) => (STATUS[s] || [0, '#8B8D94'])[1];
 const statusPill = (s) => pill((STATUS[s] || [s])[0], statusColor(s));
 const pillFor = (m) => (isClient() ? pill(CLIENT_STATUS[m.status] || m.status, statusColor(m.status)) : statusPill(m.status));
@@ -231,9 +232,228 @@ function routesFor() {
   return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
 }
 
+// ---------- thème clair / sombre ----------
+const THEME_BG = { dark: '#0A0B0E', light: '#ECEEF3' };
+const sysTheme = () => (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+// Choix mémorisé sur l'appareil, sinon celui du système.
+const theme = () => { const t = store.get('msTheme'); return t === 'light' || t === 'dark' ? t : sysTheme(); };
+function applyTheme() {
+  const t = theme();
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_BG[t]);
+  document.querySelectorAll('.tgl').forEach((b) => b.setAttribute('aria-checked', String(t === 'dark')));
+}
+function toggleTheme() {
+  const root = document.documentElement;
+  store.set('msTheme', theme() === 'dark' ? 'light' : 'dark');
+  root.classList.add('theming'); clearTimeout(toggleTheme.t); toggleTheme.t = setTimeout(() => root.classList.remove('theming'), 420);
+  applyTheme();
+}
+const themeToggle = (id) => `<button class="tgl" type="button" data-act="theme" role="switch" aria-checked="${theme() === 'dark'}" aria-label="Thème sombre" title="Thème clair ou sombre"><span class="tgl-knob"><svg viewBox="0 0 24 24" aria-hidden="true"><mask id="tgm-${id}"><rect x="-8" y="-8" width="40" height="40" fill="#fff"/><circle class="tgl-bite" cx="27" cy="3" r="6.5" fill="#000"/></mask><circle class="tgl-core" cx="12" cy="12" r="4.6" fill="currentColor" mask="url(#tgm-${id})"/><path class="tgl-rays" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2.2v2.2M12 19.6v2.2M2.2 12h2.2M19.6 12h2.2M5.1 5.1l1.5 1.5M17.4 17.4l1.5 1.5M5.1 18.9l1.5-1.5M17.4 6.6l1.5-1.5"/></svg></span></button>`;
+applyTheme();
+if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', applyTheme);
+window.addEventListener('storage', (e) => { if (e.key === 'msTheme') applyTheme(); });
+
+// ---------- pastille glissante (segments, navigation, onglets) ----------
+// Le rendu reconstruit la page : on retient la dernière position de chaque pastille pour la faire glisser vers la nouvelle.
+const thumbMem = {};
+function placeThumbs(animate = true) {
+  const count = {};
+  document.querySelectorAll('.seg,.navs,.tabbar').forEach((box) => {
+    const kind = box.classList[0];
+    const scope = box.closest('#sheet-root') ? 'sheet' : S.route;
+    count[kind + scope] = (count[kind + scope] || 0) + 1;
+    const key = kind === 'seg' ? `seg:${scope}:${count[kind + scope]}` : kind;
+    box.querySelector(':scope > .thumb')?.remove();
+    const on = box.querySelector(':scope > .on');
+    if (!on || !box.offsetWidth) { box.classList.remove('has-thumb'); return; }
+    const g = { x: on.offsetLeft, y: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight };
+    const prev = thumbMem[key]; thumbMem[key] = g;
+    const th = document.createElement('i'); th.className = 'thumb still'; th.setAttribute('aria-hidden', 'true');
+    const set = (q) => { th.style.width = `${q.w}px`; th.style.height = `${q.h}px`; th.style.transform = `translate(${q.x}px,${q.y}px)`; };
+    const move = animate && prev && (prev.x !== g.x || prev.y !== g.y || prev.w !== g.w);
+    set(move ? prev : g); box.prepend(th); box.classList.add('has-thumb');
+    if (kind === 'seg' && g.x + g.w > box.scrollLeft + box.clientWidth) box.scrollLeft = g.x - 8;
+    if (move) { th.getBoundingClientRect(); th.classList.remove('still'); set(g); }
+  });
+}
+
+// ---------- infobulle des graphiques (survol, toucher, clavier) ----------
+const tipEl = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'tip' }));
+tipEl.setAttribute('role', 'tooltip');
+let tipFor = null;
+function hideTip() { if (tipFor) tipFor.classList.remove('tip-on'); tipFor = null; tipEl.classList.remove('on'); }
+function showTip(t, x) {
+  if (tipFor !== t) { hideTip(); tipFor = t; t.classList.add('tip-on'); tipEl.innerHTML = t.dataset.tip; }
+  const b = t.getBoundingClientRect(); const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  const cx = x ?? b.left + b.width / 2;
+  const left = Math.max(8, Math.min(window.innerWidth - w - 8, cx - w / 2));
+  const top = b.top - h - 10 >= 8 ? b.top - h - 10 : Math.min(window.innerHeight - h - 8, b.bottom + 10);
+  tipEl.style.left = `${Math.round(left)}px`; tipEl.style.top = `${Math.round(top)}px`; tipEl.classList.add('on');
+}
+const tipTarget = (e) => (e.target instanceof Element ? e.target.closest('[data-tip]') : null);
+document.addEventListener('pointermove', (e) => { if (e.pointerType === 'touch') return; const t = tipTarget(e); if (t) showTip(t, e.clientX); else if (tipFor) hideTip(); });
+document.addEventListener('pointerdown', (e) => { const t = tipTarget(e); if (t && e.pointerType === 'touch') showTip(t, e.clientX); else if (!t) hideTip(); });
+document.addEventListener('focusin', (e) => { const t = tipTarget(e); if (t && t.matches(':focus-visible')) showTip(t); });
+document.addEventListener('focusout', (e) => { if (tipFor && e.target === tipFor) hideTip(); });
+document.documentElement.addEventListener('mouseleave', hideTip);
+window.addEventListener('scroll', hideTip, { passive: true, capture: true });
+// Contenu d'une infobulle : un titre et des lignes [libellé, valeur, couleur]. Le tout est échappé pour tenir dans un attribut.
+const tipHtml = (title, rows) => esc(`<b>${esc(title)}</b>${rows.map(([l, v, c]) => `<span class="tip-r">${c ? `<i style="background:${c}"></i>` : ''}<span>${esc(l)}</span><b>${esc(v)}</b></span>`).join('')}`);
+
+// ---------- graphiques (SVG inline, sans dépendance) ----------
+const kEur = (n) => (Math.abs(n) >= 1000 ? `${(n / 1000).toLocaleString('fr-BE', { maximumFractionDigits: 1 })} k€` : `${Math.round(n)} €`);
+const profColor = (p) => (p?.color ? `#${p.color.replace('#', '')}` : AV[(p?.email || '').length % AV.length]);
+const monthShort = (x) => x.toLocaleDateString('fr-BE', { month: 'short' }).replace('.', '');
+const monthLong = (x) => cap(x.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' }));
+const emptyArt = (text) => `<div class="empty art">${I.euro}<span>${text}</span></div>`;
+// Échelle verticale lisible : graduations rondes, zéro toujours inclus.
+function chartScale(minV, maxV) {
+  const lo0 = Math.min(0, minV); const raw = Math.max(1, maxV - lo0) / 4;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((k) => k * p).find((x) => x >= raw);
+  const lo = Math.floor(lo0 / step) * step; const hi = Math.max(step, Math.ceil(maxV / step) * step);
+  const ticks = []; for (let t = lo; t <= hi + step / 1000; t += step) ticks.push(t);
+  return { lo, hi, ticks };
+}
+let chartSeq = 0;
+// Courbes : le tracé est en SVG étiré sur la largeur, les libellés et zones de survol sont en HTML pour rester nets à toute taille.
+// series : [{ color, values, area }], une valeur par colonne (une série peut s'arrêter avant la fin).
+function lineChart({ labels, series, tips = [], sel = -1, attrs = () => '', cls = '', label = '' }) {
+  const n = labels.length; const all = series.flatMap((s) => s.values); const id = ++chartSeq;
+  const { lo, hi, ticks } = chartScale(Math.min(0, ...all), Math.max(0, ...all));
+  const X = (i) => ((i + 0.5) / n) * 100; const Y = (v) => 100 - ((v - lo) / (hi - lo)) * 100;
+  const f = (v) => v.toFixed(2);
+  const path = (vals) => vals.map((v, i) => `${i ? 'L' : 'M'}${f(X(i))} ${f(Y(v))}`).join('');
+  const grid = ticks.map((t) => `<line x1="0" x2="100" y1="${f(Y(t))}" y2="${f(Y(t))}" class="${t === 0 ? 'zero' : ''}"/>`).join('');
+  const defs = series.map((s, k) => (s.area ? `<linearGradient id="cg${id}-${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${s.color};stop-opacity:.3"/><stop offset="1" style="stop-color:${s.color};stop-opacity:0"/></linearGradient>` : '')).join('');
+  const lines = series.map((s, k) => {
+    if (!s.values.length) return '';
+    const dPath = s.values.length === 1 ? `M${f(X(0) - 0.6)} ${f(Y(s.values[0]))}L${f(X(0) + 0.6)} ${f(Y(s.values[0]))}` : path(s.values);
+    return `${s.area && s.values.length > 1 ? `<path d="${dPath}L${f(X(s.values.length - 1))} ${f(Y(0))}L${f(X(0))} ${f(Y(0))}Z" fill="url(#cg${id}-${k})"/>` : ''}<path class="ch-line" d="${dPath}" style="stroke:${s.color}"/>`;
+  }).join('');
+  const cols = labels.map((_, i) => `<div class="ch-col ${i === sel ? 'sel' : ''}" ${attrs(i)} ${tips[i] ? `data-tip="${tips[i]}"` : ''}>${series.map((s) => (s.values[i] == null ? '' : `<i class="ch-dot" style="top:${f(Y(s.values[i]))}%;--c:${s.color}"></i>`)).join('')}</div>`).join('');
+  return `<div class="chart ${cls}" role="group" aria-label="${esc(label)}"><div class="ch-plot">${ticks.map((t) => `<span class="ch-y" style="top:${f(Y(t))}%">${kEur(t)}</span>`).join('')}
+    <svg class="ch-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs>${defs}</defs><g class="ch-grid">${grid}</g><g class="ch-draw">${lines}</g></svg>
+    <div class="ch-cols">${cols}</div></div>
+    <div class="ch-x ${n > 14 ? 'dense' : ''}" aria-hidden="true">${labels.map((l, i) => `<span class="${i === sel ? 'sel' : ''}">${esc(l)}</span>`).join('')}</div></div>`;
+}
+// Barre horizontale : libellé, valeur et jauge. Le texte reste en encre neutre, seule la jauge porte la couleur.
+function barRow({ lead = '', name, sub = '', value, small: sm = '', pct, color, tip, attrs = 'tabindex="0"', i = 0 }) {
+  return `<div class="bar-row" ${attrs} data-tip="${tip}" style="--c:${color};--i:${i}"><span class="bl">${lead}<span>${esc(name)}</span>${sub ? `<span class="lbl">${esc(sub)}</span>` : ''}</span>
+    <span class="bv mono">${esc(value)}${sm ? `<small>${esc(sm)}</small>` : ''}</span><span class="bt"><i style="width:${Math.max(0, Math.min(100, pct || 0)).toFixed(1)}%"></i></span></div>`;
+}
+
+// --- Finances : séries mensuelles et répartitions
+function financeMonths(end, n = 12) {
+  const out = Array.from({ length: n }, (_, i) => ({ mo: new Date(end.getFullYear(), end.getMonth() - (n - 1 - i), 1), billed: 0, payout: 0, margin: 0, n: 0 }));
+  const idx = {}; out.forEach((o) => { idx[`${o.mo.getFullYear()}-${o.mo.getMonth()}`] = o; });
+  S.missions.forEach((m) => {
+    if (m.status === 'requested') return;
+    const x = monthOf(m); const o = x && idx[`${x.getFullYear()}-${x.getMonth()}`]; if (!o) return;
+    o.billed += S.finances[m.id]?.client_price || 0; o.payout += editorPayout(m); o.n += 1;
+  });
+  out.forEach((o) => { o.margin = o.billed - o.payout; });
+  return out;
+}
+function financeBreakdown(list) {
+  const byClient = {}; const byEditor = {};
+  list.forEach((m) => {
+    const c = (byClient[m.client_id || ''] ||= { billed: 0, payout: 0, n: 0 });
+    c.billed += S.finances[m.id]?.client_price || 0; c.payout += editorPayout(m); c.n += 1;
+    split(m).filter((r) => profile(r.u)?.role !== 'admin').forEach((r) => { const e = (byEditor[r.u] ||= { amount: 0, secs: 0, n: 0 }); e.amount += r.amount; e.secs += r.secs; e.n += 1; });
+  });
+  return { byClient, byEditor };
+}
+function financeCharts(mo, list) {
+  const nowM = startOfMonth(new Date());
+  const diff = (mo.getFullYear() - nowM.getFullYear()) * 12 + mo.getMonth() - nowM.getMonth();
+  const end = diff > 0 || diff < -11 ? mo : nowM;
+  const months = financeMonths(end); const selI = months.findIndex((o) => sameMonth(o.mo, mo));
+  const sum = (k) => months.reduce((a, o) => a + o[k], 0);
+  const SER = [['Facturé', 'var(--s1)', 'billed'], ['Reversé', 'var(--s2)', 'payout'], ['Marge', 'var(--s3)', 'margin']];
+  const evo = months.some((o) => o.n) ? lineChart({
+    labels: months.map((o) => monthShort(o.mo)), sel: selI, cls: 'months', label: 'Facturé, reversé aux monteurs et marge sur 12 mois',
+    series: SER.map(([, color, k], i) => ({ color, values: months.map((o) => Math.round(o[k])), area: i === 0 })),
+    tips: months.map((o) => tipHtml(monthLong(o.mo), [...SER.map(([t, c, k]) => [t, eur(Math.round(o[k])), c]), ['Missions', String(o.n)]])),
+    attrs: (i) => `role="button" tabindex="0" data-month="${i - selI}" aria-label="${esc(`${monthLong(months[i].mo)} : facturé ${eur(Math.round(months[i].billed))}, reversé ${eur(Math.round(months[i].payout))}, marge ${eur(Math.round(months[i].margin))}`)}"`,
+  }) : emptyArt('Pas encore de mission sur cette période.');
+  const year = S.finRange === 'year';
+  const from = months[0].mo; const to = new Date(end.getFullYear(), end.getMonth() + 1, 1);
+  const scope = year ? S.missions.filter((m) => m.status !== 'requested' && monthOf(m) && monthOf(m) >= from && monthOf(m) < to) : list;
+  const { byClient, byEditor } = financeBreakdown(scope);
+  const cl = Object.entries(byClient).map(([id, v]) => ({ c: client(id), ...v })).sort((a, b) => b.billed - a.billed || b.n - a.n);
+  const clTot = cl.reduce((a, r) => a + r.billed, 0); const clMax = Math.max(1, ...cl.map((r) => r.billed));
+  const pc = (v, t) => (t ? `${Math.round((v / t) * 100)} %` : '');
+  const clRows = cl.map((r, i) => barRow({ i, lead: `<span class="dot" style="background:${clientColor(r.c)}"></span>`, name: r.c?.name || 'Sans client', sub: `${r.n} mission${r.n > 1 ? 's' : ''}`,
+    value: eur(Math.round(r.billed)), small: pc(r.billed, clTot), pct: (r.billed / clMax) * 100, color: clientColor(r.c),
+    tip: tipHtml(r.c?.name || 'Sans client', [['Facturé', eur(Math.round(r.billed)), 'var(--s1)'], ['Reversé', eur(Math.round(r.payout)), 'var(--s2)'], ['Marge', eur(Math.round(r.billed - r.payout)), 'var(--s3)'], ['Part du facturé', pc(r.billed, clTot) || '–']]) })).join('');
+  const share = clTot ? `<div class="share" aria-hidden="true">${cl.filter((r) => r.billed > 0).map((r) => `<i style="flex:${r.billed};--c:${clientColor(r.c)}"></i>`).join('')}</div>` : '';
+  const ed = Object.entries(byEditor).map(([u, v]) => ({ p: profile(u), ...v })).sort((a, b) => b.amount - a.amount);
+  const edTot = ed.reduce((a, r) => a + r.amount, 0); const edMax = Math.max(1, ...ed.map((r) => r.amount));
+  const rate = (r) => (r.secs >= 600 ? `${eur(Math.round(r.amount / (r.secs / 3600)))}/h` : '');
+  const edRows = ed.map((r, i) => barRow({ i, lead: avatar(r.p, 22), name: firstName(r.p), sub: [hm(r.secs), rate(r)].filter(Boolean).join(' · '),
+    value: eur(Math.round(r.amount)), small: pc(r.amount, edTot), pct: (r.amount / edMax) * 100, color: profColor(r.p),
+    tip: tipHtml(r.p?.full_name || firstName(r.p), [['Reversé', eur(Math.round(r.amount))], ['Temps de montage', hm(r.secs)], ['Taux horaire', rate(r) || '–'], ['Missions', String(r.n)]]) })).join('');
+  const period = year ? `${monthShort(from)} ${from.getFullYear()} à ${monthShort(end)} ${end.getFullYear()}` : monthLong(mo);
+  const seg = `<div class="seg mini"><button class="${year ? '' : 'on'}" data-set="finRange:month">Ce mois</button><button class="${year ? 'on' : ''}" data-set="finRange:year">12 mois</button></div>`;
+  return `<div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>Évolution sur 12 mois</h2><div class="lbl">Montants HTVA par mois. Choisis un mois sur la courbe pour voir son détail.</div></div>
+      <div class="ch-legend"><span class="lbl">Total</span>${SER.map(([t, c, k]) => `<span><i style="--c:${c}"></i>${t}<b>${eur(Math.round(sum(k)))}</b></span>`).join('')}</div></div>${evo}</div>
+  <div class="cols even">
+    <div class="card"><div class="ch-head"><div><h2>Par client</h2><div class="lbl">Facturé · ${esc(period)}</div></div>${seg}</div>${share}<div class="bars">${clRows || emptyArt('Aucune mission sur cette période.')}</div></div>
+    <div class="card"><div class="ch-head"><div><h2>Par monteur</h2><div class="lbl">Reversé · ${esc(period)}</div></div>${seg}</div><div class="bars">${edRows || emptyArt('Pas encore de temps enregistré.')}</div></div>
+  </div>`;
+}
+
+// --- Revenus du monteur : gains par jour et par projet
+// La part de chaque mission (myShare) est répartie sur les jours où le monteur y a travaillé, au prorata du temps passé chaque jour.
+function myDailyGains() {
+  const out = {};
+  S.missions.forEach((m) => {
+    const mine = missionSessions(m.id).filter((s) => s.user_id === S.me.id && s.duration_sec > 0 && s.started_at);
+    const tot = mine.reduce((a, s) => a + s.duration_sec, 0); if (!tot) return;
+    const amount = myShare(m).amount;
+    mine.forEach((s) => { const e = (out[dayKey(s)] ||= { amount: 0, secs: 0 }); e.amount += (amount * s.duration_sec) / tot; e.secs += s.duration_sec; });
+  });
+  return out;
+}
+function gainsChart(days, { cum = false, cls = '', every = null, upTo = days.length } = {}) {
+  const daily = myDailyGains(); let run = 0;
+  const rows = days.map((x) => { const e = daily[ymd(x)] || { amount: 0, secs: 0 }; run += e.amount; return { x, ...e, run }; });
+  const shown = rows.slice(0, upTo);
+  const total = shown.reduce((a, r) => a + r.amount, 0); const active = shown.filter((r) => r.secs > 0).length;
+  const html = total > 0 ? lineChart({
+    cls, label: cum ? 'Gains cumulés par jour' : 'Gains par jour',
+    labels: rows.map((r, i) => (every ? every(r.x, i) : String(r.x.getDate()))),
+    series: [{ color: 'var(--s3)', area: true, values: shown.map((r) => Math.round((cum ? r.run : r.amount) * 100) / 100) }],
+    tips: rows.map((r, i) => (i < upTo ? tipHtml(fmtLong(r.x), [['Gain du jour', eur(Math.round(r.amount)), 'var(--s3)'], ['Temps de montage', hm(r.secs)], ['Cumul', eur(Math.round(r.run))]]) : '')),
+  }) : '';
+  return { html, total, active };
+}
+function projectBars(list, limit = 0) {
+  const sorted = [...list].sort((a, b) => b.amount - a.amount); const max = Math.max(1, ...sorted.map((r) => r.amount));
+  const rows = limit ? sorted.slice(0, limit) : sorted;
+  return rows.map((r, i) => { const c = client(r.m.client_id); const rate = r.secs >= 300 ? `${eur(Math.round(r.amount / (r.secs / 3600)))}/h` : '–';
+    return barRow({ i, attrs: `role="button" tabindex="0" data-open="${r.m.id}"`, lead: `<span class="dot" style="background:${clientColor(c)}"></span>`, name: r.m.title, value: eur(Math.round(r.amount)), small: r.secs ? hm(r.secs) : 'estimation',
+      pct: (r.amount / max) * 100, color: clientColor(c),
+      tip: tipHtml(r.m.title, [['Client', c?.name || '–'], [r.estimated ? 'Ta part (estimation)' : 'Ta part', eur(Math.round(r.amount))], ['Temps de montage', hm(r.secs)], ['Taux horaire', rate], ['Statut', (STATUS[r.m.status] || [r.m.status])[0]]]) }); }).join('');
+}
+const myMonthShares = (mo) => S.missions.filter((m) => sameMonth(monthOf(m), mo)).map((m) => ({ m, ...myShare(m) })).filter((r) => r.amount > 0 || r.secs > 0);
+// Aperçu sur l'accueil du monteur : 30 derniers jours et meilleurs projets du mois.
+function gainsPreview() {
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const days = Array.from({ length: 30 }, (_, i) => addDays(t0, i - 29));
+  const g = gainsChart(days, { cls: 'mini', every: (x, i) => ((29 - i) % 7 === 0 ? x.toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' }).replace('.', '') : '') });
+  const bars = projectBars(myMonthShares(startOfMonth(t0)), 3);
+  return `<div class="card"><div class="card-head"><div><h2>Mes gains</h2><div class="lbl" style="margin-top:3px">30 derniers jours · ${eur(Math.round(g.total))} sur ${g.active} jour${g.active > 1 ? 's' : ''} de montage</div></div><button class="btn sm" data-go="earnings">Détail</button></div>
+    ${g.html || emptyArt('Ta courbe de gains apparaît dès ta première session de montage.')}
+    ${bars ? `<div class="day-h" style="margin:16px 0 6px">Projets du mois</div><div class="bars">${bars}</div>` : ''}</div>`;
+}
+
 // ---------- rendu ----------
 function render(anim = false) {
   if (S.loading) return;
+  hideTip();
   if (!S.session) return renderLogin();
   if (!S.me || S.me.role === 'none' || !S.me.active) return renderPending();
   S.hash = digest();
@@ -247,18 +467,19 @@ function render(anim = false) {
   <div class="shell">
     <nav class="side" aria-label="Navigation">
       <div class="brand"><div class="logo">${LOGO}</div><div><b>Minima Studio</b><span class="lbl">${role}</span></div></div>
-      ${nav}
-      <button class="foot" data-act="account" aria-label="Mon compte">${avatar(S.me, 30)}<span style="flex:1;min-width:0;text-align:left"><span class="foot-name">${esc(firstName(S.me))}</span><span class="lbl foot-mail">${esc(S.me.email)}</span></span></button>
+      <div class="navs">${nav}</div>
+      <div class="side-foot"><button class="foot" data-act="account" aria-label="Mon compte">${avatar(S.me, 30)}<span style="flex:1;min-width:0;text-align:left"><span class="foot-name">${esc(firstName(S.me))}</span><span class="lbl foot-mail">${esc(S.me.email)}</span></span></button>${themeToggle('s')}</div>
     </nav>
     <main class="${anim ? 'enter' : ''}">
       <div class="mobile-head"><div class="row"><div class="logo">${LOGO}</div><div><b style="font-size:14.5px">Minima Studio</b><div class="lbl" style="font-size:11.5px">${role}</div></div></div>
-        <div class="row"><button class="bell ${S.route === 'notifs' ? 'on' : ''}" data-go="notifs" aria-label="Activité">${I.bell}${unread() ? `<span class="badge">${unread()}</span>` : ''}</button>
-        <button class="bell" data-act="account" style="border:0;background:none;padding:0" aria-label="Mon compte">${avatar(S.me, 34)}</button></div></div>
+        <div class="row">${themeToggle('m')}<button class="bell ${S.route === 'notifs' ? 'on' : ''}" data-go="notifs" aria-label="Activité">${I.bell}${unread() ? `<span class="badge">${unread()}</span>` : ''}</button>
+        <button class="bell plain" data-act="account" aria-label="Mon compte">${avatar(S.me, 36)}</button></div></div>
       ${page()}
     </main>
     <nav class="tabbar" aria-label="Onglets">${tabs}</nav>
   </div>`;
   if (!anim) window.scrollTo(0, y);
+  hideTip(); placeThumbs();
 }
 
 function page() {
@@ -277,8 +498,10 @@ function page() {
 function header(kicker, title, right = '') {
   return `<div class="top"><div><div class="lbl">${esc(kicker)}</div><h1>${esc(title)}</h1></div>${right}</div>`;
 }
+// Toutes les cartes ont la même structure (libellé, valeur, pied), même quand le pied est vide : hauteurs et lignes alignées.
 function stat(label, value, foot = '', color = 'var(--muted)') {
-  return `<div class="card"><div class="lbl">${esc(label)}</div><div class="big">${esc(value)}</div>${foot ? `<div class="foot-note" style="color:${color}">${esc(foot)}</div>` : ''}</div>`;
+  const size = value.length > 13 ? ' xlong' : value.length > 8 ? ' long' : '';
+  return `<div class="card stat"><div class="lbl" title="${esc(label)}">${esc(label)}</div><div class="big${size}">${esc(value)}</div><div class="foot-note" style="color:${color}">${foot ? esc(foot) : '&nbsp;'}</div></div>`;
 }
 function missionRow(m, right) {
   const c = client(m.client_id);
@@ -406,7 +629,7 @@ function homeEditor() {
   return `${header(fmtLong(now), `Bonjour ${firstName(S.me)}`)}
   <div class="grid">
     ${stat('Cette semaine', hm(weekSecs), `${hm(todaySecs)} aujourd'hui`)}
-    ${stat(`Gains · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(Math.round(gains)), 'Estimation selon le temps passé')}
+    ${stat(`Gains · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(Math.round(gains)), 'Estimation au temps passé')}
     ${stat('Missions en cours', String(todo.length), waiting.length ? `${waiting.length} en attente du client` : '')}
     ${stat('Prochaine deadline', next ? deadlineLabel(next.m) : '–', next ? next.m.title : 'Rien de prévu', next && isLate(next.m) ? 'var(--red)' : 'var(--muted)')}
   </div>
@@ -415,6 +638,7 @@ function homeEditor() {
       <div class="card flush"><div class="card-head"><h2>À faire maintenant</h2><span class="lbl">${todo.length}</span></div>
         <div class="list">${todo.map((t) => todoRow(t, act(t.m))).join('') || '<div class="empty">Rien à monter pour le moment.</div>'}</div></div>
       ${waiting.length ? `<div class="card flush"><div class="card-head"><h2>Livrées, en attente du client</h2></div><div class="list">${waiting.map((m) => missionRow(m)).join('')}</div></div>` : ''}
+      ${gainsPreview()}
       ${hoursCard([S.me], 'Mes heures par jour')}
     </div>
     <div class="narrow stack">${upcomingCard()}</div>
@@ -538,30 +762,22 @@ function financePage() {
   const billed = list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = list.reduce((a, m) => a + editorPayout(m), 0);
   const toBill = list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced);
-  const byEditor = {};
-  list.forEach((m) => split(m).filter((r) => profile(r.u)?.role !== 'admin').forEach((r) => {
-    const e = (byEditor[r.u] ||= { amount: 0, secs: 0, n: 0 }); e.amount += r.amount; e.secs += r.secs; e.n += 1;
-  }));
   const rows = list.map((m) => {
     const f = S.finances[m.id]; const p = f?.client_price; const pay = editorPayout(m);
     return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span>
       <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${p ? eur(p) : 'prix à renseigner'} → ${eur(Math.round(pay))}</div></div>
-      <div style="text-align:right"><div class="mono" style="font-weight:600;color:${p == null ? 'var(--muted)' : p - pay >= 0 ? 'var(--green)' : 'var(--red)'}">${p == null ? '–' : eur(Math.round(p - pay))}</div></div>
+      <div class="mono" style="flex-shrink:0;font-weight:600;color:${p == null ? 'var(--muted)' : p - pay >= 0 ? 'var(--green)' : 'var(--red)'}">${p == null ? '–' : eur(Math.round(p - pay))}</div>
       ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Facturée` : 'Facturer'}</button>` : ''}</div>`;
   }).join('');
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}
   <div class="grid">
-    ${stat('Facturé aux clients', eur(billed), `${list.length} missions · HTVA`)}
+    ${stat('Facturé aux clients', eur(billed), `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`)}
     ${stat('Reversé aux monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '')}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)')}
     ${stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé')}
   </div>
-  <div class="cols">
-    <div class="wide card flush"><div class="card-head"><h2>Missions du mois</h2><span class="lbl">Marge</span></div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>
-    <div class="narrow card"><div class="card-head"><h2>Par monteur</h2></div>
-      ${Object.entries(byEditor).map(([u, e]) => `<div class="kv"><span class="row">${avatar(profile(u), 24)}${esc(firstName(profile(u)))}<span class="lbl">${hm(e.secs)}${e.secs >= 600 ? ` · ${eur(Math.round(e.amount / (e.secs / 3600)))}/h` : ''}</span></span><span class="mono" style="font-weight:600">${eur(Math.round(e.amount))}</span></div>`).join('') || '<div class="empty">Pas encore de temps enregistré.</div>'}
-    </div>
-  </div>`;
+  ${financeCharts(mo, list)}
+  <div class="card flush"><div class="card-head"><h2>Missions de ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2><span class="lbl">Marge</span></div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
 }
 function monthSeg(mo) {
   const label = cap(mo.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' }));
@@ -571,12 +787,17 @@ function monthSeg(mo) {
 // --- Revenus (monteur)
 function earningsPage() {
   const mo = S.month;
-  const list = S.missions.filter((m) => sameMonth(monthOf(m), mo)).map((m) => ({ m, ...myShare(m) })).filter((r) => r.amount > 0 || r.secs > 0);
+  const list = myMonthShares(mo);
+  const today = new Date(); const nDays = new Date(mo.getFullYear(), mo.getMonth() + 1, 0).getDate();
+  const days = Array.from({ length: nDays }, (_, i) => new Date(mo.getFullYear(), mo.getMonth(), i + 1));
+  const cum = S.earnMode === 'cum';
+  const g = gainsChart(days, { cum, upTo: sameMonth(today, mo) ? today.getDate() : mo > today ? 0 : nDays, every: (x) => (x.getDate() === 1 || x.getDate() % 5 === 0 ? String(x.getDate()) : '') });
+  const bars = projectBars(list);
   const total = list.reduce((a, r) => a + r.amount, 0); const secs = list.reduce((a, r) => a + r.secs, 0);
   const sure = list.filter((r) => !isOpen(r.m)).reduce((a, r) => a + r.amount, 0);
   const rows = list.map((r) => `<div class="item" role="button" tabindex="0" data-open="${r.m.id}"><span class="dot" style="background:${clientColor(client(r.m.client_id))}"></span>
     <div class="grow"><div class="t">${esc(r.m.title)}</div><div class="s">${esc(client(r.m.client_id)?.name || '')} · ${hm(r.secs)}${r.secs >= 300 ? ` · ${eur(Math.round(r.amount / (r.secs / 3600)))}/h` : ''}${r.estimated ? ' · estimation' : ''}</div></div>
-    <div style="text-align:right"><div class="mono" style="font-weight:600;color:var(--green)">${eur(Math.round(r.amount))}</div></div>${statusPill(r.m.status)}</div>`).join('');
+    <div class="mono" style="flex-shrink:0;font-weight:600;color:var(--green)">${eur(Math.round(r.amount))}</div><span class="hide-m">${statusPill(r.m.status)}</span></div>`).join('');
   return `${header('Ta part sur chaque mission', 'Mes revenus', monthSeg(mo))}
   <div class="grid">
     ${stat('Gains du mois', eur(Math.round(total)), `${list.length} mission${list.length > 1 ? 's' : ''}`)}
@@ -584,6 +805,11 @@ function earningsPage() {
     ${stat('Temps de montage', hm(secs))}
     ${stat('Taux horaire moyen', secs >= 600 ? `${eur(Math.round(total / (secs / 3600)))}/h` : '–')}
   </div>
+  <div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>${cum ? 'Gains cumulés' : 'Gains par jour'}</h2><div class="lbl">${g.total > 0 ? `${eur(Math.round(g.total))} gagnés sur ${g.active} jour${g.active > 1 ? 's' : ''} de montage` : 'Selon tes sessions de montage'}</div></div>
+      <div class="seg mini"><button class="${cum ? '' : 'on'}" data-set="earnMode:day">Par jour</button><button class="${cum ? 'on' : ''}" data-set="earnMode:cum">Cumulé</button></div></div>
+    ${g.html || emptyArt('Aucun temps de montage enregistré ce mois-ci.')}
+    <p class="hint">La part de chaque mission est répartie sur tes jours de montage, au prorata du temps passé chaque jour. Une mission sans temps enregistré n'apparaît pas encore sur la courbe.</p></div>
+  <div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>Gains par projet</h2><div class="lbl">Ta part sur les missions de ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</div></div></div><div class="bars">${bars || emptyArt('Aucune mission ce mois-ci.')}</div></div>
   <div class="card flush"><div class="card-head"><h2>Missions du mois</h2><span class="lbl">Ta part</span></div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>
   <p class="lbl" style="margin-top:14px">Le budget d'une mission est réparti selon le temps de montage de chacun. Tant que la mission n'est pas terminée, le montant peut encore bouger.</p>`;
 }
@@ -694,15 +920,24 @@ function openMission(id, mode = 'view') {
   if (!S.comments[id]) loadComments(id);
   openSheet({ type: 'mission', id, mode });
 }
-function closeSheet() { sheetRoot.innerHTML = ''; setSheet(null); document.body.style.overflow = ''; }
+function closeSheet() { sheetRoot.innerHTML = ''; setSheet(null); lockScroll(false); }
+// Bloque le défilement de la page sous une feuille, sans décalage quand la barre de défilement disparaît.
+function lockScroll(on) {
+  const b = document.body;
+  if (!on) { b.style.overflow = ''; b.style.paddingRight = ''; return; }
+  if (b.style.overflow === 'hidden') return;
+  const gap = window.innerWidth - document.documentElement.clientWidth;
+  b.style.overflow = 'hidden'; if (gap > 0) b.style.paddingRight = `${gap}px`;
+}
 function sheetWrap(kicker, title, sub, body, keep, narrow) {
   const y = sheetRoot.querySelector('.sheet')?.scrollTop || 0;
-  sheetRoot.innerHTML = `<div class="scrim ${keep ? 'noanim' : ''}" data-close><div class="sheet ${keep ? 'noanim' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}" ${narrow ? 'style="max-width:640px"' : ''}>
+  sheetRoot.innerHTML = `<div class="scrim ${keep ? 'noanim' : ''}" data-close><div class="sheet-box ${keep ? 'noanim' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}" ${narrow ? 'style="max-width:640px"' : ''}>
     <div class="grab"></div>
-    <div class="sheet-head"><div style="flex:1;min-width:0"><div class="lbl">${esc(kicker)}</div><h2>${esc(title)}</h2>${sub}</div><button class="x" data-close aria-label="Fermer">×</button></div>
-    ${body}</div></div>`;
-  document.body.style.overflow = 'hidden';
+    <div class="sheet"><div class="sheet-head"><div style="flex:1;min-width:0"><div class="lbl">${esc(kicker)}</div><h2>${esc(title)}</h2>${sub}</div><button class="x" data-close aria-label="Fermer">×</button></div>
+    ${body}</div></div></div>`;
+  lockScroll(true);
   if (keep) sheetRoot.querySelector('.sheet').scrollTop = y;
+  placeThumbs(false);
 }
 function renderSheet(keep = false) {
   const s = S.sheet; if (!s) return;
@@ -740,13 +975,13 @@ function stepsHtml(m, labels) {
   const cur = stepIndex(m.status);
   return `<div class="card"><div class="steps">${STEPS.map((s, i) => {
     const done = i < cur && m.status !== 'requested', now = i === cur && m.status !== 'requested';
-    const col = now ? statusColor(m.status) : done ? '#3DD68C' : 'rgba(255,255,255,.08)';
+    const col = now ? statusColor(m.status) : done ? 'var(--green)' : 'var(--track)';
     return `<div class="step"><div class="bar" style="background:${col}"></div><div class="n" style="color:${now ? tint(col) : done ? 'var(--text)' : 'var(--muted)'}">${esc(labels(s, now))}</div></div>`;
   }).join('')}</div></div>`;
 }
 function linkBlock(title, url, action, color, editable, field, extra = '') {
   return `<div class="card" style="flex:1 1 240px"><div class="card-head" style="margin-bottom:10px"><h2>${title}</h2></div>
-    ${url ? `<a class="btn full" href="${esc(url)}" target="_blank" rel="noopener" style="color:${color};background:${color}1f;border-color:${color}40;justify-content:space-between">${action}<span>↗</span></a>` : '<div class="lbl" style="min-height:44px;display:flex;align-items:center">Pas encore de lien.</div>'}
+    ${url ? `<a class="btn full tinted" href="${esc(url)}" target="_blank" rel="noopener" style="--c:${color}">${action}<span>↗</span></a>` : '<div class="lbl" style="min-height:44px;display:flex;align-items:center">Pas encore de lien.</div>'}
     ${editable ? `<form data-link="${field}" style="display:flex;gap:8px;margin-top:10px"><input class="in" name="url" type="url" placeholder="${url ? 'Remplacer le lien' : 'Coller le lien'}" aria-label="${title} : lien" style="min-height:40px"><button class="btn" type="submit" style="min-height:40px">OK</button></form>` : ''}${extra}</div>`;
 }
 
@@ -892,18 +1127,18 @@ function accountBody() {
 
 // ---------- connexion ----------
 function renderLogin() {
-  app.innerHTML = `<div class="login"><div class="box">
+  app.innerHTML = `<div class="login"><div class="tgl-float">${themeToggle('l')}</div><div class="box">
     <div class="logo big" style="margin:0 auto">${LOGO}</div>
     <h1>Minima Studio</h1><p class="muted" style="margin:0 0 26px">Suivi des projets Minimalist Belgium</p>
     <form id="mail-form"><label class="f" for="em" style="text-align:left;margin-top:0">Ton adresse e-mail</label>
       <input class="in" id="em" name="email" type="email" autocomplete="email" inputmode="email" required placeholder="prenom@entreprise.be">
       <button class="btn pri full" type="submit" style="margin-top:12px">${TAURI ? 'Recevoir un code de connexion' : 'Recevoir un lien de connexion'}</button></form>
     ${TAURI ? '' : '<div class="or">ou</div><button class="btn full" data-act="google">Continuer avec Google</button>'}
-    <p class="lbl" style="margin-top:22px">Accès réservé aux clients et à l'équipe de Minimalist Belgium.<br><a href="/confidentialite.html" style="color:var(--muted)">Confidentialité</a></p>
+    <p class="lbl" style="margin-top:22px">Accès réservé aux clients et à l'équipe de Minimalist Belgium.<br><a href="/confidentialite.html" style="color:inherit">Confidentialité</a></p>
   </div></div>`;
 }
 function renderPending() {
-  app.innerHTML = `<div class="login"><div class="box"><div class="logo big" style="margin:0 auto">${LOGO}</div>
+  app.innerHTML = `<div class="login"><div class="tgl-float">${themeToggle('l')}</div><div class="box"><div class="logo big" style="margin:0 auto">${LOGO}</div>
     <h1>Accès en attente</h1><p class="muted">Ton compte ${esc(S.session?.user?.email || '')} n'est pas encore relié à un projet. Demande à Gaston de t'ajouter, puis reviens ici.</p>
     <button class="btn full" data-act="retry" style="margin-top:18px">Réessayer</button>
     <button class="btn full" data-act="logout" style="margin-top:10px">Se déconnecter</button></div></div>`;
@@ -933,6 +1168,7 @@ const ACTIONS = {
   newmission: (t) => { const preset = t.dataset.day ? { deadline: new Date(`${t.dataset.day}T18:00`).toISOString() } : null; openSheet({ type: 'new', preset }); },
   newclient: () => openSheet({ type: 'client', id: null }),
   account: () => openSheet({ type: 'account' }),
+  theme: () => toggleTheme(),
   edit: (t) => openMission(t.dataset.id, 'edit'),
   view: (t) => openMission(t.dataset.id),
   push: () => enablePush(),
@@ -1008,7 +1244,7 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color]');
+  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-set]');
   if (!t) return;
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
@@ -1035,6 +1271,7 @@ document.addEventListener('click', async (e) => {
     else if (D.agClient !== undefined) { S.agClient = D.agClient; render(); }
     else if (D.day) { S.agDay = D.day; if (fromYmd(D.day).getMonth() !== S.agDate.getMonth()) S.agDate = fromYmd(D.day); render(); }
     else if (D.teamtab) { S.teamTab = D.teamtab; render(); }
+    else if (D.set) { const [k, v] = D.set.split(':'); S[k] = v; render(); }
     else if (D.member) openSheet({ type: 'member', id: D.member });
     else if (D.clientOpen) openSheet({ type: 'client', id: D.clientOpen });
   } catch (err) { toast(err.message || String(err)); }
@@ -1248,7 +1485,8 @@ boot();
 setInterval(() => { if (!document.hidden) sync(); }, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
 let wasMobile = isMobile();
-window.addEventListener('resize', debounce(() => { if (isMobile() !== wasMobile) { wasMobile = isMobile(); if (S.route === 'agenda' && S.me) render(); } }, 200));
+window.addEventListener('resize', debounce(() => { hideTip(); if (isMobile() !== wasMobile) { wasMobile = isMobile(); if (S.route === 'agenda' && S.me) return render(); } placeThumbs(false); }, 200));
+if (document.fonts?.ready) document.fonts.ready.then(() => placeThumbs(false)).catch(() => {});
 
 // Accès pour l'app Windows (desktop.js)
 window.MS = { sb, S, render, refresh: () => refresh(), toast, openMission, esc, eur, hm, client, profile, memberIds, split, isAdmin, isEditor, isClient };

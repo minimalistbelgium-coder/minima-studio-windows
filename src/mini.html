@@ -2,41 +2,58 @@
 <html lang="fr"><head><meta charset="utf-8"><title>Chrono</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@500&display=swap">
 <style>
-html,body{margin:0;height:100%;background:transparent;font-family:'Geist',system-ui,sans-serif;color:#EDEEF0;user-select:none;overflow:hidden}
-.box{height:100%;box-sizing:border-box;background:#131417;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;cursor:grab}
+/* Mini chrono : mêmes couleurs que l'app, en sombre ou en clair */
+:root{--card:#131417;--brd:rgba(255,255,255,.1);--text:#EDEEF0;--muted:#8F929A;--chip:rgba(255,255,255,.06);--btn:#1F2025;--green:#3DD68C;--amber:#F5A524;--spec:inset 0 1px 0 rgba(255,255,255,.1)}
+:root[data-theme="light"]{--card:#F7F8FB;--brd:rgba(17,24,39,.12);--text:#12141A;--muted:#5F6676;--chip:rgba(17,24,39,.05);--btn:#FFFFFF;--green:#0A8050;--amber:#A85D00;--spec:inset 0 1px 0 #fff}
+html,body{margin:0;height:100%;background:transparent;font-family:'Geist',system-ui,sans-serif;color:var(--text);user-select:none;overflow:hidden}
+.box{height:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;cursor:grab;box-shadow:var(--spec);transition:background-color .3s,border-color .3s,color .3s}
 .head{display:flex;align-items:center;gap:8px}
-.dot{width:8px;height:8px;border-radius:50%;background:#8B8D94;flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.run{background:var(--green)}.dot.wait{background:var(--amber)}
 .title{flex:1;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-button{background:#1A1B1F;border:0;color:#8B8D94;border-radius:7px;width:26px;height:24px;cursor:pointer;font-size:13px}
-.clock{font-family:'Geist Mono',monospace;font-size:30px;font-weight:500;letter-spacing:-.02em}
+button{background:var(--btn);border:1px solid var(--brd);color:var(--muted);border-radius:8px;width:26px;height:24px;cursor:pointer;font-size:13px;transition:color .15s,transform .15s}
+button:hover{color:var(--text)}
+button:active{transform:scale(.94)}
+.clock{font-family:'Geist Mono',ui-monospace,Consolas,monospace;font-size:30px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.clock.run{color:var(--green)}
 .stats{display:flex;gap:6px}
-.stats div{flex:1;background:rgba(255,255,255,.05);border-radius:8px;padding:4px 8px}
-.stats span{display:block;font-size:9px;letter-spacing:.06em;color:#8B8D94;font-weight:600}
-.stats b{font-size:14px}
-.line{font-size:11px;color:#8B8D94;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats div{flex:1;min-width:0;background:var(--chip);border-radius:8px;padding:4px 8px}
+.stats span{display:block;font-size:9px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.stats b{font-size:14px;white-space:nowrap}
+#budget{color:var(--green)}
+.line{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head>
 <body>
 <div class="box" data-tauri-drag-region>
   <div class="head" data-tauri-drag-region><span class="dot" id="dot"></span><span class="title" id="title" data-tauri-drag-region>Chrono</span><button id="back" title="Grande fenêtre" aria-label="Grande fenêtre">⤡</button></div>
   <div class="clock" id="clock" data-tauri-drag-region>00:00:00</div>
-  <div class="stats" data-tauri-drag-region><div data-tauri-drag-region><span>À LA CLÉ</span><b id="budget" style="color:#3DD68C">–</b></div><div data-tauri-drag-region><span>RATIO</span><b id="rate">–</b></div></div>
+  <div class="stats" data-tauri-drag-region><div data-tauri-drag-region><span>À LA CLÉ</span><b id="budget">–</b></div><div data-tauri-drag-region><span>RATIO</span><b id="rate">–</b></div></div>
   <div class="line" id="line" data-tauri-drag-region></div>
 </div>
 <script>
 const eur = (n) => new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 const clock = (sec) => { sec = Math.floor(sec); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return [h, m, s].map((x) => String(x).padStart(2, '0')).join(':'); };
+// Même thème que la grande fenêtre : choix mémorisé, sinon celui du système.
+function applyTheme() {
+  let t = null; try { t = localStorage.getItem('msTheme'); } catch {}
+  if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  if (document.documentElement.dataset.theme !== t) document.documentElement.dataset.theme = t;
+}
 function draw() {
+  applyTheme();
   let d; try { d = JSON.parse(localStorage.getItem('minimaTracker') || 'null'); } catch {}
   if (!d) return;
   const live = d.status === 'running' ? (Date.now() - d.t) / 1000 : 0;
   document.getElementById('clock').textContent = clock(d.seconds + live);
-  document.getElementById('clock').style.color = d.status === 'running' ? '#3DD68C' : '#EDEEF0';
-  document.getElementById('dot').style.background = d.status === 'running' ? '#3DD68C' : (d.status === 'paused' || d.status === 'askAway') ? '#F5A524' : '#8B8D94';
+  document.getElementById('clock').className = d.status === 'running' ? 'clock run' : 'clock';
+  document.getElementById('dot').className = d.status === 'running' ? 'dot run' : (d.status === 'paused' || d.status === 'askAway') ? 'dot wait' : 'dot';
   document.getElementById('title').textContent = d.title;
   document.getElementById('budget').textContent = d.budget ? eur(d.budget) : '–';
   document.getElementById('rate').textContent = d.rate ? eur(Math.round(d.rate)) + ' / h' : '–';
   document.getElementById('line').textContent = d.line;
 }
+applyTheme();
 setInterval(draw, 500); draw();
 document.getElementById('back').addEventListener('click', () => window.__TAURI__.core.invoke('hide_mini'));
 </script>

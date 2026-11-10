@@ -79,8 +79,7 @@ struct NotificationsPanel: View {
         }
         .frame(width: 360, height: 420)
         .task { allowed = await SystemNotifier.isAuthorized() }
-        .background(Theme.bg)
-        .preferredColorScheme(.dark)
+        .foregroundStyle(Theme.text)
     }
 
     private func row(_ n: AppNotification) -> some View {

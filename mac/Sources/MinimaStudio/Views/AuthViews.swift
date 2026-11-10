@@ -47,7 +47,7 @@ struct LoginView: View {
             Text("Minimalist Belgium").font(.system(size: 12)).foregroundStyle(Theme.muted).padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.bg)
+        .overlay(alignment: .topTrailing) { ThemeToggle(compact: true).padding(.top, 14).padding(.trailing, 18) }
     }
 }
 
@@ -73,6 +73,6 @@ struct PendingView: View {
             .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.bg)
+        .overlay(alignment: .topTrailing) { ThemeToggle(compact: true).padding(.top, 14).padding(.trailing, 18) }
     }
 }

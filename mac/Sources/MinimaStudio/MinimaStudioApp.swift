@@ -19,7 +19,6 @@ struct MinimaStudioApp: App {
                 .environmentObject(updater)
                 .environmentObject(presenter)
                 .frame(minWidth: 860, minHeight: 580)
-                .preferredColorScheme(.dark)
                 .tint(Theme.blue)
                 .background(WindowAccessor { w in
                     guard !(w is NSPanel) else { return }
@@ -70,8 +69,10 @@ struct RootView: View {
                 ShellView()
             }
         }
-        .background(Theme.bg)
+        .foregroundStyle(Theme.text)
+        .background { AmbientBackground() }
         .overlay(alignment: .bottom) { ToastView() }
+        .onAppear { ThemeMode.apply(ThemeMode.stored) }
         .task(id: "\(app.profile?.id ?? "-")|\(app.profile?.role ?? "-")") {
             await setup()
         }

@@ -39,7 +39,7 @@ struct FinancesView: View {
                 }
             }
 
-            HStack(spacing: 14) {
+            StatGrid {
                 StatCard(label: "Facturé aux clients", value: Money.eur(revenue))
                 StatCard(label: "Payé à l'équipe", value: Money.eur(cost))
                 StatCard(label: "Marge", value: Money.eur(margin),
@@ -149,7 +149,7 @@ struct TimeView: View {
             } else {
                 DailyHoursCard(people: data.profiles.filter { $0.active && ($0.role == "editor" || $0.role == "admin") },
                                title: "Heures par jour")
-                HStack(spacing: 14) {
+                StatGrid {
                     StatCard(label: "Temps total", value: TimeFmt.hm(total))
                     StatCard(label: "Sessions", value: "\(sessions.count)")
                     StatCard(label: "Missions suivies", value: "\(byMission.count)")
@@ -166,7 +166,7 @@ struct TimeView: View {
                             Text(data.profile(uid)?.displayName ?? "Inconnu").font(.system(size: 13.5))
                             Spacer()
                             GeometryReader { g in
-                                RoundedRectangle(cornerRadius: 3).fill(Theme.blue.opacity(0.7))
+                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Theme.blue.opacity(0.7))
                                     .frame(width: total > 0 ? g.size.width * secs / total : 0)
                             }
                             .frame(width: 220, height: 6)

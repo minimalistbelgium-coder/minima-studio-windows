@@ -22,8 +22,8 @@ struct InputStyle: ViewModifier {
             .textFieldStyle(.plain)
             .font(.system(size: 13.5))
             .padding(.horizontal, 11).frame(minHeight: 34)
-            .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.08)))
+            .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.ink.opacity(0.08)))
     }
 }
 
@@ -47,8 +47,8 @@ struct MultilineInput: View {
                 .padding(.horizontal, 6).padding(.vertical, 6)
         }
         .frame(height: height)
-        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.08)))
+        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.ink.opacity(0.08)))
     }
 }
 
@@ -103,7 +103,7 @@ struct MissionRow: View {
         let client = data.client(mission.client_id)
         Button(action: onOpen) {
             HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 2).fill(Color(hex: client?.color ?? "8B8D94")).frame(width: 3, height: 34)
+                RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Color(hex: client?.color ?? "8B8D94")).frame(width: 3, height: 34)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(mission.title).font(.system(size: 14, weight: .medium)).lineLimit(1)
                     HStack(spacing: 6) {
@@ -215,7 +215,7 @@ struct ChipPicker<T: Hashable>: View {
                         if on {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(Theme.card2)
-                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.white.opacity(0.1)))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Theme.ink.opacity(0.1)))
                                 .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
                                 .matchedGeometryEffect(id: "chip", in: ns)
                         }

@@ -239,8 +239,8 @@ private struct RoleChoice: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selected ? Theme.blue.opacity(0.12) : Theme.card2, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? Theme.blue.opacity(0.6) : Color.white.opacity(0.08)))
+            .background(selected ? Theme.blue.opacity(0.12) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(selected ? Theme.blue.opacity(0.6) : Theme.ink.opacity(0.08)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

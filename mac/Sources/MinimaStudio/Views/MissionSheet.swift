@@ -32,9 +32,8 @@ struct MissionSheet: View {
                 }
             }
         }
-        .frame(minWidth: 560, idealWidth: 1000, maxWidth: 1040)
+        .frame(minWidth: 520, idealWidth: 1000, maxWidth: 1040)
         .frame(minHeight: 420)
-        .background(Theme.bg)
     }
 }
 
@@ -81,7 +80,7 @@ private struct MissionDetail: View {
                                 .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.green)
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(Theme.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 9))
+                        .background(Theme.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     }
 
                     if app.isAdmin && mission.status == "requested" {
@@ -133,7 +132,7 @@ private struct MissionDetail: View {
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                     .padding(.horizontal, 12).frame(height: 32)
-                    .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9))
+                    .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 } else if app.isEditor && mission.isOpen {
                     EditorStatusMenu(current: mission.status) { s in
                         run { try await data.editorSetStatus(mission, s); app.showToast("Statut envoyé à l'admin") }
@@ -309,7 +308,7 @@ private struct MissionDetail: View {
                         Text("Ouvrir").font(.system(size: 12)).foregroundStyle(Theme.blue)
                     }
                     .padding(.horizontal, 12).frame(height: 38)
-                    .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9))
+                    .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -547,7 +546,7 @@ private struct MissionDetail: View {
                     }
                     .foregroundStyle(color)
                     .padding(.horizontal, 12).frame(height: 38)
-                    .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: 9))
+                    .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -840,8 +839,8 @@ struct MoneyField: View {
             Text("€").foregroundStyle(Theme.muted)
         }
         .padding(.horizontal, 12).frame(height: 38)
-        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.08)))
+        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.ink.opacity(0.08)))
     }
 }
 
@@ -905,8 +904,8 @@ struct TeamPicker: View {
                             .foregroundStyle(on ? Theme.blue : Theme.muted)
                     }
                     .padding(.horizontal, 10).frame(height: 48)
-                    .background(on ? Theme.blue.opacity(0.12) : Theme.card2, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(on ? Theme.blue.opacity(0.6) : Color.white.opacity(0.08)))
+                    .background(on ? Theme.blue.opacity(0.12) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(on ? Theme.blue.opacity(0.6) : Theme.ink.opacity(0.08)))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -1011,7 +1010,7 @@ struct DeadlinePicker: View {
             }
         }
         .padding(12)
-        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func dayCell(_ d: Date) -> some View {
@@ -1021,7 +1020,7 @@ struct DeadlinePicker: View {
         return Button { setDay(d) } label: {
             Text("\(cal.component(.day, from: d))")
                 .font(.system(size: 13, weight: selected ? .bold : .regular))
-                .foregroundStyle(selected ? Color(hex: "06101F") : (past ? Theme.muted.opacity(0.6) : Theme.text))
+                .foregroundStyle(selected ? Theme.onAccent : (past ? Theme.muted.opacity(0.6) : Theme.text))
                 .frame(width: 36, height: 36)
                 .background(selected ? Theme.blue : Color.clear, in: Circle())
                 .overlay(Circle().stroke(today && !selected ? Theme.blue.opacity(0.7) : Color.clear, lineWidth: 1.5))
@@ -1087,8 +1086,8 @@ struct DeadlinePicker: View {
         return Button { setTime(hour: h, minute: 0) } label: {
             Text(String(format: "%02d:00", h)).font(.system(size: 12.5, weight: .medium)).monospacedDigit()
                 .frame(width: 62, height: 30)
-                .foregroundStyle(on ? Color(hex: "06101F") : Theme.text)
-                .background(on ? Theme.blue : Theme.card2, in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(on ? Theme.onAccent : Theme.text)
+                .background(on ? Theme.blue : Theme.card2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1109,7 +1108,7 @@ struct DeadlinePicker: View {
             Text(label).font(.system(size: 12, weight: .medium))
                 .padding(.horizontal, 10).frame(height: 28)
                 .background(Theme.card2, in: Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.08)))
+                .overlay(Capsule().stroke(Theme.ink.opacity(0.08)))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -1142,9 +1141,9 @@ struct AttachmentsField: View {
                     Text("Glisse un PDF ici ou clique pour choisir").font(.system(size: 12.5)).foregroundStyle(Theme.text2)
                 }
                 .frame(maxWidth: .infinity).frame(height: 76)
-                .background(hovering ? Theme.blue.opacity(0.08) : Theme.card2, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                    .foregroundStyle(hovering ? Theme.blue : Color.white.opacity(0.18)))
+                .background(hovering ? Theme.blue.opacity(0.08) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                    .foregroundStyle(hovering ? Theme.blue : Theme.ink.opacity(0.18)))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -1170,7 +1169,7 @@ struct AttachmentsField: View {
                 .buttonStyle(.plain)
         }
         .padding(.horizontal, 12).frame(height: 38)
-        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9))
+        .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private func choose() {
@@ -1224,8 +1223,8 @@ struct EditorStatusMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .padding(.horizontal, 14).frame(height: 34)
-        .background(Theme.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Theme.blue.opacity(0.4)))
+        .background(Theme.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.blue.opacity(0.4)))
         .help("Change le statut : l'admin reçoit une notification")
     }
 

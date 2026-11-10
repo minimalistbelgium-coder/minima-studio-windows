@@ -68,7 +68,6 @@ final class MiniWindow {
                 .environmentObject(app)
                 .environmentObject(data)
                 .environmentObject(tracker)
-                .preferredColorScheme(.dark)
             let host = DraggableHostingView(rootView: root)
             p.contentView = host
             p.setContentSize(host.fittingSize)
@@ -83,6 +82,18 @@ final class MiniWindow {
         panel?.orderFrontRegardless()
         isVisible = true
         app.mainWindow?.orderOut(nil)
+    }
+
+    /// Ajuste la hauteur de la mini-fenêtre à son contenu (questions du chrono), le coin haut gauche ne bouge pas.
+    func fit(_ size: CGSize) {
+        DispatchQueue.main.async { [weak self] in
+            guard let p = self?.panel, size.height > 40, size.width > 40 else { return }
+            var f = p.frame
+            guard abs(f.height - size.height) > 0.5 || abs(f.width - size.width) > 0.5 else { return }
+            f.origin.y += f.height - size.height
+            f.size = size
+            p.setFrame(f, display: true, animate: p.isVisible)
+        }
     }
 
     func hide(app: AppState) {
@@ -122,9 +133,15 @@ struct MiniView: View {
         }
         .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 12)
         .frame(width: 320, alignment: .leading)
+        .foregroundStyle(Theme.text)
+        .environment(\.glassDepth, 1)
         .background(WindowDragArea())
-        .background(Color(hex: "131417").opacity(0.97), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08)))
+        .background { MiniGlass(shape: RoundedRectangle(cornerRadius: 18, style: .continuous)) }
+        .background(GeometryReader { g in
+            Color.clear
+                .onAppear { MiniWindow.shared.fit(g.size) }
+                .onChange(of: g.size) { MiniWindow.shared.fit($0) }
+        })
     }
 }
 
@@ -136,7 +153,7 @@ extension MiniView {
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(Theme.ink.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .allowsHitTesting(false)
     }
 }
@@ -254,7 +271,7 @@ struct LinkProjectMenu: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
             .padding(.horizontal, 10).frame(height: 26)
-            .background(Theme.blue.opacity(0.18), in: RoundedRectangle(cornerRadius: 7))
+            .background(Theme.blue.opacity(0.18), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             Button("Ignorer") { tracker.ignoreCurrentProject() }.buttonStyle(MiniButton())
         }
     }
@@ -270,10 +287,13 @@ struct MiniButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(primary ? Color(hex: "06101F") : Theme.text)
+            .foregroundStyle(primary ? Theme.onAccent : Theme.text)
+            .lineLimit(1)
             .padding(.horizontal, 10).frame(height: 26)
-            .background(primary ? Theme.blue : Theme.card2, in: RoundedRectangle(cornerRadius: 7))
+            .glassButton(tint: primary ? Theme.blue : nil, radius: 8, prominent: primary)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(configuration.isPressed ? 0.8 : 1)
             .contentShape(Rectangle())
+            .animation(.spring(response: 0.25, dampingFraction: 0.75), value: configuration.isPressed)
     }
 }

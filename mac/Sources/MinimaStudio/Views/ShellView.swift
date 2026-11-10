@@ -22,16 +22,17 @@ struct ShellView: View {
             let compact = g.size.width < 1060
             HStack(spacing: 0) {
                 Sidebar(route: $route, compact: compact)
-                    .frame(width: compact ? 68 : 236)
-                Rectangle().fill(Theme.line).frame(width: 1)
+                    .frame(width: compact ? 76 : 248)
                 VStack(spacing: 0) {
                     UpdateBanner()
-                    content.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .id(route)
+                        .transition(.opacity)
                 }
             }
             .environment(\.compactLayout, g.size.width < 980)
         }
-        .background(Theme.bg)
         .overlay { PanelHost() }
         .onAppear { route = defaultRoute }
         .onChange(of: app.profile?.role) { _ in route = defaultRoute }
@@ -45,7 +46,11 @@ struct ShellView: View {
 
     @ViewBuilder private var content: some View {
         if !data.loaded {
-            ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 12) {
+                ProgressView().controlSize(.small)
+                Muted("Chargement de tes données…")
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if app.isAdmin {
             switch route {
             case .missions: MissionsView()
@@ -73,38 +78,42 @@ struct ShellView: View {
     }
 }
 
-// MARK: - Panneau par-dessus la page (fermeture au clic à côté ou Échap)
+// MARK: - Fiche par-dessus la page (fermeture au clic à côté ou Échap)
 
+/// Fond assombri et flouté sur toute la fenêtre, fiche centrée en verre aux coins arrondis.
+/// L'ordre compte : on fixe la taille, on arrondit le contenu, on pose le verre derrière,
+/// et seulement ensuite on ajoute la marge. (Avant, la marge était ajoutée avant l'arrondi :
+/// le cadre et l'ombre dépassaient de 24 points de chaque côté de la fiche.)
 struct PanelHost: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var data: DataStore
     @EnvironmentObject var presenter: Presenter
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
         ZStack {
-            if presenter.isOpen {
-                Color.black.opacity(0.5)
+            if let t = presenter.mission {
+                Rectangle().fill(.ultraThinMaterial)
+                    .overlay(Theme.scrim)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { presenter.close() }
                     .transition(.opacity)
+                    .zIndex(0)
 
-                Group {
-                    if let t = presenter.mission {
-                        MissionSheet(target: t, presetDeadline: presenter.presetDeadline, onClose: { presenter.close() })
-                    }
-                }
-                .frame(maxHeight: 820)
-                .padding(.horizontal, 24)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.08)))
-                .shadow(color: .black.opacity(0.5), radius: 40, y: 10)
-                .padding(.vertical, 30)
-                .onExitCommand { presenter.close() }
-                .transition(.scale(scale: 0.97).combined(with: .opacity))
+                MissionSheet(target: t, presetDeadline: presenter.presetDeadline, onClose: { presenter.close() })
+                    .frame(maxWidth: 1040, maxHeight: 820)
+                    .foregroundStyle(Theme.text)
+                    .clipShape(shape)
+                    .glassSurface(shape, tint: Theme.bg.opacity(0.55), fill: Theme.bg.opacity(0.82))
+                    .shadow(color: .black.opacity(0.28), radius: 40, y: 16)
+                    .padding(.horizontal, 28).padding(.vertical, 32)
+                    .onExitCommand { presenter.close() }
+                    .transition(.scale(scale: 0.96).combined(with: .opacity).combined(with: .offset(y: 14)))
+                    .zIndex(1)
             }
         }
-        .animation(.easeOut(duration: 0.16), value: presenter.isOpen)
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: presenter.mission)
     }
 }
 
@@ -117,33 +126,35 @@ struct UpdateBanner: View {
     var body: some View {
         if let r = updater.updateAvailable {
             HStack(spacing: 12) {
-                Image(systemName: "arrow.down.circle.fill").foregroundStyle(Theme.blue)
+                Image(systemName: "arrow.down.circle.fill").font(.system(size: 16)).foregroundStyle(Theme.blue)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Nouvelle version \(r.version) disponible").font(.system(size: 13, weight: .semibold))
+                    Text("Nouvelle version \(r.version) disponible").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.text)
                     if let n = r.notes, !n.isEmpty {
                         Text(n).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
                     if let e = updater.error {
-                        Text(e).font(.system(size: 12)).foregroundStyle(Theme.red)
+                        Text(e).font(.system(size: 12)).foregroundStyle(Theme.red).lineLimit(2)
                     }
                 }
-                Spacer()
+                Spacer(minLength: 8)
                 if updater.installing {
                     ProgressView().controlSize(.small)
-                    Text(updater.progressText ?? "").font(.system(size: 12)).foregroundStyle(Theme.muted)
+                    Text(updater.progressText ?? "").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                 } else {
                     Button("Mettre à jour") { Task { @MainActor in await updater.install(r, tracker: tracker) } }
                         .buttonStyle(PrimaryButton())
+                        .controlSize(.small)
                 }
             }
-            .padding(.horizontal, 20).padding(.vertical, 10)
-            .background(Theme.blue.opacity(0.1))
-            .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 1) }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .glassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous), tint: Theme.blue.opacity(0.12))
+            .padding(.horizontal, 20).padding(.top, 12)
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 }
 
-// MARK: - Barre latérale
+// MARK: - Barre latérale (panneau flottant en verre)
 
 private struct Sidebar: View {
     @EnvironmentObject var app: AppState
@@ -152,6 +163,7 @@ private struct Sidebar: View {
     @Binding var route: Route
     var compact = false
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @Namespace private var nav
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -165,10 +177,10 @@ private struct Sidebar: View {
                 HStack(spacing: 10) {
                     AppLogo(size: 30)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Minima Studio").font(.system(size: 14.5, weight: .semibold))
+                        Text("Minima Studio").font(.system(size: 14.5, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
                         Text(app.profile?.roleLabel ?? "").font(.system(size: 11.5)).foregroundStyle(Theme.muted)
                     }
-                    Spacer()
+                    Spacer(minLength: 4)
                     NotificationBell()
                 }
                 .padding(.horizontal, 10).padding(.top, 38).padding(.bottom, 22)
@@ -194,35 +206,40 @@ private struct Sidebar: View {
                 item("Finances", "eurosign.circle", .myFinances)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
             if app.isTeam && !compact {
                 TrackerCard()
                     .padding(.bottom, 10)
             }
 
+            ThemeToggle(compact: compact)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 10)
+
             if let p = app.profile, compact {
                 accountMenu { AvatarView(profile: p, size: 32) }
-                    .frame(maxWidth: .infinity).padding(.bottom, 16)
+                    .frame(maxWidth: .infinity).padding(.bottom, 14)
             } else if let p = app.profile {
                 HStack(spacing: 10) {
                     AvatarView(profile: p, size: 30)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(p.displayName).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                        Text("\(p.roleLabel) · v\(AppVersion.current)").font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                        Text(p.displayName).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                        Text("\(p.roleLabel) · v\(AppVersion.current)").font(.system(size: 11.5)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
-                    Spacer()
-                    accountMenu { Image(systemName: "ellipsis").foregroundStyle(Theme.muted) }
+                    Spacer(minLength: 4)
+                    accountMenu { Image(systemName: "ellipsis").foregroundStyle(Theme.muted).frame(width: 24, height: 24).contentShape(Rectangle()) }
                         .frame(width: 24)
                 }
                 .padding(10)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-                .padding(.bottom, 14)
+                .glassCard(radius: 14)
+                .padding(.bottom, 12)
             }
         }
         .padding(.horizontal, compact ? 6 : 12)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color(hex: "0F1013"))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), fill: Theme.card.opacity(0.5))
+        .padding(.leading, 8).padding(.vertical, 8)
     }
 
     private func accountMenu<L: View>(@ViewBuilder label: () -> L) -> some View {
@@ -250,53 +267,92 @@ private struct Sidebar: View {
         if compact {
             Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 12).padding(.horizontal, 8)
         } else {
-        Text(t.uppercased()).font(.system(size: 10.5, weight: .semibold)).tracking(0.8)
-            .foregroundStyle(Theme.muted.opacity(0.8))
-            .padding(.horizontal, 10).padding(.top, 20).padding(.bottom, 6)
+            Text(t.uppercased()).font(.system(size: 10.5, weight: .semibold)).tracking(0.8)
+                .foregroundStyle(Theme.muted.opacity(0.85))
+                .padding(.horizontal, 10).padding(.top, 20).padding(.bottom, 6)
         }
     }
 
     private func item(_ title: String, _ icon: String, _ r: Route, badge: Int = 0, live: Int = 0) -> some View {
-        let active = route == r
-        if compact {
-            return AnyView(Button { route = r } label: {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: icon).font(.system(size: 15))
-                        .foregroundStyle(active ? Theme.blue : Theme.muted)
-                        .frame(width: 44, height: 40)
-                        .background(active ? Theme.card2 : Color.clear, in: RoundedRectangle(cornerRadius: 10))
-                    if live > 0 { Circle().fill(Theme.green).frame(width: 7, height: 7).offset(x: -6, y: 6) }
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(title))
+        SidebarItem(title: title, icon: icon, active: route == r, compact: compact, badge: badge, live: live, nav: nav) {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { route = r }
         }
-        return AnyView(Button { route = r } label: {
-            HStack(spacing: 10) {
-                Image(systemName: icon).frame(width: 18)
-                    .foregroundStyle(active ? Theme.blue : Theme.muted)
-                Text(title).font(.system(size: 13.5, weight: active ? .semibold : .regular))
-                    .foregroundStyle(active ? Theme.text : Theme.text2)
-                Spacer()
-                if live > 0 {
-                    HStack(spacing: 4) {
-                        Circle().fill(Theme.green).frame(width: 6, height: 6)
-                        Text("\(live)").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.green)
-                    }
-                    .help("\(live) personne(s) en train de monter")
-                }
-                if badge > 0 {
-                    Text("\(badge)").font(.system(size: 11, weight: .semibold)).monospacedDigit()
-                        .foregroundStyle(Theme.muted)
-                }
+    }
+}
+
+/// Une entrée de la barre latérale : pastille active qui glisse, survol doux.
+private struct SidebarItem: View {
+    let title: String
+    let icon: String
+    let active: Bool
+    let compact: Bool
+    var badge = 0
+    var live = 0
+    let nav: Namespace.ID
+    var action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if compact { compactLabel } else { wideLabel }
             }
-            .padding(.horizontal, 10).frame(height: 34)
-            .background(active ? Theme.card2 : Color.clear, in: RoundedRectangle(cornerRadius: 9))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain))
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
+        .help(compact ? title : "")
+    }
+
+    @ViewBuilder private func plate(_ radius: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if active {
+            shape.fill(Theme.ink.opacity(0.09))
+                .overlay(shape.strokeBorder(Theme.rim.opacity(0.35), lineWidth: 0.5))
+                .matchedGeometryEffect(id: "active", in: nav)
+        } else if hover {
+            shape.fill(Theme.ink.opacity(0.045))
+        }
+    }
+
+    private var compactLabel: some View {
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: icon).font(.system(size: 15))
+                .symbolVariant(active ? .fill : .none)
+                .foregroundStyle(active ? Theme.blue : Theme.muted)
+                .frame(width: 44, height: 40)
+                .background { plate(11) }
+            if live > 0 { Circle().fill(Theme.green).frame(width: 7, height: 7).offset(x: -6, y: 6) }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var wideLabel: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).frame(width: 18)
+                .symbolVariant(active ? .fill : .none)
+                .foregroundStyle(active ? Theme.blue : Theme.muted)
+            Text(title).font(.system(size: 13.5, weight: active ? .semibold : .regular))
+                .foregroundStyle(active ? Theme.text : Theme.text2)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            if live > 0 {
+                HStack(spacing: 4) {
+                    Circle().fill(Theme.green).frame(width: 6, height: 6)
+                    Text("\(live)").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.green)
+                }
+                .help("\(live) personne(s) en train de monter")
+            }
+            if badge > 0 {
+                Text("\(badge)").font(.system(size: 11, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(active ? Theme.text2 : Theme.muted)
+                    .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 18)
+                    .background(Theme.ink.opacity(0.06), in: Capsule())
+            }
+        }
+        .padding(.horizontal, 10).frame(height: 34)
+        .background { plate(10) }
     }
 }
 
@@ -310,7 +366,7 @@ struct TrackerCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 7) {
                 StatusDot(status: tracker.status)
-                Text(tracker.mission?.title ?? "Chrono").font(.system(size: 12, weight: .medium)).lineLimit(1)
+                Text(tracker.mission?.title ?? "Chrono").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text).lineLimit(1)
                 Spacer()
                 Button {
                     MiniWindow.shared.show(app: app, data: data, tracker: tracker)
@@ -338,8 +394,7 @@ struct TrackerCard: View {
             TrackerHint()
         }
         .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line))
+        .glassCard(radius: 14)
     }
 }
 

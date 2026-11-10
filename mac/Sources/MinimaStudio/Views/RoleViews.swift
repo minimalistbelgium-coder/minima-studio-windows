@@ -58,7 +58,7 @@ struct MyDashboardView: View {
                     GeometryReader { g in
                         HStack(spacing: 0) {
                             Rectangle().fill(Theme.green).frame(width: earned > 0 ? g.size.width * validated / earned : 0)
-                            Rectangle().fill(earned > 0 ? Theme.amber : Color.white.opacity(0.07))
+                            Rectangle().fill(earned > 0 ? Theme.amber : Theme.ink.opacity(0.07))
                         }
                     }
                     .frame(height: 8).clipShape(Capsule()).padding(.top, 16)
@@ -127,7 +127,7 @@ struct SessionHero: View {
         } else {
             HStack(spacing: 16) {
                 Image(systemName: "film").font(.system(size: 20)).foregroundStyle(Theme.muted)
-                    .frame(width: 44, height: 44).background(Theme.card2, in: RoundedRectangle(cornerRadius: 12))
+                    .frame(width: 44, height: 44).background(Theme.card2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Aucune session en cours").font(.system(size: 15, weight: .semibold))
                     Muted(next.map { "Prochaine deadline : \($0.title), \(DateFmt.deadline($0.deadlineDate).lowercased())" }
@@ -346,7 +346,7 @@ struct EarningsList: View {
                 let share = data.myShare(of: m)
                 Button { presenter.open(.existing(m.id)) } label: {
                     HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 2).fill(Color(hex: data.client(m.client_id)?.color ?? "8B8D94")).frame(width: 3, height: 32)
+                        RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Color(hex: data.client(m.client_id)?.color ?? "8B8D94")).frame(width: 3, height: 32)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(m.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
                             Text("\(data.client(m.client_id)?.name ?? "Sans client") · \(DateFmt.deadline(m.deadlineDate))")
@@ -514,7 +514,7 @@ struct UpdatesView: View {
                         Text(url.absoluteString).font(.system(size: 12.5, design: .monospaced)).lineLimit(1).truncationMode(.middle)
                             .textSelection(.enabled)
                             .padding(.horizontal, 10).frame(height: 32)
-                            .background(Theme.card2, in: RoundedRectangle(cornerRadius: 8))
+                            .background(Theme.card2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         Button("Copier") {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(url.absoluteString, forType: .string)

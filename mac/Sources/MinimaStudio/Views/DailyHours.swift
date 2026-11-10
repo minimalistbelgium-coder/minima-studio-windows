@@ -77,7 +77,7 @@ struct DailyHoursCard: View {
                         }
                     }
                     .frame(maxWidth: 44).frame(height: 110)
-                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .background(Theme.ink.opacity(0.04), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                     Text("\(dayLabel(d)) \(AgendaCal.cal.component(.day, from: d))")
                         .font(.system(size: 11.5, weight: today ? .semibold : .regular))
                         .foregroundStyle(today ? Theme.blue : Theme.muted)
@@ -116,13 +116,13 @@ struct DailyHoursCard: View {
                         Text(v > 0 ? TimeFmt.hm(v) : "·").font(.system(size: 12.5)).monospacedDigit()
                             .foregroundStyle(v > 0 ? Theme.text : Theme.muted)
                             .frame(maxWidth: .infinity).frame(height: 34)
-                            .background(v > 0 ? Theme.blue.opacity(0.08 + 0.4 * min(1, v / 28800)) : Color.white.opacity(0.025),
+                            .background(v > 0 ? Theme.blue.opacity(0.08 + 0.4 * min(1, v / 28800)) : Theme.ink.opacity(0.025),
                                         in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(today ? Theme.blue.opacity(0.45) : .clear))
                     }
                     Text(TimeFmt.hm(ds.reduce(0) { $0 + cell(p.id, $1) })).font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
                         .frame(width: 76, height: 34)
-                        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(Theme.ink.opacity(0.025), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
             if active.count > 1 {

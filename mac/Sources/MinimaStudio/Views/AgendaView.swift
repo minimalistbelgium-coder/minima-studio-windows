@@ -284,7 +284,7 @@ struct AgendaView: View {
 
     private func legendItem(_ color: Color, _ text: String) -> some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 3).fill(color).frame(width: 14, height: 8)
+            RoundedRectangle(cornerRadius: 3, style: .continuous).fill(color).frame(width: 14, height: 8)
             Muted(text, size: 12)
         }
     }
@@ -326,7 +326,7 @@ struct AgendaFilterChip: View {
                 if count > 0 {
                     Text("\(count)").font(.system(size: 11, weight: .semibold)).monospacedDigit()
                         .padding(.horizontal, 6).frame(height: 17)
-                        .background(Color.white.opacity(0.1), in: Capsule())
+                        .background(Theme.ink.opacity(0.1), in: Capsule())
                 }
             }
             .foregroundStyle(on ? Theme.text : Theme.text2)
@@ -343,7 +343,7 @@ struct AgendaFilterChip: View {
 struct AgendaBar: View {
     let color: Color
     var body: some View {
-        RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 3).padding(.vertical, 4).padding(.leading, 3)
+        RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 3).padding(.vertical, 4).padding(.leading, 3)
     }
 }
 
@@ -361,7 +361,7 @@ struct AgendaDayCell: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("\(AgendaCal.cal.component(.day, from: day))")
                 .font(.system(size: 12.5, weight: today ? .bold : .medium)).monospacedDigit()
-                .foregroundStyle(today ? Color(hex: "06101F") : Theme.text2)
+                .foregroundStyle(today ? Theme.onAccent : Theme.text2)
                 .frame(width: 24, height: 24)
                 .background(today ? Theme.blue : Color.clear, in: Circle())
             ForEach(Array(missions.prefix(3))) { m in AgendaChip(mission: m) }

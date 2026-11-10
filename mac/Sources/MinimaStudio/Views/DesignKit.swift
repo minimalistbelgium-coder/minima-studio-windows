@@ -28,12 +28,53 @@ struct Columns<Left: View, Right: View>: View {
 }
 
 /// Grille de cartes qui passe de 4 à 2 à 1 colonne selon la largeur.
+/// Toutes les cartes ont exactement la même largeur et la même hauteur (celle de la plus haute),
+/// alignées en haut.
 struct StatGrid<Content: View>: View {
     var min: CGFloat = 200
     @ViewBuilder var content: () -> Content
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: min), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
-            content()
+        GlassGroup {
+            EqualGrid(minWidth: min, spacing: 14) { content() }
+        }
+    }
+}
+
+/// Mise en page en colonnes égales : chaque case reçoit la même taille.
+struct EqualGrid: Layout {
+    var minWidth: CGFloat = 200
+    var spacing: CGFloat = 14
+
+    private struct Metrics { let cols: Int; let rows: Int; let cell: CGSize; let width: CGFloat }
+
+    private func metrics(_ proposal: ProposedViewSize, _ subviews: Subviews) -> Metrics {
+        let n = subviews.count
+        guard n > 0 else { return Metrics(cols: 1, rows: 0, cell: .zero, width: 0) }
+        var width = proposal.width ?? .infinity
+        if !width.isFinite || width <= 0 { width = CGFloat(n) * minWidth + CGFloat(n - 1) * spacing }
+        let fit = Swift.max(1, Int((width + spacing) / (minWidth + spacing)))
+        let half = (n + 1) / 2
+        let cols = fit >= n ? n : (fit >= half ? half : fit)
+        let rows = Int((Double(n) / Double(cols)).rounded(.up))
+        let cellW = Swift.max(0, (width - CGFloat(cols - 1) * spacing) / CGFloat(cols))
+        let cellH = subviews.map { $0.sizeThatFits(ProposedViewSize(width: cellW, height: nil)).height }.max() ?? 0
+        return Metrics(cols: cols, rows: rows, cell: CGSize(width: cellW, height: cellH), width: width)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let m = metrics(proposal, subviews)
+        guard m.rows > 0 else { return .zero }
+        return CGSize(width: m.width, height: CGFloat(m.rows) * m.cell.height + CGFloat(m.rows - 1) * spacing)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let m = metrics(ProposedViewSize(width: bounds.width, height: nil), subviews)
+        for (i, v) in subviews.enumerated() {
+            let c = i % m.cols, r = i / m.cols
+            v.place(at: CGPoint(x: bounds.minX + CGFloat(c) * (m.cell.width + spacing),
+                                y: bounds.minY + CGFloat(r) * (m.cell.height + spacing)),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(width: m.cell.width, height: m.cell.height))
         }
     }
 }
@@ -44,7 +85,7 @@ struct CardTitle<Trailing: View>: View {
     @ViewBuilder var trailing: () -> Trailing
     var body: some View {
         HStack(alignment: .center) {
-            Text(text).font(.system(size: 15, weight: .semibold))
+            Text(text).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
             Spacer(minLength: 8)
             trailing()
         }
@@ -97,7 +138,7 @@ struct ThinBar: View {
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.07))
+                Capsule().fill(Theme.ink.opacity(0.07))
                 Capsule().fill(color).frame(width: max(0, min(1, value)) * g.size.width)
             }
         }
@@ -216,7 +257,7 @@ struct WeekAgenda: View {
         return Button { presenter.open(.existing(m.id)) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 Tag(text: c?.name ?? "Sans client", color: color)
-                Text(m.title).font(.system(size: 13, weight: .medium)).lineLimit(2).multilineTextAlignment(.leading)
+                Text(m.title).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text).lineLimit(2).multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
                     if showPeople, !people.isEmpty { MemberStack(profiles: people, size: 18) }
                     Text(chipFoot(m)).font(.system(size: 11.5)).foregroundStyle(m.isLate ? Theme.red : Theme.muted).lineLimit(1)
@@ -224,9 +265,10 @@ struct WeekAgenda: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.06)))
+            .background(color.opacity(0.11), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(color.opacity(0.16), lineWidth: 0.5))
             .contentShape(Rectangle())
+            .hoverRow(radius: 11)
         }
         .buttonStyle(.plain)
     }
@@ -274,7 +316,7 @@ struct StepProgress: View {
             ForEach(Array(Self.steps.enumerated()), id: \.offset) { i, s in
                 let done = i < current
                 let now = i == current
-                let color = now ? Color(hex: MissionStatus.color(mission.status)) : (done ? Theme.green : Color.white.opacity(0.08))
+                let color = now ? Color(hex: MissionStatus.color(mission.status)) : (done ? Theme.green : Theme.ink.opacity(0.08))
                 VStack(alignment: .leading, spacing: 8) {
                     Capsule().fill(color).frame(height: 4)
                     Text(now ? MissionStatus.label(mission.status) : MissionStatus.label(s))

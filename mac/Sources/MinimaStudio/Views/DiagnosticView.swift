@@ -12,7 +12,7 @@ enum DiagnosticWindow {
                          styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         w.title = "Diagnostic du chrono"
         w.isReleasedWhenClosed = false
-        w.contentView = NSHostingView(rootView: DiagnosticView().environmentObject(tracker).preferredColorScheme(.dark))
+        w.contentView = NSHostingView(rootView: DiagnosticView().environmentObject(tracker))
         w.center()
         window = w
         w.makeKeyAndOrderFront(nil)

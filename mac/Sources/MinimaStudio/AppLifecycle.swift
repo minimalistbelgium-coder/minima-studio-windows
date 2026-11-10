@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var presenter: Presenter?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ThemeMode.apply(ThemeMode.stored)
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         SystemNotifier.requestPermission()
     }

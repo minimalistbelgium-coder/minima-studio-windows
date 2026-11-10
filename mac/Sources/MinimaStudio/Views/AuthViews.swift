@@ -23,6 +23,7 @@ struct LoginView: View {
                     Text("Minima Studio").font(.system(size: 30, weight: .semibold))
                     Text("Missions, deadlines et temps de montage de l'équipe.")
                         .font(.system(size: 14)).foregroundStyle(Theme.muted)
+                        .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 }
                 Button {
                     Task { @MainActor in await app.signIn() }
@@ -40,9 +41,13 @@ struct LoginView: View {
                 if let err = app.authError {
                     Text(err).font(.system(size: 12.5)).foregroundStyle(Theme.red)
                         .multilineTextAlignment(.center).frame(maxWidth: 380)
+                        .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                 }
             }
+            .padding(.horizontal, 44).padding(.vertical, 40)
+            .glassCard(radius: 28)
+            .padding(.horizontal, 24)
             Spacer()
             Text("Minimalist Belgium").font(.system(size: 12)).foregroundStyle(Theme.muted).padding(.bottom, 24)
         }
@@ -62,6 +67,8 @@ struct PendingView: View {
             Text("Ton compte \(app.profile?.email ?? app.session?.user.email ?? "") n'est pas encore dans l'équipe.\nDemande à Gaston de t'ajouter, puis clique sur Réessayer.")
                 .font(.system(size: 14)).foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 420)
             HStack(spacing: 10) {
                 Button {
                     Task { @MainActor in checking = true; await app.loadProfile(); checking = false }
@@ -72,6 +79,9 @@ struct PendingView: View {
             }
             .padding(.top, 6)
         }
+        .padding(.horizontal, 44).padding(.vertical, 40)
+        .glassCard(radius: 28)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .topTrailing) { ThemeToggle(compact: true).padding(.top, 14).padding(.trailing, 18) }
     }

@@ -14,7 +14,8 @@ struct NotificationBell: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(data.unreadCount > 0 ? Theme.text : Theme.muted)
                     .frame(width: 28, height: 28)
-                    .background(Theme.card2, in: Circle())
+                    .background(Theme.ink.opacity(0.07), in: Circle())
+                    .contentShape(Circle())
                 if data.unreadCount > 0 {
                     Text("\(min(data.unreadCount, 9))").font(.system(size: 9.5, weight: .bold))
                         .foregroundStyle(.white)
@@ -48,7 +49,8 @@ struct NotificationsPanel: View {
                 HStack(spacing: 10) {
                     Image(systemName: "bell.slash").foregroundStyle(Theme.amber)
                     Text("Les notifications macOS sont coupées pour Minima Studio.").font(.system(size: 12)).foregroundStyle(Theme.text2)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 6)
                     Button("Activer") { SystemNotifier.openSettings() }.buttonStyle(SecondaryButton())
                 }
                 .padding(12)
@@ -67,8 +69,7 @@ struct NotificationsPanel: View {
             ScrollView {
                 VStack(spacing: 0) {
                     if data.notifications.isEmpty {
-                        Text("Rien de neuf pour l'instant.").font(.system(size: 12.5)).foregroundStyle(Theme.muted)
-                            .frame(maxWidth: .infinity).padding(30)
+                        EmptyHint(text: "Rien de neuf pour l'instant.", icon: "bell").padding(.top, 60)
                     }
                     ForEach(data.notifications) { n in
                         row(n)
@@ -124,6 +125,7 @@ struct NotificationsPanel: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 11)
+        .hoverRow()
     }
 }
 

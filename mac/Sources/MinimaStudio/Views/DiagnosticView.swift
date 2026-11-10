@@ -75,7 +75,8 @@ struct DiagnosticView: View {
             .padding(22)
         }
         .frame(minWidth: 480, minHeight: 480)
-        .background(Theme.bg)
+        .foregroundStyle(Theme.text)
+        .background { AmbientBackground() }
     }
 
     private var arch: String {

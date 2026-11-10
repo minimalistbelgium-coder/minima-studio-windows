@@ -192,7 +192,7 @@ struct RequestBanner: View {
     @State private var confirmRefuse = false
     @State private var busy = false
 
-    private let pink = Color(hex: "F472B6")
+    private let pink = Theme.pink
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

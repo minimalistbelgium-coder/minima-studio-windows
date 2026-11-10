@@ -205,12 +205,12 @@ struct WeekAgenda: View {
         VStack(alignment: .leading, spacing: 16) {
             CardTitle(text: weekOffset == 0 ? "Cette semaine" : (weekOffset == 1 ? "Semaine prochaine" : "Semaine")) {
                 HStack(spacing: 8) {
-                    Muted(rangeLabel(days))
-                    navButton("chevron.left") { weekOffset -= 1 }
+                    Muted(rangeLabel(days)).lineLimit(1)
+                    navButton("chevron.left") { withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { weekOffset -= 1 } }
                     if weekOffset != 0 {
                         Button("Aujourd'hui") { weekOffset = 0 }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.blue)
                     }
-                    navButton("chevron.right") { weekOffset += 1 }
+                    navButton("chevron.right") { withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) { weekOffset += 1 } }
                 }
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 10, alignment: .top)], alignment: .leading, spacing: 14) {
@@ -285,7 +285,8 @@ struct WeekAgenda: View {
     private func navButton(_ icon: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon).font(.system(size: 10.5, weight: .bold)).foregroundStyle(Theme.text2)
-                .frame(width: 26, height: 26).background(Theme.card2, in: Circle())
+                .frame(width: 26, height: 26).background(Theme.ink.opacity(0.07), in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }

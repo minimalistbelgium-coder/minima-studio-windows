@@ -45,6 +45,12 @@ struct MyDashboardView: View {
 
             Columns(minLeft: 460, rightWidth: 300) {
                 WeekAgenda(missions: data.missions, showPeople: false)
+                if let me = app.profile {
+                    DailyEarningsCard(title: "Mes gains par jour · 30 derniers jours",
+                                      days: data.dailyEarnings(user: me.id,
+                                                               from: Calendar.current.date(byAdding: .day, value: -29, to: Date()) ?? Date(),
+                                                               to: Date()))
+                }
                 VStack(alignment: .leading, spacing: 10) {
                     SectionTitle(text: "Mes missions", trailing: "Ta part · budget max")
                     EarningsList(missions: open)
@@ -54,7 +60,9 @@ struct MyDashboardView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Muted("Mes gains · \(Date().formatted(.dateTime.month(.wide).locale(Locale(identifier: "fr_BE"))))")
                     Text(Money.eur(validated.rounded())).font(.system(size: 30, weight: .semibold)).tracking(-0.5).padding(.top, 10)
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                     Muted("validés, plus \(Money.eur((earned - validated).rounded())) en attente").padding(.top, 6)
+                        .fixedSize(horizontal: false, vertical: true)
                     GeometryReader { g in
                         HStack(spacing: 0) {
                             Rectangle().fill(Theme.green).frame(width: earned > 0 ? g.size.width * validated / earned : 0)
@@ -69,6 +77,13 @@ struct MyDashboardView: View {
                     .padding(.top, 10)
                 }
                 .card()
+                if let me = app.profile {
+                    SliceBarsCard(title: "Gains par projet", subtitle: "Ce mois-ci, ta part par mission",
+                                  slices: data.projectEarnings(user: me.id, missions: month.filter { m in
+                                      data.memberIds(of: m.id).contains(me.id) || data.mySplit[m.id] != nil
+                                  }, limit: 6),
+                                  empty: "Aucune mission ce mois-ci.", showTime: true)
+                }
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "lock.shield").foregroundStyle(Theme.muted)
                     Muted("Seul ton temps actif dans Premiere Pro est mesuré. Rien d'autre sur ton Mac n'est enregistré.", size: 12)
@@ -122,8 +137,9 @@ struct SessionHero: View {
             }
             .padding(26)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke((running ? Theme.green : Theme.amber).opacity(0.3)))
+            .glassCard(radius: 20, tint: (running ? Theme.green : Theme.amber).opacity(0.07))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder((running ? Theme.green : Theme.amber).opacity(0.32)))
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: running)
         } else {
             HStack(spacing: 16) {
                 Image(systemName: "film").font(.system(size: 20)).foregroundStyle(Theme.muted)
@@ -144,10 +160,12 @@ struct SessionHero: View {
         VStack(alignment: .leading, spacing: 0) {
             Tag(text: running ? (tracker.manual ? "Chrono manuel en cours" : "Session en cours · détectée dans Premiere Pro") : "En pause",
                 color: running ? Theme.green : Theme.amber, dot: true)
-            Text("\(data.client(m.client_id)?.name ?? "") · \(m.title)").font(.system(size: 20, weight: .semibold)).padding(.top, 14)
+            Text([data.client(m.client_id)?.name, m.title].compactMap { $0 }.joined(separator: " · ")).font(.system(size: 20, weight: .semibold)).padding(.top, 14)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
                 Text(LiveClock.format(tracker.displaySeconds(at: ctx.date)))
                     .font(.system(size: 54, weight: .medium, design: .monospaced)).tracking(-1.5)
+                    .lineLimit(1).minimumScaleFactor(0.5)
                     .foregroundStyle(running ? Theme.green : Theme.muted)
             }
             .padding(.top, 4)
@@ -201,7 +219,7 @@ struct MyFinancesView: View {
             PageHeader(kicker: "Ton récapitulatif", title: "Finances") {
                 HStack(spacing: 8) {
                     Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton())
-                    Text(label).font(.system(size: 14, weight: .medium)).frame(minWidth: 130)
+                    Text(label).font(.system(size: 14, weight: .medium)).lineLimit(1).frame(minWidth: 130)
                     Button { shift(1) } label: { Image(systemName: "chevron.right") }.buttonStyle(SecondaryButton())
                 }
             }
@@ -214,6 +232,11 @@ struct MyFinancesView: View {
                 StatCard(label: "Rentabilité moyenne", value: avg.map { "\(Money.eur($0.rounded())) / h" } ?? "–",
                          foot: "Montant facturé ÷ heures travaillées")
             }
+
+            DailyEarningsCard(title: "Gains par jour · \(label)", days: data.dailyEarnings(user: app.profile?.id ?? "", from: month, to: monthEnd))
+            SliceBarsCard(title: "Gains par projet", subtitle: "Ta part sur chaque mission du mois",
+                          slices: data.projectEarnings(user: app.profile?.id ?? "", missions: rows.map(\.mission)),
+                          empty: "Aucune mission sur ce mois.", showTime: true)
 
             VStack(alignment: .leading, spacing: 0) {
                 CardTitle(text: "Détail des missions · \(label)") {
@@ -235,7 +258,7 @@ struct MyFinancesView: View {
                     HStack { Muted("Mission", size: 12); Spacer(); Muted("Montant", size: 12) }
                 }
                 .padding(.horizontal, 20).padding(.bottom, 10)
-                if rows.isEmpty { EmptyHint(text: "Aucune mission sur ce mois.") }
+                if rows.isEmpty { EmptyHint(text: "Aucune mission sur ce mois.", icon: "tray") }
                 ForEach(rows) { r in
                     Rectangle().fill(Theme.line).frame(height: 1)
                     row(r, avg: avg)
@@ -249,8 +272,7 @@ struct MyFinancesView: View {
                 }
                 .padding(.horizontal, 20).padding(.vertical, 14)
             }
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.line))
+            .glassCard()
 
             Muted("Les montants « estimés » peuvent encore bouger : ils sont définitifs quand Gaston valide la mission. Tu peux coller le récap dans ta facture.", size: 12)
         }
@@ -295,6 +317,7 @@ struct MyFinancesView: View {
             }
             .padding(.horizontal, 20).padding(.vertical, 11)
             .contentShape(Rectangle())
+            .hoverRow()
         }
         .buttonStyle(.plain)
     }
@@ -324,7 +347,19 @@ struct MyFinancesView: View {
         app.showToast("Récapitulatif copié")
     }
 
-    private func shift(_ n: Int) { month = Calendar.current.date(byAdding: .month, value: n, to: month) ?? month }
+    private func shift(_ n: Int) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            month = Calendar.current.date(byAdding: .month, value: n, to: month) ?? month
+        }
+    }
+
+    /// Dernier jour affiché : la fin du mois, ou aujourd'hui pour le mois en cours.
+    private var monthEnd: Date {
+        let cal = Calendar.current
+        let next = cal.date(byAdding: .month, value: 1, to: month) ?? month
+        let last = cal.date(byAdding: .day, value: -1, to: next) ?? month
+        return cal.isDate(Date(), equalTo: month, toGranularity: .month) ? Date() : last
+    }
 
     private func monthLabel(_ d: Date) -> String {
         let s = d.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "fr_BE")))
@@ -340,7 +375,7 @@ struct EarningsList: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if missions.isEmpty { EmptyHint(text: "Aucune mission pour le moment.") }
+            if missions.isEmpty { EmptyHint(text: "Aucune mission pour le moment.", icon: "film.stack") }
             ForEach(Array(missions.enumerated()), id: \.element.id) { i, m in
                 if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                 let share = data.myShare(of: m)
@@ -350,9 +385,9 @@ struct EarningsList: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(m.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
                             Text("\(data.client(m.client_id)?.name ?? "Sans client") · \(DateFmt.deadline(m.deadlineDate))")
-                                .font(.system(size: 12)).foregroundStyle(m.isLate ? Theme.red : Theme.muted)
+                                .font(.system(size: 12)).foregroundStyle(m.isLate ? Theme.red : Theme.muted).lineLimit(1)
                         }
-                        Spacer()
+                        Spacer(minLength: 8)
                         if !data.liveSession(for: m.id).isEmpty { Pill(text: "En cours", color: Theme.green) }
                         Text(TimeFmt.hm(data.mySplit[m.id]?.seconds)).font(.system(size: 12.5)).monospacedDigit().foregroundStyle(Theme.muted)
                             .frame(width: 70, alignment: .trailing)
@@ -370,6 +405,7 @@ struct EarningsList: View {
                     }
                     .padding(.horizontal, 16).padding(.vertical, 11)
                     .contentShape(Rectangle())
+                    .hoverRow()
                 }
                 .buttonStyle(.plain)
             }
@@ -415,16 +451,16 @@ struct ClientProjectsView: View {
         Page {
             PageHeader(kicker: client?.name ?? "Client", title: "Mes projets")
             VStack(spacing: 0) {
-                if list.isEmpty { EmptyHint(text: "Aucun projet pour le moment.") }
+                if list.isEmpty { EmptyHint(text: "Aucun projet pour le moment. Tes montages apparaîtront ici dès leur création.", icon: "film.stack") }
                 ForEach(Array(list.enumerated()), id: \.element.id) { i, m in
                     if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(m.title).font(.system(size: 14, weight: .medium))
-                                Text(DateFmt.deadline(m.deadlineDate)).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                                Text(m.title).font(.system(size: 14, weight: .medium)).lineLimit(2)
+                                Text(DateFmt.deadline(m.deadlineDate)).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                             }
-                            Spacer()
+                            Spacer(minLength: 8)
                             if m.rushes_url == nil {
                                 Button("Déposer mes rushes") { editing = m.id; link = "" }.buttonStyle(SecondaryButton())
                             } else {
@@ -480,7 +516,7 @@ struct UpdatesView: View {
                 Text("Publier une version").font(.system(size: 15, weight: .semibold))
                 HStack(spacing: 10) {
                     Button(zipURL == nil ? "Choisir le .zip…" : "Changer") { choose() }.buttonStyle(SecondaryButton())
-                    Text(zipURL?.lastPathComponent ?? "Aucun fichier").font(.system(size: 13)).foregroundStyle(Theme.muted)
+                    Text(zipURL?.lastPathComponent ?? "Aucun fichier").font(.system(size: 13)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle)
                     if let z = zipURL, FileManager.default.fileExists(atPath: z.deletingPathExtension().appendingPathExtension("dmg").path) {
                         Pill(text: "+ installeur .dmg", color: Theme.green)
                     }
@@ -514,6 +550,7 @@ struct UpdatesView: View {
                         Text(url.absoluteString).font(.system(size: 12.5, design: .monospaced)).lineLimit(1).truncationMode(.middle)
                             .textSelection(.enabled)
                             .padding(.horizontal, 10).frame(height: 32)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Theme.card2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         Button("Copier") {
                             NSPasteboard.general.clearContents()

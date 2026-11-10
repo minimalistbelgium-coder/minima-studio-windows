@@ -23,13 +23,14 @@ struct TeamView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Ajouter quelqu'un").font(.system(size: 15, weight: .semibold))
                 Text("Entre son adresse Gmail et choisis son rôle. Dès qu'il se connecte à Minima Studio avec ce compte Google, il a accès à son espace.")
-                    .font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                    .font(.system(size: 12.5)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 8) {
                     ForEach(Roles.assignable, id: \.self) { r in
-                        RoleChoice(role: r, selected: role == r) { role = r }
+                        RoleChoice(role: r, selected: role == r) { withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) { role = r } }
                     }
                 }
+                .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 10) {
                     TextField("prenom@gmail.com", text: $email).input().onSubmit(invite)
@@ -59,13 +60,13 @@ struct TeamView: View {
                                 Text(p.displayName).font(.system(size: 14, weight: .medium))
                                 if live { Pill(text: "En train de monter", color: Theme.green) }
                             }
-                            Text(p.email).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                            Text(p.email).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle)
                         }
-                        Spacer()
+                        Spacer(minLength: 8)
                         if p.role == "client" {
-                            Text(data.client(p.client_id)?.name ?? "Client non défini").font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                            Text(data.client(p.client_id)?.name ?? "Client non défini").font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1)
                         } else {
-                            Text("\(count) mission\(count > 1 ? "s" : "") en cours").font(.system(size: 12.5)).foregroundStyle(Theme.muted)
+                            Text("\(count) mission\(count > 1 ? "s" : "") en cours").font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1)
                         }
                         roleMenu(p)
                         if p.id != app.profile?.id {
@@ -73,6 +74,7 @@ struct TeamView: View {
                         }
                     }
                     .padding(.horizontal, 16).padding(.vertical, 12)
+                    .hoverRow()
                 }
             }
             .card(padding: 0)
@@ -84,13 +86,13 @@ struct TeamView: View {
                         if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                         HStack(spacing: 10) {
                             Image(systemName: "envelope").foregroundStyle(Theme.muted)
-                            Text(inv.email).font(.system(size: 13.5))
+                            Text(inv.email).font(.system(size: 13.5)).lineLimit(1).truncationMode(.middle)
                             Pill(text: Roles.label(inv.role ?? "editor"), color: Color(hex: Roles.color(inv.role ?? "editor")))
                             if inv.role == "client", let c = data.client(inv.client_id) {
                                 Text(c.name).font(.system(size: 12)).foregroundStyle(Theme.muted)
                             }
-                            Spacer()
-                            Text("Ajouté le \(DateFmt.short(inv.invited_at))").font(.system(size: 12)).foregroundStyle(Theme.muted)
+                            Spacer(minLength: 8)
+                            Text("Ajouté le \(DateFmt.short(inv.invited_at))").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
                             Button("Annuler") { cancelInvite(inv.email) }.buttonStyle(SecondaryButton())
                         }
                         .padding(.horizontal, 16).padding(.vertical, 11)
@@ -107,10 +109,10 @@ struct TeamView: View {
                         HStack(spacing: 12) {
                             AvatarView(profile: p, size: 28)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(p.displayName).font(.system(size: 13.5))
-                                Text(p.email).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                                Text(p.displayName).font(.system(size: 13.5)).lineLimit(1)
+                                Text(p.email).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle)
                             }
-                            Spacer()
+                            Spacer(minLength: 8)
                             Menu("Accepter comme…") {
                                 Button("Monteur") { change(p, to: "editor", client: nil) }
                                 Button("Admin") { change(p, to: "admin", client: nil) }
@@ -238,8 +240,8 @@ private struct RoleChoice: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selected ? Theme.blue.opacity(0.12) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(selected ? Theme.blue.opacity(0.12) : Theme.card2.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(selected ? Theme.blue.opacity(0.6) : Theme.ink.opacity(0.08)))
             .contentShape(Rectangle())
         }

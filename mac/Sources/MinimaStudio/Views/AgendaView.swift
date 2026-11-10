@@ -166,11 +166,12 @@ struct AgendaView: View {
 
     private var navBar: some View {
         HStack(spacing: 8) {
-            AgendaNavButton(icon: "chevron.left") { shift(-1) }
+            AgendaNavButton(icon: "chevron.left") { withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { shift(-1) } }
             Text(mode == "week" ? AgendaCal.weekLabel(anchor) : AgendaCal.monthLabel(anchor))
                 .font(.system(size: 17, weight: .semibold))
+                .lineLimit(1).minimumScaleFactor(0.8)
                 .frame(minWidth: 170)
-            AgendaNavButton(icon: "chevron.right") { shift(1) }
+            AgendaNavButton(icon: "chevron.right") { withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { shift(1) } }
             Spacer()
             Button("Aujourd'hui") {
                 anchor = Date()
@@ -248,9 +249,7 @@ struct AgendaView: View {
                     }
                 }
             }
-            .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.line))
+            .glassCard()
 
             dayPanel(map[selected] ?? [])
         }
@@ -299,9 +298,8 @@ struct AgendaNavButton: View {
         Button(action: action) {
             Image(systemName: icon).font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.text2)
                 .frame(width: 32, height: 32)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.line))
-                .contentShape(Rectangle())
+                .glassButton(tint: nil, radius: 16, prominent: false)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
@@ -371,10 +369,12 @@ struct AgendaDayCell: View {
         .padding(8)
         .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
         .opacity(inMonth ? 1 : 0.4)
-        .background(selected ? Theme.blue.opacity(0.08) : Color.clear)
-        .overlay(Rectangle().stroke(selected ? Theme.blue.opacity(0.55) : Theme.line, lineWidth: selected ? 1.5 : 0.5))
+        .background(selected ? Theme.blue.opacity(0.10) : Color.clear)
+        .overlay(Rectangle().strokeBorder(selected ? Theme.blue.opacity(0.55) : Theme.line, lineWidth: selected ? 1.5 : 0.5))
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
+        .hoverRow()
+        .animation(.easeOut(duration: 0.15), value: selected)
     }
 }
 
@@ -438,10 +438,11 @@ struct AgendaRow: View {
                 StatusPill(status: mission.status)
             }
             .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
-            .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay(alignment: .leading) { AgendaBar(color: color) }
             .opacity(mission.isOpen ? 1 : 0.5)
             .contentShape(Rectangle())
+            .hoverRow(radius: 11)
         }
         .buttonStyle(.plain)
     }
@@ -497,8 +498,8 @@ struct AgendaWeek: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(today ? Theme.blue.opacity(0.5) : Theme.line))
+        .glassCard(radius: 14, tint: today ? Theme.blue.opacity(0.06) : nil)
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(today ? Theme.blue.opacity(0.5) : Color.clear))
     }
 }
 
@@ -584,7 +585,7 @@ struct AgendaList: View {
     var body: some View {
         let list = buckets
         VStack(alignment: .leading, spacing: 12) {
-            if list.isEmpty { EmptyHint(text: "Aucune deadline à venir.").card() }
+            if list.isEmpty { EmptyHint(text: "Aucune deadline à venir.", icon: "calendar").card() }
             ForEach(list) { b in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {

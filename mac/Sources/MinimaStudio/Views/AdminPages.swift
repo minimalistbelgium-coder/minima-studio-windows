@@ -82,7 +82,7 @@ struct LiveNowCard: View {
                     HStack(spacing: 10) {
                         AvatarView(profile: p, size: 28)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(p.firstName).font(.system(size: 13.5, weight: .medium))
+                            Text(p.firstName).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
                             Muted(subtitle(p, live: s), size: 12).lineLimit(1)
                         }
                         Spacer(minLength: 6)
@@ -90,9 +90,12 @@ struct LiveNowCard: View {
                             .font(.system(size: 13, weight: s != nil ? .semibold : .regular, design: .monospaced))
                             .foregroundStyle(s != nil ? Theme.green : Theme.muted)
                     }
+                    .padding(.horizontal, 8).padding(.vertical, 5)
                     .contentShape(Rectangle())
+                    .hoverRow(radius: 10)
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, -8).padding(.vertical, -5)
             }
         }
         .card()
@@ -129,7 +132,12 @@ struct ToDoCard: View {
         let items = todo()
         VStack(alignment: .leading, spacing: 12) {
             CardTitle("À traiter")
-            if items.isEmpty { Muted("Rien d'urgent pour l'instant.") }
+            if items.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.green)
+                    Muted("Rien d'urgent pour l'instant.")
+                }
+            }
             ForEach(items.prefix(6)) { it in
                 Button { presenter.open(.existing(it.mission)) } label: {
                     HStack(alignment: .top, spacing: 10) {
@@ -150,7 +158,7 @@ struct ToDoCard: View {
         var out: [Item] = []
         let open = data.missions.filter(\.isOpen)
         for m in open where m.status == "requested" {
-            out.append(Item(id: "req\(m.id)", color: Color(hex: "F472B6"), text: "Demande client : \(m.title). Fixe le budget puis passe-la en Assignée.", mission: m.id))
+            out.append(Item(id: "req\(m.id)", color: Theme.pink, text: "Demande client : \(m.title). Fixe le budget puis passe-la en Assignée.", mission: m.id))
         }
         for m in open where m.isLate {
             out.append(Item(id: "late\(m.id)", color: Theme.red, text: "\(m.title) est en retard", mission: m.id))
@@ -179,21 +187,21 @@ struct ActiveMissionsTable: View {
     @EnvironmentObject var presenter: Presenter
     let missions: [Mission]
     var title = "Missions actives"
+    var emptyText = "Aucune mission en cours."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             CardTitle(text: title) { Muted("\(missions.count)") }
                 .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
             header
-            if missions.isEmpty { EmptyHint(text: "Aucune mission en cours.") }
+            if missions.isEmpty { EmptyHint(text: emptyText, icon: "film.stack") }
             ForEach(missions) { m in
                 Rectangle().fill(Theme.line).frame(height: 1)
                 row(m)
             }
         }
         .padding(.bottom, 6)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.line))
+        .glassCard()
     }
 
     private var header: some View {
@@ -225,21 +233,24 @@ struct ActiveMissionsTable: View {
                     titleCell(m, c).frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
                     HStack(spacing: 6) {
                         MemberStack(profiles: people, size: 20)
-                        Text(names.isEmpty ? "–" : names).font(.system(size: 13)).lineLimit(1)
+                        Text(names.isEmpty ? "–" : names).font(.system(size: 13)).foregroundStyle(Theme.text2).lineLimit(1)
                     }
                     .frame(width: 130, alignment: .leading)
                     StatusPill(status: m.status).frame(width: 130, alignment: .leading)
                     Text(deadline(m)).font(.system(size: 13)).foregroundStyle(m.isLate ? Theme.red : Theme.text2)
+                        .lineLimit(1).minimumScaleFactor(0.85)
                         .frame(width: 110, alignment: .leading)
                     Text(TimeFmt.hm(data.seconds(mission: m.id))).font(.system(size: 13, design: .monospaced))
+                        .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(width: 70, alignment: .trailing)
                     Text(m.editor_budget.map(Money.eur) ?? "–").font(.system(size: 13, design: .monospaced))
+                        .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(width: 80, alignment: .trailing)
                 }
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 3) {
                         titleCell(m, c)
-                        Muted("\(names.isEmpty ? "Personne" : names) · \(deadline(m))", size: 12)
+                        Muted("\(names.isEmpty ? "Personne" : names) · \(deadline(m))", size: 12).lineLimit(1)
                     }
                     Spacer(minLength: 6)
                     StatusPill(status: m.status)
@@ -247,6 +258,7 @@ struct ActiveMissionsTable: View {
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
             .contentShape(Rectangle())
+            .hoverRow()
         }
         .buttonStyle(.plain)
     }
@@ -304,7 +316,8 @@ struct MissionsView: View {
             }
             ClientFilterBar(selection: $clientFilter, missions: byStatus)
 
-            ActiveMissionsTable(missions: list, title: filter == 0 ? "En cours" : (filter == 1 ? "Terminées" : "Toutes les missions"))
+            ActiveMissionsTable(missions: list, title: filter == 0 ? "En cours" : (filter == 1 ? "Terminées" : "Toutes les missions"),
+                                emptyText: (search.isEmpty && clientFilter.isEmpty) ? "Aucune mission ici pour le moment." : "Aucune mission ne correspond à ta recherche.")
         }
     }
 
@@ -326,8 +339,7 @@ struct MissionsView: View {
             }
         }
         .padding(.horizontal, 12).frame(height: 36)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.line))
+        .background { GlassBackground(shape: Capsule(), fill: Theme.card.opacity(0.6), shadow: false) }
     }
 
     private var statusFiltered: [Mission] {
@@ -373,15 +385,15 @@ struct ClientsView: View {
             .card(padding: 14)
 
             VStack(spacing: 0) {
-                if data.clients.isEmpty { EmptyHint(text: "Aucun client. Tu peux aussi en créer un directement depuis une mission.") }
+                if data.clients.isEmpty { EmptyHint(text: "Aucun client. Tu peux aussi en créer un directement depuis une mission.", icon: "person.2") }
                 ForEach(Array(data.clients.enumerated()), id: \.element.id) { i, c in
                     if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                     let missions = data.missions.filter { $0.client_id == c.id }
                     let price = missions.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
                     HStack(spacing: 12) {
                         ClientDot(color: c.color, size: 10)
-                        Text(c.name).font(.system(size: 14, weight: .medium))
-                        Spacer()
+                        Text(c.name).font(.system(size: 14, weight: .medium)).lineLimit(1)
+                        Spacer(minLength: 8)
                         Text("\(missions.count) mission\(missions.count > 1 ? "s" : "")").font(.system(size: 12.5)).foregroundStyle(Theme.muted)
                         Text(Money.eur(price)).font(.system(size: 13)).monospacedDigit().frame(width: 90, alignment: .trailing)
                         Button { toDelete = c } label: { Image(systemName: "trash") }
@@ -391,6 +403,7 @@ struct ClientsView: View {
                             .opacity(missions.isEmpty ? 1 : 0.3)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 12)
+                    .hoverRow()
                 }
             }
             .card(padding: 0)

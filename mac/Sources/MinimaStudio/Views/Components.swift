@@ -22,8 +22,9 @@ struct InputStyle: ViewModifier {
             .textFieldStyle(.plain)
             .font(.system(size: 13.5))
             .padding(.horizontal, 11).frame(minHeight: 34)
-            .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.ink.opacity(0.08)))
+            .foregroundStyle(Theme.text)
+            .background(Theme.card2.opacity(0.8), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Theme.stroke))
     }
 }
 
@@ -84,9 +85,9 @@ struct SectionTitle: View {
     var trailing: String? = nil
     var body: some View {
         HStack {
-            Text(text).font(.system(size: 15, weight: .semibold))
-            Spacer()
-            if let trailing { Text(trailing).font(.system(size: 12.5)).foregroundStyle(Theme.muted) }
+            Text(text).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+            Spacer(minLength: 8)
+            if let trailing { Text(trailing).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1).minimumScaleFactor(0.8) }
         }
     }
 }
@@ -135,6 +136,7 @@ struct MissionRow: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
             .contentShape(Rectangle())
+            .hoverRow()
         }
         .buttonStyle(.plain)
     }
@@ -202,7 +204,7 @@ struct ChipPicker<T: Hashable>: View {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) { selection = o.value }
                 } label: {
                     HStack(spacing: 6) {
-                        Text(o.label).font(.system(size: 12.5, weight: on ? .semibold : .medium))
+                        Text(o.label).font(.system(size: 12.5, weight: on ? .semibold : .medium)).lineLimit(1)
                         if let c = o.count {
                             Text("\(c)").font(.system(size: 11, weight: .semibold)).monospacedDigit()
                                 .padding(.horizontal, 6).frame(height: 17)
@@ -214,9 +216,8 @@ struct ChipPicker<T: Hashable>: View {
                     .background {
                         if on {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Theme.card2)
-                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Theme.ink.opacity(0.1)))
-                                .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                                .fill(Theme.ink.opacity(0.10))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.rim.opacity(0.45), lineWidth: 0.5))
                                 .matchedGeometryEffect(id: "chip", in: ns)
                         }
                     }
@@ -226,7 +227,7 @@ struct ChipPicker<T: Hashable>: View {
             }
         }
         .padding(3)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Theme.line))
+        .fixedSize()
+        .background { GlassBackground(shape: RoundedRectangle(cornerRadius: 11, style: .continuous), fill: Theme.card.opacity(0.6), shadow: false) }
     }
 }

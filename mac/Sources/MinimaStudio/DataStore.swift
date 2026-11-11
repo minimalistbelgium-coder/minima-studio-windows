@@ -24,6 +24,8 @@ final class DataStore: ObservableObject {
     @Published var deliveryLink: String?
     /// Historique des versions livrées, toutes missions confondues.
     @Published var versions: [MissionVersion] = []
+    /// Montages faits par Claude.
+    @Published var aiWork: [AIWork] = []
 
     /// Sessions de travail visibles (toutes pour l'admin, celles de ses missions pour un monteur).
     @Published var sessions: [WorkSession] = []
@@ -73,6 +75,8 @@ final class DataStore: ObservableObject {
             deliveryLink = st.first { $0.key == "delivery_link" }?.value
             versions = (try? await supa.from("mission_versions").select()
                 .order("created_at", ascending: true).execute().value) ?? []
+            aiWork = (try? await supa.from("ai_work").select()
+                .order("ended_at", ascending: false).execute().value) ?? []
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -225,6 +229,28 @@ final class DataStore: ObservableObject {
     // MARK: temps et répartition (calculés à partir des sessions)
 
     func sessions(for missionId: String) -> [WorkSession] { sessions.filter { $0.mission_id == missionId } }
+
+    func aiWork(for missionId: String) -> [AIWork] { aiWork.filter { $0.mission_id == missionId } }
+
+    /// Temps humain de référence : moyenne des 5 dernières missions livrées du même client, montées sans Claude.
+    func humanReference(_ m: Mission) -> (seconds: Double, count: Int)? {
+        let done: Set<String> = ["v1_delivered", "revisions", "fix_delivered", "validated", "paid"]
+        let refs = missions
+            .filter { $0.id != m.id && $0.client_id == m.client_id && done.contains($0.status) && aiWork(for: $0.id).isEmpty }
+            .map { x in (x, seconds(mission: x.id)) }
+            .filter { $0.1 >= 600 }
+            .sorted { (DateFmt.parse($0.0.v1_delivered_at ?? $0.0.created_at) ?? .distantPast) > (DateFmt.parse($1.0.v1_delivered_at ?? $1.0.created_at) ?? .distantPast) }
+            .prefix(5)
+        guard !refs.isEmpty else { return nil }
+        return (refs.map(\.1).reduce(0, +) / Double(refs.count), refs.count)
+    }
+
+    /// Temps que Claude a fait gagner sur une mission (nil si pas de référence).
+    func claudeSaved(_ m: Mission) -> (saved: Double, reference: Double, count: Int)? {
+        let ai = aiWork(for: m.id).map { Double($0.duration_sec ?? 0) }.reduce(0, +)
+        guard ai > 0, let ref = humanReference(m) else { return nil }
+        return (max(0, ref.seconds - ai), ref.seconds, ref.count)
+    }
 
     func seconds(mission: String, user: String? = nil) -> Double {
         sessions.filter { $0.mission_id == mission && (user == nil || $0.user_id == user) }

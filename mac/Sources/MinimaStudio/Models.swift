@@ -271,6 +271,17 @@ enum TimeFmt {
 
 // MARK: - Sessions de travail
 
+/// Un montage fait par Claude (enregistré par l'automatisation des podcasts).
+struct AIWork: Codable, Identifiable, Hashable {
+    let id: String
+    let mission_id: String
+    let agent: String?
+    let started_at: String
+    let ended_at: String
+    let duration_sec: Int?
+    let notes: String?
+}
+
 struct WorkSession: Codable, Identifiable, Hashable {
     let id: String
     let mission_id: String

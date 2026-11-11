@@ -42,6 +42,7 @@ struct TodayView: View {
                 WeekAgenda(missions: data.missions)
             } right: {
                 LiveNowCard()
+                ClaudeMonthCard()
                 ToDoCard()
             }
 

@@ -262,6 +262,9 @@ struct MissionTimeStrip: View {
     let mission: Mission
 
     private static let colors = ["A78BFA", "4C8DFF", "34D399", "F5A524", "F472B6", "2DD4BF"]
+    /// Identifiant fictif de Claude dans la liste des personnes.
+    static let claude = "__claude"
+    static let claudeColor = Color(hex: "D97757")
 
     private struct Row: Identifiable {
         let id: String
@@ -279,25 +282,31 @@ struct MissionTimeStrip: View {
             if let d = DateFmt.parse(s.ended_at ?? s.started_at), d > (last[s.user_id] ?? .distantPast) { last[s.user_id] = d }
             if s.isLiveNow { live.insert(s.user_id) }
         }
+        for w in data.aiWork(for: mission.id) {
+            secs[Self.claude, default: 0] += Double(w.duration_sec ?? 0)
+            if let d = DateFmt.parse(w.ended_at), d > (last[Self.claude] ?? .distantPast) { last[Self.claude] = d }
+        }
         return secs.map { Row(id: $0.key, seconds: $0.value, last: last[$0.key], live: live.contains($0.key)) }
             .sorted { $0.seconds > $1.seconds }
     }
 
     private func color(_ uid: String, _ all: [Row]) -> Color {
+        if uid == Self.claude { return Self.claudeColor }
         if data.profile(uid)?.role == "admin" { return Theme.blue }
-        let others = all.map(\.id).filter { data.profile($0)?.role != "admin" }
+        let others = all.map(\.id).filter { $0 != Self.claude && data.profile($0)?.role != "admin" }
         return Color(hex: Self.colors[(others.firstIndex(of: uid) ?? 0) % Self.colors.count])
     }
 
     private func name(_ uid: String) -> String {
-        uid == app.profile?.id ? "Toi" : (data.profile(uid)?.firstName ?? "Ancien membre")
+        uid == Self.claude ? "Claude" : uid == app.profile?.id ? "Toi" : (data.profile(uid)?.firstName ?? "Ancien membre")
     }
 
     private func lastLabel(_ r: Row) -> String {
         if r.live { return "en train de monter" }
         guard let d = r.last else { return "" }
         let day = DateFmt.relative(d).lowercased()
-        return "dernière session " + (day == "aujourd'hui" ? "aujourd'hui à \(AgendaCal.time(d))" : day)
+        let prefix = r.id == Self.claude ? "montage IA " : "dernière session "
+        return prefix + (day == "aujourd'hui" ? "aujourd'hui à \(AgendaCal.time(d))" : day)
     }
 
     var body: some View {
@@ -324,7 +333,8 @@ struct MissionTimeStrip: View {
                     ForEach(list) { r in
                         HStack(spacing: 8) {
                             ZStack(alignment: .bottomTrailing) {
-                                if let p = data.profile(r.id) { AvatarView(profile: p, size: 26).clipShape(Circle()) }
+                                if r.id == Self.claude { ClaudeBadge(size: 26) }
+                                else if let p = data.profile(r.id) { AvatarView(profile: p, size: 26).clipShape(Circle()) }
                                 else { Circle().fill(Theme.card2).frame(width: 26, height: 26) }
                                 if r.live { Circle().fill(Theme.green).frame(width: 8, height: 8).overlay(Circle().stroke(Theme.bg, lineWidth: 1.5)) }
                             }
@@ -340,12 +350,100 @@ struct MissionTimeStrip: View {
                             }
                         }
                         .padding(.vertical, 6).padding(.horizontal, 10)
-                        .background(Theme.ink.opacity(0.04), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .background(r.id == Self.claude ? Self.claudeColor.opacity(0.12) : Theme.ink.opacity(0.04),
+                                    in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .stroke(r.id == Self.claude ? Self.claudeColor.opacity(0.35) : .clear))
                     }
                 }
+                if list.contains(where: { $0.id == Self.claude }) { savedLine }
             }
         }
         .card(padding: 16)
+    }
+}
+
+extension MissionTimeStrip {
+    @ViewBuilder fileprivate var savedLine: some View {
+        if let s = data.claudeSaved(mission) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    ClaudeBadge(size: 18)
+                    Text("Claude t'a fait gagner environ ").font(.system(size: 13))
+                        + Text(TimeFmt.hm(s.saved)).font(.system(size: 13, weight: .semibold))
+                        + Text(" sur ce montage").font(.system(size: 13))
+                }
+                Text("Par rapport à la moyenne des \(s.count) dernier\(s.count > 1 ? "s" : "") épisode\(s.count > 1 ? "s" : "") monté\(s.count > 1 ? "s" : "") à la main (\(TimeFmt.hm(s.reference))).")
+                    .font(.system(size: 11.5)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        } else {
+            Muted("Pas encore assez d'épisodes montés à la main pour estimer le temps gagné.", size: 11.5)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Pastille de Claude (monteur IA).
+struct ClaudeBadge: View {
+    var size: CGFloat = 26
+    var body: some View {
+        ZStack {
+            Circle().fill(LinearGradient(colors: [Color(hex: "E8916F"), Color(hex: "C76546")], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Text("✳").font(.system(size: size * 0.55, weight: .bold)).foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Claude")
+    }
+}
+
+/// Résumé du mois pour l'admin : montages faits par Claude et temps gagné.
+struct ClaudeMonthCard: View {
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var presenter: Presenter
+
+    var body: some View {
+        let cal = Calendar.current
+        let month = data.aiWork.filter { DateFmt.parse($0.ended_at).map { cal.isDate($0, equalTo: Date(), toGranularity: .month) } ?? false }
+        let ids = Array(Set(month.map(\.mission_id))).filter { data.mission($0) != nil }
+        let time = month.map { Double($0.duration_sec ?? 0) }.reduce(0, +)
+        let saved = ids.compactMap { data.mission($0) }.compactMap { data.claudeSaved($0)?.saved }.reduce(0, +)
+        if !data.aiWork.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    ClaudeBadge(size: 22)
+                    Text("Claude").font(.system(size: 15, weight: .semibold))
+                    Spacer()
+                    Muted("ce mois", size: 12)
+                }
+                HStack(spacing: 8) {
+                    figure("\(ids.count)", ids.count > 1 ? "montages" : "montage")
+                    figure(TimeFmt.hm(time), "de travail")
+                    figure(saved > 0 ? TimeFmt.hm(saved) : "–", "gagnées", color: Theme.green)
+                }
+                if let last = data.aiWork.first(where: { data.mission($0.mission_id) != nil }), let m = data.mission(last.mission_id) {
+                    Button { presenter.open(.existing(m.id)) } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(m.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                            Muted("Dernier montage · \(DateFmt.relative(DateFmt.parse(last.ended_at)).lowercased())", size: 11.5)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).hoverRow(radius: 8)
+                }
+            }
+            .card()
+        }
+    }
+
+    private func figure(_ v: String, _ l: String, color: Color = Theme.text) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(v).font(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.7)
+            Muted(l, size: 11.5).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

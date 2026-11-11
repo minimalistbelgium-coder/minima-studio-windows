@@ -305,6 +305,7 @@ final class DataStore: ObservableObject {
     func localSplit(_ m: Mission) -> [SplitRow] {
         var byUser: [String: Double] = [:]
         for s in sessions(for: m.id) { byUser[s.user_id, default: 0] += Double(s.duration_sec ?? 0) }
+        byUser = Self.dropTiny(byUser)
         let shared = byUser.count > 1
         let weighted = byUser.map { uid, secs -> (String, Double, Double) in
             let w = (shared && profile(uid)?.role == "admin") ? (m.admin_weight ?? 1.5) : 1
@@ -377,6 +378,19 @@ final class DataStore: ObservableObject {
 
     func unmarkEditorPaid(user: String, month: Date) async throws {
         try await supa.from("editor_payments").delete().eq("user_id", value: user).eq("month", value: BillMonth.key(month)).execute()
+        await reload()
+    }
+
+    /// Moins de 2 minutes de chrono sur une mission (ouverte par erreur) : ne compte pas dans la répartition,
+    /// sauf si personne n'a plus. Même règle que la base (compute_split).
+    static let minSplitSeconds: Double = 120
+    static func dropTiny(_ byUser: [String: Double]) -> [String: Double] {
+        guard byUser.values.contains(where: { $0 >= minSplitSeconds }) else { return byUser }
+        return byUser.filter { $0.value >= minSplitSeconds }
+    }
+
+    func deleteSession(_ id: String) async throws {
+        try await supa.from("sessions").delete().eq("id", value: id).execute()
         await reload()
     }
 

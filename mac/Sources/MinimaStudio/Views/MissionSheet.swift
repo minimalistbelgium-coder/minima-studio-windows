@@ -327,6 +327,14 @@ private struct MissionDetail: View {
         .card()
     }
 
+    @State private var sessionToDelete: WorkSession?
+    @State private var allSessions = false
+
+    private func durationText(_ s: WorkSession) -> String {
+        let d = s.duration_sec ?? 0
+        return d < 60 ? "\(d) s" : TimeFmt.hm(Double(d))
+    }
+
     @ViewBuilder private var sessionsCard: some View {
         let list = data.sessions(for: mission.id).filter { app.isAdmin || $0.user_id == app.profile?.id }
         VStack(alignment: .leading, spacing: 0) {
@@ -335,7 +343,7 @@ private struct MissionDetail: View {
             }
             .padding(.bottom, 8)
             if list.isEmpty { Muted("Aucune session pour l'instant.").padding(.vertical, 8) }
-            ForEach(list.prefix(10)) { s in
+            ForEach(allSessions ? Array(list) : Array(list.prefix(10))) { s in
                 Rectangle().fill(Theme.line).frame(height: 1)
                 HStack(spacing: 10) {
                     if let p = data.profile(s.user_id) { AvatarView(profile: p, size: 22) }
@@ -345,14 +353,43 @@ private struct MissionDetail: View {
                     if s.isLiveNow { Tag(text: "En cours", color: Theme.green, dot: true) }
                     Spacer(minLength: 8)
                     Muted(sessionRange(s), size: 12).lineLimit(1).minimumScaleFactor(0.85)
-                    Text(TimeFmt.hm(Double(s.duration_sec ?? 0))).font(.system(size: 13, design: .monospaced))
+                    Text(durationText(s)).font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(Double(s.duration_sec ?? 0) < DataStore.minSplitSeconds ? Theme.muted : Theme.text)
                         .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(width: 64, alignment: .trailing)
+                    if app.isAdmin {
+                        Button { sessionToDelete = s } label: {
+                            Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.muted)
+                                .frame(width: 22, height: 22).contentShape(Circle())
+                        }
+                        .buttonStyle(.plain).help("Supprimer cette session")
+                    }
                 }
                 .padding(.vertical, 9)
             }
+            if list.count > 10 && !allSessions {
+                Button("Voir les \(list.count - 10) autres sessions") { allSessions = true }
+                    .buttonStyle(.plain).font(.system(size: 12.5)).foregroundStyle(Theme.blue).padding(.top, 6)
+            }
+            if app.isAdmin {
+                Muted("Une session de moins de 2 minutes (mission ouverte par erreur) ne compte pas dans la répartition. Tu peux aussi supprimer une session avec la croix.", size: 11.5)
+                    .fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+            }
         }
         .card()
+        .confirmationDialog("Supprimer cette session ?", isPresented: Binding(get: { sessionToDelete != nil }, set: { if !$0 { sessionToDelete = nil } })) {
+            Button("Supprimer", role: .destructive) {
+                guard let s = sessionToDelete else { return }
+                Task {
+                    do { try await data.deleteSession(s.id); app.showToast("Session supprimée") }
+                    catch { app.showToast("Impossible de supprimer : \(error.localizedDescription)") }
+                }
+            }
+        } message: {
+            if let s = sessionToDelete {
+                Text("\(s.user_id == app.profile?.id ? "Ta session" : "La session de \(data.profile(s.user_id)?.firstName ?? "?")") · \(sessionRange(s)) · \(durationText(s)). La répartition du budget sera recalculée. C'est définitif.")
+            }
+        }
     }
 
     private var premiereLine: some View {

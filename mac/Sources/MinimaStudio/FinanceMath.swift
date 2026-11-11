@@ -93,6 +93,7 @@ extension DataStore {
             let budget = m.editor_budget ?? 0
             var time: [String: Double] = [:]
             for s in byMission[m.id] ?? [] { time[s.user_id, default: 0] += Double(s.duration_sec ?? 0) }
+            time = DataStore.dropTiny(time)
             for (u, t) in time { secs[u, default: 0] += t }
             let shared = time.count > 1
             var weighted: [String: Double] = [:]

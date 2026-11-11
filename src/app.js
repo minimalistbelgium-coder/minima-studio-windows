@@ -15,7 +15,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
-  versions: {}, settings: {}, comments: {},
+  versions: {}, settings: {}, comments: {}, ai: [],
   filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
@@ -183,11 +183,14 @@ async function loadAll() {
   S.settings = {}; (r[7].data || []).forEach((x) => { S.settings[x.key] = x.value; });
   S.finances = {}; (r[8]?.data || []).forEach((f) => { S.finances[f.mission_id] = f; });
   S.invites = r[9]?.data || [];
+  // Montages faits par Claude (table absente ou vide : on ignore sans erreur)
+  const ai = await sb.from('ai_work').select('*').order('ended_at', { ascending: false });
+  S.ai = ai.error ? [] : ai.data || [];
 }
 function groupVersions(rows) { S.versions = {}; (rows || []).forEach((v) => { (S.versions[v.mission_id] ||= []).push(v); }); }
 function digest() {
   const ses = S.sessions.reduce((a, s) => a + (s.duration_sec || 0) + (s.live ? 1 : 0), S.sessions.length);
-  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, ses, liveSessions().length]);
+  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, ses, liveSessions().length]);
 }
 
 async function loadMe() {
@@ -507,7 +510,8 @@ function missionRow(m, right) {
   const c = client(m.client_id);
   const people = memberIds(m.id).map(profile).filter(Boolean);
   const live = liveSessions().some((s) => s.mission_id === m.id);
-  const sub = [c?.name, isClient() ? null : people.map(firstName).join(' + ') || (m.status === 'requested' ? null : 'Personne'), deadlineLabel(m)].filter(Boolean).join(' · ');
+  const names = [...people.map(firstName), ...(aiFor(m.id).length ? ['Claude'] : [])];
+  const sub = [c?.name, isClient() ? null : names.join(' + ') || (m.status === 'requested' ? null : 'Personne'), deadlineLabel(m)].filter(Boolean).join(' · ');
   return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(c)}"></span>
     <div class="grow"><div class="t">${esc(m.title)}${live ? ' <span class="dot pulse" style="background:var(--green);width:6px;height:6px;vertical-align:middle"></span>' : ''}</div><div class="s" style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(sub)}</div></div>
     ${right ?? pillFor(m)}</div>`;
@@ -555,7 +559,7 @@ function homeAdmin() {
         <div class="list">${todo.slice(0, 8).map((t) => todoRow(t)).join('') || '<div class="empty">Tout est à jour. Rien ne demande ton attention.</div>'}</div></div>
       <div class="card flush"><div class="card-head"><h2>En cours</h2><button class="btn sm" data-go="projects">Tout voir</button></div><div class="list">${open.filter((m) => !isDelivered(m)).slice(0, 6).map((m) => missionRow(m)).join('') || '<div class="empty">Aucune mission en cours.</div>'}</div></div>
     </div>
-    <div class="narrow stack">${upcomingCard()}${liveCard()}</div>
+    <div class="narrow stack">${upcomingCard()}${claudeCard()}${liveCard()}</div>
   </div>
   ${hoursCard(team(), 'Heures par jour')}`;
 }
@@ -1022,6 +1026,35 @@ function nextStep(m) {
     default: return null;
   }
 }
+// ---------- Claude monteur ----------
+const CLAUDE = '#D97757';
+const aiFor = (mid) => S.ai.filter((a) => a.mission_id === mid);
+const claudeAvatar = (size = 26) => `<span class="av claude" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.55)}px" aria-label="Claude">✳</span>`;
+// Temps humain de référence : moyenne des 5 dernières missions livrées du même podcast (même client), montées sans Claude.
+function humanReference(m) {
+  const done = ['v1_delivered', 'revisions', 'fix_delivered', 'validated', 'paid'];
+  const refs = S.missions.filter((x) => x.id !== m.id && x.client_id === m.client_id && done.includes(x.status) && !aiFor(x.id).length)
+    .map((x) => ({ x, secs: missionSessions(x.id).reduce((a, s) => a + (s.duration_sec || 0), 0) }))
+    .filter((r) => r.secs >= 600)
+    .sort((a, b) => d(b.x.v1_delivered_at || b.x.created_at) - d(a.x.v1_delivered_at || a.x.created_at)).slice(0, 5);
+  return refs.length ? { secs: refs.reduce((a, r) => a + r.secs, 0) / refs.length, n: refs.length } : null;
+}
+function claudeSaved(m) {
+  const ai = aiFor(m.id).reduce((a, w) => a + (w.duration_sec || 0), 0); const ref = humanReference(m);
+  return ref ? { saved: Math.max(0, ref.secs - ai), ref } : null;
+}
+function claudeCard() {
+  if (!isAdmin() || !S.ai.length) return '';
+  const now = new Date(); const month = S.ai.filter((w) => sameMonth(d(w.ended_at), now));
+  const ids = [...new Set(month.map((w) => w.mission_id))].filter(mission);
+  const time = month.reduce((a, w) => a + (w.duration_sec || 0), 0);
+  const saved = ids.reduce((a, id) => a + (claudeSaved(mission(id))?.saved || 0), 0);
+  const last = S.ai.find((w) => mission(w.mission_id));
+  return `<div class="card claude-card"><div class="card-head"><h2 class="row" style="gap:8px">${claudeAvatar(22)}Claude</h2><span class="lbl">ce mois</span></div>
+    <div class="claude-nums"><div><div class="big">${ids.length}</div><div class="lbl">montage${ids.length > 1 ? 's' : ''}</div></div><div><div class="big">${hm(time)}</div><div class="lbl">de travail</div></div><div><div class="big" style="color:var(--green)">${saved ? hm(saved) : '–'}</div><div class="lbl">gagnées</div></div></div>
+    ${last ? `<div class="item" role="button" tabindex="0" data-open="${last.mission_id}" style="border-top:1px solid var(--line);margin-top:12px"><div class="grow"><div class="t">${esc(mission(last.mission_id).title)}</div><div class="s">Dernier montage ${relative(d(last.ended_at))}</div></div></div>` : ''}</div>`;
+}
+
 // Qui a monté cette mission, et combien de temps (bandeau en haut de la fiche).
 function timeStrip(m) {
   if (m.status === 'requested') return '';
@@ -1032,17 +1065,23 @@ function timeStrip(m) {
     const e = d(s.ended_at || s.started_at); if (!r.last || e > r.last) r.last = e;
     if (s.live && d(s.ended_at) && Date.now() - d(s.ended_at).getTime() < 120000) r.live = true;
   });
+  aiFor(m.id).forEach((w) => {
+    const r = (by.__claude ||= { u: '__claude', secs: 0, last: null, live: false });
+    r.secs += w.duration_sec || 0; const e = d(w.ended_at); if (!r.last || e > r.last) r.last = e;
+  });
   const rows = Object.values(by).sort((a, b) => b.secs - a.secs);
   const total = rows.reduce((a, r) => a + r.secs, 0);
+  const cs = by.__claude ? claudeSaved(m) : null;
   const pal = ['#A78BFA', '#34D399', '#F5A524', '#F472B6', '#2DD4BF', '#FB7185'];
   const eds = rows.filter((r) => profile(r.u)?.role !== 'admin').map((r) => r.u);
-  const col = (u) => (profile(u)?.role === 'admin' ? '#4C8DFF' : pal[eds.indexOf(u) % pal.length]);
-  const who = (u) => (u === S.me.id ? 'Toi' : profile(u) ? firstName(profile(u)) : 'Ancien membre');
+  const col = (u) => (u === '__claude' ? CLAUDE : profile(u)?.role === 'admin' ? '#4C8DFF' : pal[eds.filter((x) => x !== '__claude').indexOf(u) % pal.length]);
+  const who = (u) => (u === '__claude' ? 'Claude' : u === S.me.id ? 'Toi' : profile(u) ? firstName(profile(u)) : 'Ancien membre');
   const last = (r) => (r.live ? 'en train de monter' : r.last ? (isToday(r.last) ? `dernière session aujourd'hui à ${fmtTime(r.last)}` : `dernière session ${relative(r.last)}`) : '');
   if (!total) return `<div class="card tstrip"><div class="card-head" style="margin:0"><h2>Temps passé</h2><span class="lbl">Personne n'a encore travaillé dessus</span></div></div>`;
   return `<div class="card tstrip"><div class="card-head" style="margin-bottom:10px"><h2>Temps passé</h2><span class="lbl mono">${hm(total)} au total</span></div>
     <div class="tbarline">${rows.map((r) => `<i style="flex:${r.secs};background:${col(r.u)}" title="${esc(who(r.u))} · ${hm(r.secs)}"></i>`).join('')}</div>
-    <div class="tpeople">${rows.map((r) => `<div class="tperson">${profile(r.u) ? avatar(profile(r.u), 26) : ''}<div><div class="row" style="gap:6px"><span class="dot" style="background:${col(r.u)}"></span><b>${esc(who(r.u))}</b><span class="mono" style="font-weight:600">${hm(r.secs)}</span><span class="lbl">${Math.round((100 * r.secs) / total)} %</span></div><div class="lbl" style="${r.live ? 'color:var(--green)' : ''}">${esc(last(r))}</div></div></div>`).join('')}</div></div>`;
+    <div class="tpeople">${rows.map((r) => `<div class="tperson ${r.u === '__claude' ? 'ai' : ''}">${r.u === '__claude' ? claudeAvatar(26) : profile(r.u) ? avatar(profile(r.u), 26) : ''}<div><div class="row" style="gap:6px"><span class="dot" style="background:${col(r.u)}"></span><b>${esc(who(r.u))}</b><span class="mono" style="font-weight:600">${hm(r.secs)}</span><span class="lbl">${Math.round((100 * r.secs) / total)} %</span></div><div class="lbl" style="${r.live ? 'color:var(--green)' : ''}">${esc(r.u === '__claude' ? `montage IA ${last(r).replace('dernière session ', '')}` : last(r))}</div></div></div>`).join('')}</div>
+    ${cs ? `<div class="claude-saved">${claudeAvatar(18)}<span>Claude t'a fait gagner environ <b>${hm(cs.saved)}</b> sur ce montage</span><span class="lbl">par rapport à la moyenne des ${cs.ref.n} dernier${cs.ref.n > 1 ? 's' : ''} épisode${cs.ref.n > 1 ? 's' : ''} monté${cs.ref.n > 1 ? 's' : ''} à la main (${hm(cs.ref.secs)})</span></div>` : by.__claude ? '<div class="claude-saved"><span class="lbl">Pas encore assez d\'épisodes montés à la main pour estimer le temps gagné.</span></div>' : ''}</div>`;
 }
 
 function teamDetail(m) {

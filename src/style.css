@@ -513,3 +513,11 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .tpeople{display:flex;flex-wrap:wrap;gap:8px}
 .tperson{display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:12px;background:color-mix(in srgb,var(--text) 5%,transparent);font-size:13px;min-width:0}
 .tperson b{font-weight:600}
+
+/* Claude monteur */
+.av.claude{background:linear-gradient(135deg,#E8916F,#C76546);color:#fff;font-weight:700;line-height:1}
+.tperson.ai{background:color-mix(in srgb,#D97757 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,#D97757 35%,transparent)}
+.claude-saved{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--green) 10%,transparent);font-size:13px}
+.claude-saved .lbl{flex-basis:100%}
+.claude-card .claude-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.claude-card .big{font-size:20px;margin-top:0}

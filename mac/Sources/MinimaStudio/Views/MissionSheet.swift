@@ -926,7 +926,7 @@ struct TeamPicker: View {
                     ClaudeBadge(size: 28)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Claude").font(.system(size: 13, weight: .medium)).lineLimit(1)
-                        Text("Son temps apparaît dans la mission").font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                        Text("Montage par l'IA").font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: on ? "checkmark.circle.fill" : "circle")
@@ -944,7 +944,8 @@ struct TeamPicker: View {
 
     private var soloHint: String {
         let mine = selected.contains(app.profile?.id ?? "")
-        if mine && selected.count == 1 { return "Tu montes seul : tu touches 100 % du budget, sans pondération." }
+        let humans = selected.subtracting([MissionTimeStrip.claude])
+        if mine && humans.count == 1 { return "Tu montes seul : tu touches 100 % du budget, sans pondération." }
         if mine { return "À plusieurs, ton temps de retouche compte ×1,5 dans la répartition." }
         return "Coche-toi si c'est toi qui fais le montage."
     }

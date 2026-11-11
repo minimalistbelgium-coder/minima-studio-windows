@@ -15,7 +15,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
-  versions: {}, settings: {}, comments: {}, ai: [],
+  versions: {}, settings: {}, comments: {}, ai: [], payments: [],
   filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
@@ -79,7 +79,7 @@ function dialog({ title, body = '', ok = 'Confirmer', cancel = 'Annuler', danger
 const STATUS = {
   requested: ['Demande', '#F472B6'], assigned: ['Assignée', '#8B8D94'], editing: ['En montage', '#4C8DFF'],
   v1_delivered: ['V1 livrée', '#3DD68C'], revisions: ['Retouches', '#F5A524'], fix_delivered: ['Corrections livrées', '#C084FC'],
-  validated: ['Validée', '#3DD68C'], paid: ['Payée', '#8B8D94'],
+  validated: ['Validée', '#3DD68C'], paid: ['Client payé', '#8B8D94'],
 };
 const CLIENT_STATUS = {
   requested: 'Demande envoyée', assigned: 'Projet lancé', editing: 'En montage', v1_delivered: 'À valider',
@@ -101,7 +101,8 @@ function pill(text, color) { return `<span class="pill" style="--c:${color}">${e
 // Couleur de texte lisible sur fond teinté : éclaircie en thème sombre, assombrie en thème clair (variables CSS).
 function tint(color) { return `color-mix(in srgb,${color} var(--tint-p),var(--tint-to))`; }
 const statusColor = (s) => (STATUS[s] || [0, '#8B8D94'])[1];
-const statusPill = (s) => pill((STATUS[s] || [s])[0], statusColor(s));
+// Pour les monteurs, « Client payé » ne les concerne pas : la mission est simplement terminée.
+const statusPill = (s) => pill(s === 'paid' && !isAdmin() ? 'Terminée' : (STATUS[s] || [s])[0], statusColor(s));
 const pillFor = (m) => (isClient() ? pill(CLIENT_STATUS[m.status] || m.status, statusColor(m.status)) : statusPill(m.status));
 
 const client = (id) => S.clients.find((c) => c.id === id);
@@ -150,6 +151,37 @@ function myShare(m) {
   return { amount: isMine(m) ? (m.editor_budget || 0) / n : 0, secs: 0, estimated: true };
 }
 const monthOf = (m) => d(m.deadline) || d(m.created_at);
+// Mois où le monteur facture la mission : choisi par l'admin, sinon le mois de la première livraison.
+const billMonth = (m) => (m.bill_month ? fromYmd(m.bill_month) : m.v1_delivered_at ? startOfMonth(d(m.v1_delivered_at))
+  : isDelivered(m) ? startOfMonth(d(m.validated_at) || monthOf(m)) : null);
+const workMonth = (m) => billMonth(m) || monthOf(m);
+const missionDay = (m) => d(m.v1_delivered_at) || d(m.deadline) || d(m.created_at);
+const clientPaid = (m) => m.status === 'paid';
+// Part d'une personne sur une mission (à parts égales tant qu'aucun temps n'est enregistré).
+function shareOf(m, u) {
+  const rows = split(m);
+  if (rows.length) { const r = rows.find((x) => x.u === u); return { amount: r?.amount || 0, pct: r?.pct || 0, secs: r?.secs || 0, estimated: false }; }
+  const ids = memberIds(m.id); if (!ids.includes(u)) return { amount: 0, pct: 0, secs: 0, estimated: true };
+  return { amount: (m.editor_budget || 0) / ids.length, pct: 100 / ids.length, secs: 0, estimated: true };
+}
+const paymentOf = (u, mo) => S.payments.find((p) => p.user_id === u && sameMonth(fromYmd(p.month), mo)) || null;
+// Relevé d'un monteur pour un mois : ce qu'il doit facturer.
+function statement(u, mo) {
+  const rows = S.missions.filter((m) => m.status !== 'requested' && billMonth(m) && sameMonth(billMonth(m), mo))
+    .map((m) => { const sh = shareOf(m, u); return { m, ...sh, amount: Math.round(sh.amount * 100) / 100, zero: sh.amount <= 0 && memberIds(m.id).includes(u) }; })
+    .filter((r) => r.amount > 0 || r.zero)
+    .sort((a, b) => missionDay(a.m) - missionDay(b.m));
+  const total = Math.round(rows.reduce((a, r) => a + r.amount, 0) * 100) / 100;
+  const pay = paymentOf(u, mo);
+  const now = startOfMonth(new Date());
+  return { rows, total, pay, current: sameMonth(mo, now), future: mo > now, rest: Math.max(0, Math.round((total - (pay?.amount || 0)) * 100) / 100) };
+}
+// « d'octobre », « de mai »
+const deMois = (mo) => { const n = mo.toLocaleDateString('fr-BE', { month: 'long' }); return /^[aeiouyéèh]/i.test(n) ? `d'${n}` : `de ${n}`; };
+const money2 = (n) => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+// Missions du monteur pas encore livrées : elles seront facturées le mois de leur livraison.
+const upcomingFor = (u) => S.missions.filter((m) => m.status !== 'requested' && !billMonth(m) && memberIds(m.id).includes(u)).map((m) => ({ m, ...shareOf(m, u) }));
+const payees = () => S.profiles.filter((p) => p.role !== 'admin' && p.role !== 'client' && (p.active || S.payments.some((x) => x.user_id === p.id)));
 
 // ---------- données ----------
 async function loadAll() {
@@ -186,11 +218,13 @@ async function loadAll() {
   // Montages faits par Claude (table absente ou vide : on ignore sans erreur)
   const ai = await sb.from('ai_work').select('*').order('ended_at', { ascending: false });
   S.ai = ai.error ? [] : ai.data || [];
+  const pay = await sb.from('editor_payments').select('*').order('month', { ascending: false });
+  S.payments = pay.error ? [] : pay.data || [];
 }
 function groupVersions(rows) { S.versions = {}; (rows || []).forEach((v) => { (S.versions[v.mission_id] ||= []).push(v); }); }
 function digest() {
   const ses = S.sessions.reduce((a, s) => a + (s.duration_sec || 0) + (s.live ? 1 : 0), S.sessions.length);
-  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, ses, liveSessions().length]);
+  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, S.payments, ses, liveSessions().length]);
 }
 
 async function loadMe() {
@@ -353,7 +387,7 @@ function financeMonths(end, n = 12) {
   const idx = {}; out.forEach((o) => { idx[`${o.mo.getFullYear()}-${o.mo.getMonth()}`] = o; });
   S.missions.forEach((m) => {
     if (m.status === 'requested') return;
-    const x = monthOf(m); const o = x && idx[`${x.getFullYear()}-${x.getMonth()}`]; if (!o) return;
+    const x = workMonth(m); const o = x && idx[`${x.getFullYear()}-${x.getMonth()}`]; if (!o) return;
     o.billed += S.finances[m.id]?.client_price || 0; o.payout += editorPayout(m); o.n += 1;
   });
   out.forEach((o) => { o.margin = o.billed - o.payout; });
@@ -374,7 +408,7 @@ function financeCharts(mo, list) {
   const end = diff > 0 || diff < -11 ? mo : nowM;
   const months = financeMonths(end); const selI = months.findIndex((o) => sameMonth(o.mo, mo));
   const sum = (k) => months.reduce((a, o) => a + o[k], 0);
-  const SER = [['Facturé', 'var(--s1)', 'billed'], ['Reversé', 'var(--s2)', 'payout'], ['Marge', 'var(--s3)', 'margin']];
+  const SER = [['Facturé', 'var(--s1)', 'billed'], ['Monteurs', 'var(--s2)', 'payout'], ['Marge', 'var(--s3)', 'margin']];
   const evo = months.some((o) => o.n) ? lineChart({
     labels: months.map((o) => monthShort(o.mo)), sel: selI, cls: 'months', label: 'Facturé, reversé aux monteurs et marge sur 12 mois',
     series: SER.map(([, color, k], i) => ({ color, values: months.map((o) => Math.round(o[k])), area: i === 0 })),
@@ -383,7 +417,7 @@ function financeCharts(mo, list) {
   }) : emptyArt('Pas encore de mission sur cette période.');
   const year = S.finRange === 'year';
   const from = months[0].mo; const to = new Date(end.getFullYear(), end.getMonth() + 1, 1);
-  const scope = year ? S.missions.filter((m) => m.status !== 'requested' && monthOf(m) && monthOf(m) >= from && monthOf(m) < to) : list;
+  const scope = year ? S.missions.filter((m) => m.status !== 'requested' && workMonth(m) >= from && workMonth(m) < to) : list;
   const { byClient, byEditor } = financeBreakdown(scope);
   const cl = Object.entries(byClient).map(([id, v]) => ({ c: client(id), ...v })).sort((a, b) => b.billed - a.billed || b.n - a.n);
   const clTot = cl.reduce((a, r) => a + r.billed, 0); const clMax = Math.max(1, ...cl.map((r) => r.billed));
@@ -441,7 +475,7 @@ function projectBars(list, limit = 0) {
       pct: (r.amount / max) * 100, color: clientColor(c),
       tip: tipHtml(r.m.title, [['Client', c?.name || '–'], [r.estimated ? 'Ta part (estimation)' : 'Ta part', eur(Math.round(r.amount))], ['Temps de montage', hm(r.secs)], ['Taux horaire', rate], ['Statut', (STATUS[r.m.status] || [r.m.status])[0]]]) }); }).join('');
 }
-const myMonthShares = (mo) => S.missions.filter((m) => sameMonth(monthOf(m), mo)).map((m) => ({ m, ...myShare(m) })).filter((r) => r.amount > 0 || r.secs > 0);
+const myMonthShares = (mo) => S.missions.filter((m) => sameMonth(workMonth(m), mo)).map((m) => ({ m, ...myShare(m) })).filter((r) => r.amount > 0 || r.secs > 0);
 // Aperçu sur l'accueil du monteur : 30 derniers jours et meilleurs projets du mois.
 function gainsPreview() {
   const t0 = new Date(); t0.setHours(0, 0, 0, 0);
@@ -453,6 +487,122 @@ function gainsPreview() {
     ${bars ? `<div class="day-h" style="margin:16px 0 6px">Projets du mois</div><div class="bars">${bars}</div>` : ''}</div>`;
 }
 
+
+// ---------- facturation des monteurs (fin de mois) ----------
+const monthName = (mo) => mo.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' });
+const nextMonthName = (mo) => new Date(mo.getFullYear(), mo.getMonth() + 1, 1).toLocaleDateString('fr-BE', { month: 'long' });
+const dshort = (x) => x.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' });
+const pctTxt = (p) => `${Math.round(p)} %`;
+const paidDay = (p) => d(p.paid_at).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' });
+// État d'un relevé : [type, phrase].
+function statementState(st, mo, admin) {
+  if (st.pay && st.rest <= 0.5) return ['ok', admin ? `Payé le ${paidDay(st.pay)}` : `Minimalist t'a payé le ${paidDay(st.pay)}`];
+  if (st.pay) return ['warn', `Déjà payé ${eur(st.pay.amount)} le ${paidDay(st.pay)} · reste ${eur(st.rest)} (le relevé a changé depuis le paiement)`];
+  if (st.future) return ['future', 'Rien à facturer pour l’instant.'];
+  if (!st.total) return ['muted', st.rows.length ? 'Aucun temps enregistré pour toi sur ces missions.' : 'Rien à facturer pour ce mois.'];
+  if (st.current) return ['muted', admin ? `Mois en cours : le total peut encore bouger jusqu'à fin ${mo.toLocaleDateString('fr-BE', { month: 'long' })}.` : `Mois en cours : le total peut encore bouger. Tu factureras début ${nextMonthName(mo)}.`];
+  return ['due', admin ? 'À payer' : 'À facturer à Minimalist Belgium'];
+}
+const PILL = { ok: 'Payé', due: 'À facturer', warn: 'Complément', muted: 'En cours', future: 'À venir' };
+function rowNote(r, mo, admin) {
+  const notes = [];
+  if (r.m.bill_month && !sameMonth(missionDay(r.m), mo)) notes.push('<i class="cl-note">reportée sur ce mois par Gaston</i>');
+  if (r.zero) notes.push(`<i class="cl-unpaid">0 % : aucun temps enregistré${admin ? ' pour lui' : ' pour toi, préviens Gaston'}</i>`);
+  if (admin && !clientPaid(r.m)) notes.push('<i class="cl-unpaid">client pas encore payé</i>');
+  return notes.length ? ` · ${notes.join(' · ')}` : '';
+}
+function statementTable(st, mo, { admin = false } = {}) {
+  if (!st.rows.length) return '';
+  return `<div class="stmt" role="table" aria-label="Missions du mois">
+    <div class="stmt-r stmt-h" role="row"><span role="columnheader">Date</span><span role="columnheader">Mission</span><span role="columnheader" class="num">Part</span><span role="columnheader" class="num">Montant</span></div>
+    ${st.rows.map((r) => `<div class="stmt-r" role="row" tabindex="0" data-open="${r.m.id}"><span role="cell" class="mono lbl">${dshort(missionDay(r.m))}</span>
+      <span role="cell" class="stmt-t"><b>${esc(r.m.title)}</b><small>${pctTxt(r.pct)} de ${eur(r.m.editor_budget || 0)} · ${esc(client(r.m.client_id)?.name || 'Sans client')}${r.estimated ? '' : ` · ${hm(r.secs)}`}${rowNote(r, mo, admin)}</small></span>
+      <span role="cell" class="num lbl">${pctTxt(r.pct)}</span><span role="cell" class="num mono"><b>${eur(r.amount)}</b></span></div>`).join('')}
+    <div class="stmt-r stmt-f" role="row"><span role="cell"></span><span role="cell"><b>Total HTVA</b></span><span role="cell"></span><span role="cell" class="num mono"><b>${eur(st.total)}</b></span></div>
+    ${st.pay && st.rest > 0.5 ? `<div class="stmt-r stmt-p" role="row"><span role="cell"></span><span role="cell">Déjà payé le ${paidDay(st.pay)}</span><span role="cell"></span><span role="cell" class="num mono">−${eur(st.pay.amount)}</span></div>
+    <div class="stmt-r stmt-f" role="row"><span role="cell"></span><span role="cell"><b>${admin ? 'Reste à payer' : 'Reste à facturer'} HTVA</b></span><span role="cell"></span><span role="cell" class="num mono"><b>${eur(st.rest)}</b></span></div>` : ''}</div>`;
+}
+// Carte « Ma facture du mois » (monteur) ou relevé d'un monteur (admin).
+function invoiceCard(u, mo, { admin = false } = {}) {
+  const st = statement(u, mo); const [kind, line] = statementState(st, mo, admin);
+  const who = profile(u);
+  const big = kind === 'ok' ? st.pay.amount : kind === 'warn' ? st.rest : st.total;
+  const bigLbl = kind === 'ok' ? 'Payé' : kind === 'warn' ? (admin ? 'Reste à payer' : 'Reste à facturer HTVA') : admin ? 'À lui payer' : 'Montant à facturer HTVA';
+  const head = admin ? `<div class="row">${avatar(who, 26)}<h2>${esc(who?.full_name || firstName(who))}</h2></div>` : `<h2>Ma facture · ${esc(monthName(mo))}</h2>`;
+  const pillTxt = admin && kind === 'due' ? 'À payer' : PILL[kind];
+  const btns = [];
+  if (st.total) btns.push(`<button class="btn sm" data-act="copystatement" data-u="${u}" data-mo="${ymd(mo)}">${small(I.copy)}Copier le détail</button>`);
+  if (admin && st.total && kind !== 'ok') btns.push(`<button class="btn sm pri" data-act="payeditor" data-u="${u}" data-mo="${ymd(mo)}">${kind === 'warn' ? 'Payer le complément' : 'Marquer payé'}</button>`);
+  if (admin && st.pay) btns.push(`<button class="lnk-btn" data-act="unpay" data-u="${u}" data-mo="${ymd(mo)}">Annuler le paiement</button>`);
+  return `<div class="card invoice ${kind}">
+    <div class="card-head">${head}<span class="inv-pill ${kind}">${kind === 'ok' ? small(I.check) : ''}${pillTxt}</span></div>
+    <div class="inv-sum"><div><div class="lbl">${bigLbl}</div><div class="big">${eur(big)}</div></div>
+      <div class="inv-line">${esc(line)}${st.rows.length ? `<br><span class="lbl">${st.rows.length} mission${st.rows.length > 1 ? 's' : ''} livrée${st.rows.length > 1 ? 's' : ''}${admin ? '' : ' · détail ci-dessous'}</span>` : ''}</div></div>
+    ${statementTable(st, mo, { admin })}
+    ${btns.length ? `<div class="row inv-btns">${btns.join('')}</div>` : ''}</div>`;
+}
+// Missions pas encore livrées : elles iront dans la facture du mois de livraison.
+function upcomingInvoiceCard(u) {
+  const list = upcomingFor(u); if (!list.length) return '';
+  const tot = list.reduce((a, r) => a + r.amount, 0);
+  return `<div class="card flush"><div class="card-head"><div><h2>Pas encore livrées</h2><div class="lbl" style="margin-top:3px">Elles iront dans la facture du mois où tu les livres</div></div><span class="lbl mono">≈ ${eur(Math.round(tot))}</span></div>
+    <div class="list">${list.map((r) => missionRow(r.m, `<span class="mono lbl">≈ ${eur(Math.round(r.amount))}</span>`)).join('')}</div></div>`;
+}
+// Mois terminés pas encore payés.
+function unpaidMonths(u, back = 12) {
+  const now = startOfMonth(new Date()); const out = [];
+  for (let i = 1; i <= back; i++) { const mo = new Date(now.getFullYear(), now.getMonth() - i, 1); const st = statement(u, mo); if (st.total && (!st.pay || st.rest > 0.5)) out.push({ mo, st, due: st.pay ? st.rest : st.total }); }
+  return out;
+}
+function invoiceNudge() {
+  const list = unpaidMonths(S.me.id); if (!list.length) return '';
+  const [first, ...rest] = list; const restSum = rest.reduce((a, x) => a + x.due, 0);
+  return `<div class="card next nudge" style="--c:#F5A524"><div class="next-in"><div><div class="lbl">Fin de mois</div><div style="margin-top:4px">Ta facture ${esc(deMois(first.mo))} : <b class="mono">${eur(first.due)}</b> HTVA à facturer à Minimalist Belgium${rest.length ? `<div class="lbl" style="margin-top:4px">+ ${rest.length} autre${rest.length > 1 ? 's' : ''} mois pas encore réglé${rest.length > 1 ? 's' : ''} : ${eur(restSum)}</div>` : ''}</div></div>
+    <button class="btn sm pri" data-go="earnings" data-gomonth="${ymd(first.mo)}">Voir le détail</button></div></div>`;
+}
+// Trésorerie : payer les monteurs avant d'être payé par les clients ?
+function cashCard(mo) {
+  const ms = S.missions.filter((m) => m.status !== 'requested' && billMonth(m) && sameMonth(billMonth(m), mo));
+  const people = payees();
+  let toPay = 0; const late = [];
+  ms.forEach((m) => {
+    const due = people.reduce((a, p) => a + shareOf(m, p.id).amount, 0); if (!due) return;
+    toPay += due; if (!clientPaid(m)) late.push({ m, due });
+  });
+  const paid = people.reduce((a, p) => a + (paymentOf(p.id, mo)?.amount || 0), 0);
+  const cashIn = ms.filter(clientPaid).reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
+  const waiting = ms.filter((m) => !clientPaid(m)).reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
+  const balance = cashIn - toPay; const left = Math.max(0, toPay - paid);
+  const noPrice = ms.filter((m) => S.finances[m.id]?.client_price == null).length;
+  if (!toPay && !cashIn) return '';
+  const missionsTxt = `${late.length} mission${late.length > 1 ? 's' : ''} pas encore payée${late.length > 1 ? 's' : ''} par le client (${eur(Math.round(waiting))} attendus)`;
+  let verdict;
+  if (balance >= 0) verdict = `<div class="cash-v ok">${small(I.check)}<span>Les clients ont déjà payé de quoi couvrir les monteurs : il te reste <b>${eur(Math.round(balance))}</b>${left > 0.5 ? `, et ${eur(Math.round(left))} à verser.` : '.'}</span></div>`;
+  else if (left <= 0.5) verdict = `<div class="cash-v bad"><span>Tu as avancé <b>${eur(Math.round(-balance))}</b> de ta poche : ${missionsTxt}.</span></div>`;
+  else verdict = `<div class="cash-v bad"><span>Il te reste <b>${eur(Math.round(left))}</b> à verser. Si tu payes maintenant, tu avances <b>${eur(Math.round(Math.max(0, Math.min(-balance, toPay - cashIn))))}</b> de ta poche : ${missionsTxt}.</span></div>`;
+  return `<div class="card cash"><div class="card-head"><div><h2>Trésorerie · ${esc(monthName(mo))}</h2><div class="lbl" style="margin-top:3px">Paiement des monteurs comparé à ce que les clients t'ont déjà payé</div></div></div>
+    <div class="cash-nums"><div><div class="lbl">Encaissé des clients</div><div class="big" style="color:var(--green)">${eur(Math.round(cashIn))}</div></div>
+      <div><div class="lbl">Pour les monteurs</div><div class="big">${eur(Math.round(toPay))}</div><div class="lbl">${paid ? `dont ${eur(Math.round(paid))} déjà versés` : 'rien versé pour l’instant'}</div></div>
+      <div><div class="lbl">Encaissé moins monteurs</div><div class="big" style="color:${balance >= 0 ? 'var(--green)' : 'var(--red)'}">${balance >= 0 ? '+' : '−'}${eur(Math.round(Math.abs(balance)))}</div></div></div>
+    ${verdict}
+    ${late.length ? `<div class="day-h" style="margin:14px 0 4px">Pas encore payées par le client</div><div class="list">${late.slice(0, 6).map(({ m, due }) => `<div class="item cash-item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span><div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${S.finances[m.id]?.client_price != null ? `client ${eur(S.finances[m.id].client_price)}` : 'prix client à renseigner'} · monteurs ${eur(Math.round(due))}</div></div><button class="btn sm" data-act="paid" data-id="${m.id}">Le client a payé</button></div>`).join('')}${late.length > 6 ? `<div class="lbl" style="padding:8px 0 0">et ${late.length - 6} autres</div>` : ''}</div>` : ''}
+    ${noPrice ? `<p class="hint">${noPrice} mission${noPrice > 1 ? 's' : ''} sans prix client : elles ne comptent pas dans l'encaissé.</p>` : ''}</div>`;
+}
+function payoutsSection(mo) {
+  const people = payees().filter((p) => statement(p.id, mo).total || paymentOf(p.id, mo));
+  return `${cashCard(mo)}
+  <div class="section-h"><h2>Paiement des monteurs · ${esc(monthName(mo))}</h2><span class="lbl">Ce que chacun doit te facturer pour le mois</span></div>
+  ${people.length ? `<div class="cols even inv-grid">${people.map((p) => invoiceCard(p.id, mo, { admin: true })).join('')}</div>` : `<div class="card"><div class="empty">Aucune mission à payer aux monteurs pour ${esc(monthName(mo))}.</div></div>`}`;
+}
+// Texte à coller dans une facture ou un tableur (tabulations, montants en chiffres).
+function statementText(u, mo) {
+  const st = statement(u, mo); const p = profile(u);
+  const lines = [`Prestations de montage · ${p?.full_name || firstName(p)} · ${monthName(mo)} · à facturer à Minimalist Belgium (HTVA)`, '', ['Date', 'Client', 'Mission', 'Part', 'Montant HTVA (€)'].join('\t')];
+  st.rows.forEach((r) => lines.push([dshort(missionDay(r.m)), client(r.m.client_id)?.name || '', r.m.title, `${pctTxt(r.pct)} de ${money2(r.m.editor_budget || 0)} €`, money2(r.amount)].join('\t')));
+  lines.push(['', '', '', 'Total HTVA', money2(st.total)].join('\t'));
+  if (st.pay && st.rest > 0.5) { lines.push(['', '', '', `Déjà payé le ${paidDay(st.pay)}`, `-${money2(st.pay.amount)}`].join('\t')); lines.push(['', '', '', 'Reste à facturer HTVA', money2(st.rest)].join('\t')); }
+  return lines.join('\n');
+}
 // ---------- rendu ----------
 function render(anim = false) {
   if (S.loading) return;
@@ -539,7 +689,9 @@ const todoRow = (t, extra = '') => `<div class="item" role="button" tabindex="0"
 
 function homeAdmin() {
   const now = new Date();
-  const month = S.missions.filter((m) => sameMonth(monthOf(m), now) && m.status !== 'requested');
+  const month = S.missions.filter((m) => sameMonth(workMonth(m), now) && m.status !== 'requested');
+  const owed = payees().flatMap((p) => unpaidMonths(p.id, 12).map((x) => x.st.pay ? x.st.rest : x.st.total)).reduce((a, v) => a + v, 0);
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const billed = month.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = month.reduce((a, m) => a + editorPayout(m), 0);
   const margin = billed - payout;
@@ -549,7 +701,7 @@ function homeAdmin() {
   return `${header(fmtLong(now), `Bonjour ${firstName(S.me)}`, NEW_BTN)}
   <div class="grid">
     ${stat(`Facturé · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(billed), `${month.length} mission${month.length > 1 ? 's' : ''}`)}
-    ${stat('À payer aux monteurs', eur(Math.round(payout)))}
+    ${stat('Monteurs à payer', eur(Math.round(owed)), owed ? 'Mois terminés pas encore payés' : 'Tout le monde est payé', owed ? '#F5A524' : 'var(--green)')}
     ${stat('Ta marge', eur(Math.round(margin)), billed ? `${Math.round((margin / billed) * 100)} % du facturé` : '', margin >= 0 ? 'var(--green)' : 'var(--red)')}
     ${stat('En cours', String(open.length), late ? `${late} en retard` : 'Tout est à l’heure', late ? 'var(--red)' : 'var(--green)')}
   </div>
@@ -559,7 +711,7 @@ function homeAdmin() {
         <div class="list">${todo.slice(0, 8).map((t) => todoRow(t)).join('') || '<div class="empty">Tout est à jour. Rien ne demande ton attention.</div>'}</div></div>
       <div class="card flush"><div class="card-head"><h2>En cours</h2><button class="btn sm" data-go="projects">Tout voir</button></div><div class="list">${open.filter((m) => !isDelivered(m)).slice(0, 6).map((m) => missionRow(m)).join('') || '<div class="empty">Aucune mission en cours.</div>'}</div></div>
     </div>
-    <div class="narrow stack">${upcomingCard()}${claudeCard()}${liveCard()}</div>
+    <div class="narrow stack">${owed ? `<div class="card next nudge" style="--c:#F5A524"><div class="lbl">Fin de mois</div><div style="margin:4px 0 10px">${eur(Math.round(owed))} à payer aux monteurs</div><button class="btn sm pri" data-go="finance" data-gomonth="${ymd(prev)}">Voir les paiements</button></div>` : ''}${upcomingCard()}${claudeCard()}${liveCard()}</div>
   </div>
   ${hoursCard(team(), 'Heures par jour')}`;
 }
@@ -624,16 +776,17 @@ function homeEditor() {
   const mine = S.sessions.filter((s) => s.user_id === S.me.id);
   const weekSecs = mine.filter((s) => d(s.started_at) >= wk).reduce((a, s) => a + (s.duration_sec || 0), 0);
   const todaySecs = mine.filter((s) => isToday(d(s.started_at))).reduce((a, s) => a + (s.duration_sec || 0), 0);
-  const month = S.missions.filter((m) => sameMonth(monthOf(m), now));
+  const month = S.missions.filter((m) => sameMonth(workMonth(m), now));
   const gains = month.reduce((a, m) => a + myShare(m).amount, 0);
   const todo = editorTodo();
   const waiting = S.missions.filter((m) => awaitsClient(m) && isMine(m));
   const next = todo.filter((t) => t.m.deadline).sort((a, b) => d(a.m.deadline) - d(b.m.deadline))[0];
   const act = (m) => (m.status === 'assigned' ? `<button class="btn sm" data-act="start" data-id="${m.id}">Commencer</button>` : `<button class="btn sm pri" data-act="deliver" data-id="${m.id}">${m.status === 'revisions' ? 'Livrer les corrections' : 'Livrer la V1'}</button>`);
   return `${header(fmtLong(now), `Bonjour ${firstName(S.me)}`)}
+  ${invoiceNudge()}
   <div class="grid">
     ${stat('Cette semaine', hm(weekSecs), `${hm(todaySecs)} aujourd'hui`)}
-    ${stat(`Gains · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(Math.round(gains)), 'Estimation au temps passé')}
+    ${stat(`À facturer · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(statement(S.me.id, startOfMonth(now)).total), 'Missions livrées ce mois-ci')}
     ${stat('Missions en cours', String(todo.length), waiting.length ? `${waiting.length} en attente du client` : '')}
     ${stat('Prochaine deadline', next ? deadlineLabel(next.m) : '–', next ? next.m.title : 'Rien de prévu', next && isLate(next.m) ? 'var(--red)' : 'var(--muted)')}
   </div>
@@ -762,7 +915,7 @@ function agendaPage() {
 // --- Finances (admin)
 function financePage() {
   const mo = S.month;
-  const list = S.missions.filter((m) => m.status !== 'requested' && sameMonth(monthOf(m), mo));
+  const list = S.missions.filter((m) => m.status !== 'requested' && sameMonth(workMonth(m), mo));
   const billed = list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = list.reduce((a, m) => a + editorPayout(m), 0);
   const toBill = list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced);
@@ -776,10 +929,11 @@ function financePage() {
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}
   <div class="grid">
     ${stat('Facturé aux clients', eur(billed), `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`)}
-    ${stat('Reversé aux monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '')}
+    ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '')}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)')}
     ${stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé')}
   </div>
+  ${payoutsSection(mo)}
   ${financeCharts(mo, list)}
   <div class="card flush"><div class="card-head"><h2>Missions de ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2><span class="lbl">Marge</span></div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
 }
@@ -791,31 +945,29 @@ function monthSeg(mo) {
 // --- Revenus (monteur)
 function earningsPage() {
   const mo = S.month;
-  const list = myMonthShares(mo);
+  const st = statement(S.me.id, mo);
+  const list = st.rows.map((r) => ({ ...r }));
+  const ahead = sameMonth(mo, new Date()) ? upcomingFor(S.me.id) : [];
   const today = new Date(); const nDays = new Date(mo.getFullYear(), mo.getMonth() + 1, 0).getDate();
   const days = Array.from({ length: nDays }, (_, i) => new Date(mo.getFullYear(), mo.getMonth(), i + 1));
   const cum = S.earnMode === 'cum';
   const g = gainsChart(days, { cum, upTo: sameMonth(today, mo) ? today.getDate() : mo > today ? 0 : nDays, every: (x) => (x.getDate() === 1 || x.getDate() % 5 === 0 ? String(x.getDate()) : '') });
   const bars = projectBars(list);
   const total = list.reduce((a, r) => a + r.amount, 0); const secs = list.reduce((a, r) => a + r.secs, 0);
-  const sure = list.filter((r) => !isOpen(r.m)).reduce((a, r) => a + r.amount, 0);
-  const rows = list.map((r) => `<div class="item" role="button" tabindex="0" data-open="${r.m.id}"><span class="dot" style="background:${clientColor(client(r.m.client_id))}"></span>
-    <div class="grow"><div class="t">${esc(r.m.title)}</div><div class="s">${esc(client(r.m.client_id)?.name || '')} · ${hm(r.secs)}${r.secs >= 300 ? ` · ${eur(Math.round(r.amount / (r.secs / 3600)))}/h` : ''}${r.estimated ? ' · estimation' : ''}</div></div>
-    <div class="mono" style="flex-shrink:0;font-weight:600;color:var(--green)">${eur(Math.round(r.amount))}</div><span class="hide-m">${statusPill(r.m.status)}</span></div>`).join('');
-  return `${header('Ta part sur chaque mission', 'Mes revenus', monthSeg(mo))}
+  const aheadSum = ahead.reduce((a, r) => a + r.amount, 0);
+  return `${header('Ce que tu factures chaque mois', 'Mes revenus', monthSeg(mo))}
+  <div class="stack" style="margin-bottom:16px">${invoiceCard(S.me.id, mo)}${ahead.length ? upcomingInvoiceCard(S.me.id) : ''}</div>
   <div class="grid">
-    ${stat('Gains du mois', eur(Math.round(total)), `${list.length} mission${list.length > 1 ? 's' : ''}`)}
-    ${stat('Déjà validé', eur(Math.round(sure)), total ? `${Math.round((sure / total) * 100)} % du mois` : '', 'var(--green)')}
+    ${stat('Facture du mois', eur(st.total), `${list.length} mission${list.length > 1 ? 's' : ''} livrée${list.length > 1 ? 's' : ''}`)}
+    ${ahead.length ? stat('Pas encore livrées', `≈ ${eur(Math.round(aheadSum))}`, `${ahead.length} mission${ahead.length > 1 ? 's' : ''} en cours`) : stat('Paiement', st.pay ? 'Reçu' : st.total ? 'En attente' : '–', st.pay ? `le ${paidDay(st.pay)}` : '', st.pay ? 'var(--green)' : 'var(--muted)')}
     ${stat('Temps de montage', hm(secs))}
     ${stat('Taux horaire moyen', secs >= 600 ? `${eur(Math.round(total / (secs / 3600)))}/h` : '–')}
   </div>
-  <div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>${cum ? 'Gains cumulés' : 'Gains par jour'}</h2><div class="lbl">${g.total > 0 ? `${eur(Math.round(g.total))} gagnés sur ${g.active} jour${g.active > 1 ? 's' : ''} de montage` : 'Selon tes sessions de montage'}</div></div>
+  <div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>${cum ? 'Valeur cumulée de ton travail' : 'Valeur de ton travail par jour'}</h2><div class="lbl">Indicatif, réparti selon tes jours de montage : ce n'est pas le montant de la facture</div></div>
       <div class="seg mini"><button class="${cum ? '' : 'on'}" data-set="earnMode:day">Par jour</button><button class="${cum ? 'on' : ''}" data-set="earnMode:cum">Cumulé</button></div></div>
-    ${g.html || emptyArt('Aucun temps de montage enregistré ce mois-ci.')}
-    <p class="hint">La part de chaque mission est répartie sur tes jours de montage, au prorata du temps passé chaque jour. Une mission sans temps enregistré n'apparaît pas encore sur la courbe.</p></div>
-  <div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>Gains par projet</h2><div class="lbl">Ta part sur les missions de ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</div></div></div><div class="bars">${bars || emptyArt('Aucune mission ce mois-ci.')}</div></div>
-  <div class="card flush"><div class="card-head"><h2>Missions du mois</h2><span class="lbl">Ta part</span></div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>
-  <p class="lbl" style="margin-top:14px">Le budget d'une mission est réparti selon le temps de montage de chacun. Tant que la mission n'est pas terminée, le montant peut encore bouger.</p>`;
+    ${g.html || emptyArt('Aucun temps de montage enregistré ce mois-ci.')}</div>
+  <div class="card"><div class="ch-head"><div><h2>Gains par projet</h2><div class="lbl">Ta part sur les missions de ta facture ${esc(deMois(mo))}</div></div></div><div class="bars">${bars || emptyArt('Aucune mission livrée ce mois-ci.')}</div></div>
+  <p class="lbl" style="margin-top:14px">Une mission compte dans la facture du mois où tu la livres. Son budget est réparti selon le temps de montage de chacun, donc le montant peut encore bouger tant que le mois n'est pas fini.</p>`;
 }
 
 // --- Client : accueil
@@ -1022,7 +1174,7 @@ function nextStep(m) {
       return isAdmin() ? ['Vérifie la version, puis préviens le client pour qu\'il la valide.', b('notifyclient', 'Prévenir le client') + b('validate', 'Marquer validée', '')] : ['Livré. En attente de la validation du client.', ''];
     case 'validated':
       if (!isAdmin()) return ['Validée par le client. Bravo !', ''];
-      return f?.client_price && !f.invoiced ? ['Validée. Il reste à facturer le client.', b('invoice', 'Marquer facturée')] : ['Validée et facturée. Passe-la en « Payée » quand le paiement arrive.', b('paid', 'Marquer payée')];
+      return f?.client_price && !f.invoiced ? ['Validée. Il reste à facturer le client.', b('invoice', 'Marquer facturée')] : ['Validée et facturée. Passe-la en « Client payé » quand son paiement arrive.', b('paid', 'Le client a payé')];
     default: return null;
   }
 }
@@ -1101,7 +1253,8 @@ function teamDetail(m) {
   const rows = split(m);
   const ses = missionSessions(m.id).filter((s) => isAdmin() || s.user_id === S.me.id);
   const f = S.finances[m.id];
-  const labels = (s, now) => (now ? STATUS[m.status][0] : STATUS[s][0]);
+  const lab = (k) => (k === 'paid' && !isAdmin() ? 'Terminée' : STATUS[k][0]);
+  const labels = (s, now) => lab(now ? m.status : s);
   const step = nextStep(m);
   const statusMenu = isAdmin()
     ? `<label class="f" for="st" style="margin-top:0">Changer le statut</label><select class="in" id="st" data-status="${m.id}">${Object.keys(STATUS).filter((k) => k !== 'requested').map((k) => `<option value="${k}" ${k === m.status ? 'selected' : ''}>${STATUS[k][0]}</option>`).join('')}</select>`
@@ -1138,7 +1291,7 @@ function teamDetail(m) {
       ${ses.length > 10 ? `<div class="lbl" style="margin-top:8px">et ${ses.length - 10} autres sessions</div>` : ''}</div>
     ${commentsCard(m)}
   </div><div class="narrow stack">
-    <div class="card">${statusMenu}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>
+    <div class="card">${statusMenu}${m.status !== 'requested' ? `<div class="lbl" style="margin-top:14px">Facturée par le monteur en</div><div style="margin-top:6px">${billMonth(m) ? esc(cap(monthName(billMonth(m)))) : '<span class="lbl">au mois de sa livraison</span>'}${isAdmin() && m.bill_month ? ' <span class="lbl">(choisi à la main)</span>' : ''}</div>` : ''}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>
     ${right}
   </div></div></div>`;
 }
@@ -1163,6 +1316,7 @@ function missionForm(m, mode) {
       <div style="flex:1 1 150px"><label class="f" for="nm-price">Prix client HTVA (€)</label><input class="in" id="nm-price" name="price" type="number" inputmode="decimal" min="0" step="1" value="${f?.client_price ?? m?.price ?? ''}"></div>
       <div style="flex:1 1 150px"><label class="f" for="nm-budget">Budget montage (€)</label><input class="in" id="nm-budget" name="budget" type="number" inputmode="decimal" min="0" step="1" required value="${m?.id && mode !== 'accept' ? m.editor_budget ?? '' : m?.editor_budget || ''}"></div>
     </div>
+    ${isAdmin() && mode !== 'accept' ? `<label class="f" for="nm-bill">Facturé par le monteur en</label><select class="in" id="nm-bill" name="bill"><option value="">Automatique : mois de livraison${m?.v1_delivered_at ? ` (${esc(monthName(startOfMonth(d(m.v1_delivered_at))))})` : ''}</option>${Array.from({ length: 15 }, (_, i) => { const x = new Date(new Date().getFullYear(), new Date().getMonth() - 12 + i, 1); return `<option value="${ymd(x)}" ${m?.bill_month === ymd(x) ? 'selected' : ''}>${esc(cap(monthName(x)))}</option>`; }).join('')}</select>` : ''}
     <label class="f">Qui monte ?</label>
     <div class="pick">${team().map((p) => `<button type="button" data-pick="${p.id}" class="${picked.includes(p.id) ? 'on' : ''}" aria-pressed="${picked.includes(p.id)}">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}<button type="button" data-pick="__claude" class="${m?.claude_editor ? 'on' : ''}" aria-pressed="${!!m?.claude_editor}">${claudeAvatar(22)}Claude</button></div>
     ${mode === 'accept' ? '' : `<label class="f" for="nm-rushes">Lien des rushes</label><input class="in" id="nm-rushes" name="rushes" type="url" inputmode="url" placeholder="https:// (facultatif)" value="${esc(m?.rushes_url || '')}">
@@ -1293,6 +1447,26 @@ const ACTIONS = {
     fail(await sb.from('missions').delete().eq('id', m.id));
     closeSheet(); await refresh(); toast('Mission supprimée');
   },
+  async payeditor(t) {
+    const mo = fromYmd(t.dataset.mo); const st = statement(t.dataset.u, mo); const p = profile(t.dataset.u);
+    const v = await dialog(st.pay
+      ? { title: `Compléter le paiement de ${firstName(p)} pour ${monthName(mo)} ?`, body: `Déjà payé ${eur(st.pay.amount)}, reste ${eur(st.rest)}. Indique le total payé pour ce mois.`, ok: 'Enregistrer', input: { type: 'number', value: String(st.total), required: true } }
+      : { title: `Payer ${firstName(p)} pour ${monthName(mo)} ?`, body: `Montant de son relevé : ${eur(st.total)} HTVA. Corrige si tu as payé un autre montant.`, ok: 'Marquer payé', input: { type: 'number', value: String(st.total), required: true } });
+    if (v === null) return; const amount = Number(String(v).replace(',', '.'));
+    if (!(amount > 0)) return toast('Indique un montant supérieur à 0');
+    fail(await sb.from('editor_payments').upsert({ user_id: t.dataset.u, month: ymd(mo), amount, paid_at: st.pay?.paid_at || new Date().toISOString() }, { onConflict: 'user_id,month' }));
+    await refresh(); toast(`${firstName(p)} est marqué payé pour ${mo.toLocaleDateString('fr-BE', { month: 'long' })}`);
+  },
+  async unpay(t) {
+    const mo = fromYmd(t.dataset.mo); const p = profile(t.dataset.u);
+    if (!(await dialog({ title: 'Annuler ce paiement ?', body: `${firstName(p)} repassera en « à payer » pour ${monthName(mo)}.`, ok: 'Annuler le paiement', cancel: 'Garder', danger: true }))) return;
+    fail(await sb.from('editor_payments').delete().eq('user_id', t.dataset.u).eq('month', ymd(mo)));
+    await refresh(); toast('Paiement annulé');
+  },
+  async copystatement(t) {
+    const txt = statementText(t.dataset.u, fromYmd(t.dataset.mo));
+    try { await navigator.clipboard.writeText(txt); toast('Détail copié : colle-le dans ta facture'); } catch { toast('Copie impossible sur cet appareil'); }
+  },
   async claudeadd(t) {
     const v = await dialog({ title: 'Ajouter du temps à Claude', body: 'Durée de travail de Claude sur ce montage. Exemples : 45, 1h30, 2h.', ok: 'Ajouter', input: { placeholder: '1h30', required: true } });
     if (v === null) return; const secs = parseDuration(v);
@@ -1339,7 +1513,7 @@ document.addEventListener('click', async (e) => {
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
   try {
-    if (D.go) { closeSheet(); const same = S.route === D.go; S.route = D.go; render(!same); if (!same) window.scrollTo(0, 0); }
+    if (D.go) { closeSheet(); if (D.gomonth) S.month = fromYmd(D.gomonth); const same = S.route === D.go; S.route = D.go; render(!same); if (!same) window.scrollTo(0, 0); }
     else if (D.notif) { if (D.open) openMission(D.open); markRead(D.open || null, D.notif); }
     else if (D.open) { openMission(D.open); markRead(D.open); }
     else if (D.hweek) { S.hoursWeek = Math.min(0, S.hoursWeek + Number(D.hweek)); render(); }
@@ -1464,6 +1638,7 @@ async function saveMission(f) {
     if (rushes !== (old?.rushes_url || null)) row.rushes_added_at = rushes ? new Date().toISOString() : null;
   }
   const allPicks = [...f.querySelectorAll('[data-pick].on')].map((b) => b.dataset.pick);
+  if (f.bill) row.bill_month = f.bill.value || null;
   row.claude_editor = allPicks.includes('__claude');
   if (mode === 'new') id = fail(await sb.from('missions').insert({ ...row, status: 'assigned' }).select().single()).data.id;
   else fail(await sb.from('missions').update(row).eq('id', id));
@@ -1532,7 +1707,8 @@ function goLive() {
   const ch = sb.channel('ms-live').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${S.me.id}` }, bump)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'mission_versions' }, bump)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mission_comments' }, (p) => { const id = p.new?.mission_id; if (id && S.comments[id] && p.new.author !== S.me.id) loadComments(id); });
-  if (!isClient()) ch.on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, bump).on('postgres_changes', { event: '*', schema: 'public', table: 'mission_members' }, bump);
+  if (!isClient()) ch.on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, bump).on('postgres_changes', { event: '*', schema: 'public', table: 'mission_members' }, bump)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'editor_payments' }, bump);
   S.channel = ch.subscribe();
 }
 

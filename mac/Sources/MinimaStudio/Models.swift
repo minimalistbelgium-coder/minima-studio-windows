@@ -315,6 +315,22 @@ struct EditorPayment: Codable, Identifiable, Hashable {
     let note: String?
 }
 
+/// Le monteur indique qu'il a envoyé sa facture du mois.
+struct EditorInvoice: Codable, Identifiable, Hashable {
+    let id: String
+    let user_id: String
+    let month: String
+    let amount: Double
+    let sent_at: String
+}
+
+struct EditorInvoiceUpsert: Encodable {
+    let user_id: String
+    let month: String
+    let amount: Double
+    let sent_at: String
+}
+
 struct EditorPaymentUpsert: Encodable {
     let user_id: String
     let month: String

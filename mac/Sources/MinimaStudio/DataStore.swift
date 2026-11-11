@@ -30,6 +30,8 @@ final class DataStore: ObservableObject {
     @Published var aiWork: [AIWork] = []
     /// Paiements mensuels des monteurs.
     @Published var payments: [EditorPayment] = []
+    /// Factures que les monteurs ont indiqué avoir envoyées.
+    @Published var invoices: [EditorInvoice] = []
 
     /// Sessions de travail visibles (toutes pour l'admin, celles de ses missions pour un monteur).
     @Published var sessions: [WorkSession] = []
@@ -84,6 +86,7 @@ final class DataStore: ObservableObject {
                 .order("ended_at", ascending: false).execute().value) ?? []
             payments = (try? await supa.from("editor_payments").select()
                 .order("month", ascending: false).execute().value) ?? []
+            invoices = (try? await supa.from("editor_invoices").select().execute().value) ?? []
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -373,6 +376,30 @@ final class DataStore: ObservableObject {
             .upsert(EditorPaymentUpsert(user_id: user, month: BillMonth.key(month), amount: amount,
                                         paid_at: statement(user: user, month: month).payment?.paid_at ?? DateFmt.iso(Date())), onConflict: "user_id,month")
             .execute()
+        await reload()
+    }
+
+    func invoice(user: String, month: Date) -> EditorInvoice? {
+        let key = String(BillMonth.key(month).prefix(7))
+        return invoices.first { $0.user_id == user && $0.month.hasPrefix(key) }
+    }
+
+    /// Missions du monteur pas encore livrées (assignées ou en montage) : ce qu'il pourrait encore facturer ce mois-ci.
+    func pendingRows(user: String) -> [StatementRow] {
+        missions.filter { $0.billMonth == nil && ["assigned", "editing"].contains($0.status) && memberIds(of: $0.id).contains(user) }
+            .map { m in let s = share(of: m, user: user); return StatementRow(mission: m, amount: (s.amount * 100).rounded() / 100, percent: s.percent, estimated: s.estimated) }
+            .sorted { ($0.mission.deadlineDate ?? .distantFuture) < ($1.mission.deadlineDate ?? .distantFuture) }
+    }
+
+    func markInvoiceSent(user: String, month: Date, amount: Double) async throws {
+        try await supa.from("editor_invoices")
+            .upsert(EditorInvoiceUpsert(user_id: user, month: BillMonth.key(month), amount: amount, sent_at: DateFmt.iso(Date())), onConflict: "user_id,month")
+            .execute()
+        await reload()
+    }
+
+    func unmarkInvoiceSent(user: String, month: Date) async throws {
+        try await supa.from("editor_invoices").delete().eq("user_id", value: user).eq("month", value: BillMonth.key(month)).execute()
         await reload()
     }
 

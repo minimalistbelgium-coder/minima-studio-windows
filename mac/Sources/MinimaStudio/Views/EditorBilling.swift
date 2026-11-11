@@ -15,7 +15,7 @@ private func money(_ v: Double) -> String { Money.eur((v * 100).rounded() / 100)
 /// « d'octobre », « de mai »
 private func deMois(_ d: Date) -> String { let n = monthOnly(d); return "aeiouyéh".contains(n.prefix(1).lowercased()) ? "d'\(n)" : "de \(n)" }
 
-enum StatementKind { case paid, due, complement, current, empty }
+enum StatementKind { case paid, due, complement, current, empty, sent }
 
 extension DataStore {
     /// État du relevé d'un monteur pour un mois.
@@ -24,6 +24,7 @@ extension DataStore {
         let rest = max(0, ((st.total - (st.payment?.amount ?? 0)) * 100).rounded() / 100)
         if let _ = st.payment { return (rest > 0.5 ? .complement : .paid, rest) }
         if st.total == 0 { return (.empty, 0) }
+        if invoice(user: user, month: month) != nil { return (.sent, st.total) }
         return (isCurrentOrFuture(month) ? .current : .due, st.total)
     }
 
@@ -34,7 +35,7 @@ extension DataStore {
         return (1...back).compactMap { i in
             guard let mo = cal.date(byAdding: .month, value: -i, to: now) else { return nil }
             let k = statementKind(user: user, month: mo)
-            return (k.kind == .due || k.kind == .complement) ? (mo, k.rest) : nil
+            return (k.kind == .due || k.kind == .complement || k.kind == .sent) ? (mo, k.rest) : nil
         }
     }
 
@@ -71,10 +72,17 @@ struct EditorStatementCard: View {
     @State private var confirmPay = false
     @State private var confirmUndo = false
     @State private var busy = false
+    @State private var confirmSent = false
+
+    private var isCurrentMonth: Bool { Calendar.current.isDate(month, equalTo: Date(), toGranularity: .month) }
+    private var isFuture: Bool { month > (Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()) && !isCurrentMonth }
 
     var body: some View {
         let st = data.statement(user: user, month: month)
         let k = data.statementKind(user: user, month: month)
+        let sent = data.invoice(user: user, month: month)
+        let pending = isCurrentMonth ? data.pendingRows(user: user) : []
+        let canSend = !admin && st.total > 0 && st.payment == nil && !isFuture
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 if admin, let p = data.profile(user) {
@@ -94,7 +102,7 @@ struct EditorStatementCard: View {
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(line(k.kind, st.payment)).font(.system(size: 13)).multilineTextAlignment(.trailing)
+                    Text(line(k.kind, st.payment, sent)).font(.system(size: 13)).multilineTextAlignment(.trailing)
                         .fixedSize(horizontal: false, vertical: true)
                     Muted("\(st.rows.count) mission\(st.rows.count > 1 ? "s" : "")", size: 12)
                 }
@@ -127,9 +135,42 @@ struct EditorStatementCard: View {
                     }
                 }
             }
+            if !pending.isEmpty {
+                VStack(spacing: 0) {
+                    Muted("En cours de montage · pas encore dans la facture", size: 11.5).frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 4)
+                    ForEach(pending) { r in
+                        Rectangle().fill(Theme.line).frame(height: 1)
+                        HStack(spacing: 10) {
+                            Text(r.mission.deadlineDate.map { $0.formatted(Date.FormatStyle().day(.twoDigits).month(.twoDigits)) } ?? "")
+                                .font(.system(size: 12, design: .monospaced)).frame(width: 42, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(r.mission.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                Text("\(Int(r.percent.rounded())) % de \(Money.eur(r.mission.editor_budget ?? 0)) · \(MissionStatus.label(r.mission.status).lowercased())\(r.estimated ? " · estimation" : "")")
+                                    .font(.system(size: 11.5)).lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("≈ " + Money.eur(r.amount.rounded())).font(.system(size: 13, design: .monospaced)).lineLimit(1).fixedSize()
+                        }
+                        .padding(.vertical, 7)
+                    }
+                    Rectangle().fill(Theme.line).frame(height: 1)
+                    HStack {
+                        Text(admin ? "S'il livre tout ce mois-ci" : "Si tu livres tout ce mois-ci").font(.system(size: 13))
+                        Spacer()
+                        Text("≈ " + Money.eur((st.total + pending.map(\.amount).reduce(0, +)).rounded())).font(.system(size: 13.5, weight: .semibold, design: .monospaced))
+                    }
+                    .padding(.vertical, 8)
+                }
+                .foregroundStyle(Theme.muted)
+                .opacity(0.75)
+            }
             if !st.rows.isEmpty || (admin && st.total > 0) {
                 HStack(spacing: 8) {
-                    if !admin, st.total > 0, k.kind != .paid, let link = data.invoiceLink, let url = URL(string: link) {
+                    if canSend && sent == nil {
+                        Button { confirmSent = true } label: { Label("J'ai envoyé ma facture", systemImage: "checkmark") }
+                            .buttonStyle(SecondaryButton()).disabled(busy)
+                    }
+                    if !admin, st.total > 0, k.kind != .paid, sent == nil, let link = data.invoiceLink, let url = URL(string: link) {
                         Button { NSWorkspace.shared.open(url) } label: { Label("Faire ma facture sur Smart", systemImage: "arrow.up.right.square") }
                             .buttonStyle(PrimaryButton())
                     }
@@ -144,6 +185,11 @@ struct EditorStatementCard: View {
                     if admin && st.total > 0 && k.kind != .paid {
                         Button { confirmPay = true } label: { Text(k.kind == .complement ? "Payer le complément" : "Marquer payé") }
                             .buttonStyle(PrimaryButton()).disabled(busy)
+                    }
+                    if canSend && sent != nil {
+                        Spacer(minLength: 4)
+                        Button("Pas encore envoyée") { run { try await data.unmarkInvoiceSent(user: user, month: month) } }
+                            .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.muted).underline().disabled(busy)
                     }
                     if admin && st.payment != nil {
                         Spacer(minLength: 4)
@@ -161,6 +207,9 @@ struct EditorStatementCard: View {
         .confirmationDialog("Marquer \(data.profile(user)?.firstName ?? "") payé pour \(monthName(month)) ?", isPresented: $confirmPay) {
             Button(st.payment == nil ? "Marquer payé \(money(st.total))" : "Enregistrer \(money(st.total)) payés au total") { run { try await data.markEditorPaid(user: user, month: month, amount: st.total) } }
         } message: { Text(st.payment.map { "Déjà payé \(money($0.amount)), reste \(money(k.rest))." } ?? "Montant de son relevé : \(money(st.total)) HTVA.") }
+        .confirmationDialog("Facture \(monthOnly(month)) envoyée ?", isPresented: $confirmSent) {
+            Button("Oui, envoyée") { run { try await data.markInvoiceSent(user: user, month: month, amount: st.total) } }
+        } message: { Text("Gaston sera prévenu que tu as envoyé ta facture de \(money(st.total)) HTVA.") }
         .confirmationDialog("Annuler ce paiement ?", isPresented: $confirmUndo) {
             Button("Annuler le paiement", role: .destructive) { run { try await data.unmarkEditorPaid(user: user, month: month) } }
         } message: { Text("\(data.profile(user)?.firstName ?? "") repassera en « à payer » pour \(monthName(month)).") }
@@ -209,6 +258,7 @@ struct EditorStatementCard: View {
             case .complement: return ("Complément", Theme.amber)
             case .current: return ("En cours", Theme.muted)
             case .empty: return ("–", Theme.muted)
+            case .sent: return (admin ? "Facture reçue" : "Envoyée", Theme.blue)
             }
         }()
         return Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(c)
@@ -220,12 +270,16 @@ struct EditorStatementCard: View {
         switch k {
         case .paid: return "Payé"
         case .complement: return "Reste à payer"
+        case .sent: return admin ? "À lui payer" : "Facturé HTVA"
         default: return admin ? "À lui payer" : "Montant à facturer HTVA"
         }
     }
 
-    private func line(_ k: StatementKind, _ p: EditorPayment?) -> String {
+    private func line(_ k: StatementKind, _ p: EditorPayment?, _ inv: EditorInvoice?) -> String {
         switch k {
+        case .sent:
+            let d = inv.flatMap { DateFmt.parse($0.sent_at) }?.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "fr_BE"))) ?? ""
+            return admin ? "Facture reçue le \(d) (\(money(inv?.amount ?? 0))) · à payer" : "Facture envoyée le \(d) · en attente de paiement"
         case .paid:
             let d = p.flatMap { DateFmt.parse($0.paid_at) }?.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "fr_BE"))) ?? ""
             return admin ? "Payé le \(d)" : "Minimalist t'a payé le \(d)"
@@ -341,7 +395,7 @@ struct InvoiceNudge: View {
 
     var body: some View {
         if let me = app.profile?.id {
-            let list = data.unpaidMonths(user: me, back: 12)
+            let list = data.unpaidMonths(user: me, back: 12).filter { data.invoice(user: me, month: $0.month) == nil }
             if !list.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     let first = list[0]

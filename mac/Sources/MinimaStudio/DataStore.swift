@@ -22,6 +22,8 @@ final class DataStore: ObservableObject {
     @Published var notifications: [AppNotification] = []
     /// Lien de dépôt des montages (WeTransfer), réglé par l'admin.
     @Published var deliveryLink: String?
+    /// Page où les monteurs font leur facture (espace Smart).
+    @Published var invoiceLink: String?
     /// Historique des versions livrées, toutes missions confondues.
     @Published var versions: [MissionVersion] = []
     /// Montages faits par Claude.
@@ -75,6 +77,7 @@ final class DataStore: ObservableObject {
             await loadNotifications()
             let st: [AppSetting] = (try? await supa.from("app_settings").select().execute().value) ?? []
             deliveryLink = st.first { $0.key == "delivery_link" }?.value
+            invoiceLink = st.first { $0.key == "invoice_link" }?.value
             versions = (try? await supa.from("mission_versions").select()
                 .order("created_at", ascending: true).execute().value) ?? []
             aiWork = (try? await supa.from("ai_work").select()

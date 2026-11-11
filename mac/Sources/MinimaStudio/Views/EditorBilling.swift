@@ -129,6 +129,10 @@ struct EditorStatementCard: View {
             }
             if !st.rows.isEmpty || (admin && st.total > 0) {
                 HStack(spacing: 8) {
+                    if !admin, st.total > 0, k.kind != .paid, let link = data.invoiceLink, let url = URL(string: link) {
+                        Button { NSWorkspace.shared.open(url) } label: { Label("Faire ma facture sur Smart", systemImage: "arrow.up.right.square") }
+                            .buttonStyle(PrimaryButton())
+                    }
                     if !st.rows.isEmpty {
                         Button {
                             NSPasteboard.general.clearContents()

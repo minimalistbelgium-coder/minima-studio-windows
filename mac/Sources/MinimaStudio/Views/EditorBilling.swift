@@ -1,0 +1,326 @@
+import SwiftUI
+import AppKit
+
+// MARK: - Facturation des monteurs (fin de mois)
+// Une mission compte dans la facture du mois où le monteur la livre (sauf mois choisi par l'admin).
+// « Client payé » (le client a payé Gaston) et « monteur payé » (Gaston a payé le monteur) sont deux choses distinctes.
+
+private func monthName(_ d: Date) -> String { BillMonth.label(d).lowercased() }
+private func monthOnly(_ d: Date) -> String { d.formatted(.dateTime.month(.wide).locale(Locale(identifier: "fr_BE"))) }
+private func isCurrentOrFuture(_ d: Date) -> Bool {
+    let now = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+    return d >= now
+}
+private func money(_ v: Double) -> String { Money.eur((v * 100).rounded() / 100) }
+
+enum StatementKind { case paid, due, complement, current, empty }
+
+extension DataStore {
+    /// État du relevé d'un monteur pour un mois.
+    func statementKind(user: String, month: Date) -> (kind: StatementKind, rest: Double) {
+        let st = statement(user: user, month: month)
+        let rest = max(0, ((st.total - (st.payment?.amount ?? 0)) * 100).rounded() / 100)
+        if let _ = st.payment { return (rest > 0.5 ? .complement : .paid, rest) }
+        if st.total == 0 { return (.empty, 0) }
+        return (isCurrentOrFuture(month) ? .current : .due, st.total)
+    }
+
+    /// Mois terminés pas encore payés (jusqu'à `back` mois en arrière).
+    func unpaidMonths(user: String, back: Int = 12) -> [(month: Date, amount: Double)] {
+        let cal = Calendar.current
+        let now = cal.dateInterval(of: .month, for: Date())?.start ?? Date()
+        return (1...back).compactMap { i in
+            guard let mo = cal.date(byAdding: .month, value: -i, to: now) else { return nil }
+            let k = statementKind(user: user, month: mo)
+            return (k.kind == .due || k.kind == .complement) ? (mo, k.rest) : nil
+        }
+    }
+
+    func statementText(user: String, month: Date) -> String {
+        let st = statement(user: user, month: month)
+        let name = profile(user)?.displayName ?? ""
+        let df = Date.FormatStyle().day(.twoDigits).month(.twoDigits).locale(Locale(identifier: "fr_BE"))
+        var lines = ["Missions \(name) · \(monthName(month)) (HTVA)", ""]
+        for r in st.rows {
+            let c = client(r.mission.client_id)?.name ?? ""
+            let day = r.mission.missionDay.map { $0.formatted(df) } ?? ""
+            lines.append("\(day)\t\(c)\t\(r.mission.title)\t\(Int(r.percent.rounded())) % de \(Money.eur(r.mission.editor_budget ?? 0))\t\(money(r.amount))")
+        }
+        lines.append("")
+        lines.append("Total HTVA : \(money(st.total))")
+        return lines.joined(separator: "\n")
+    }
+}
+
+/// Relevé du mois : ce que le monteur doit facturer (vue monteur) ou ce que l'admin doit lui payer.
+struct EditorStatementCard: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var presenter: Presenter
+    let user: String
+    let month: Date
+    var admin = false
+    var showRows = true
+    @State private var confirmPay = false
+    @State private var confirmUndo = false
+    @State private var busy = false
+
+    var body: some View {
+        let st = data.statement(user: user, month: month)
+        let k = data.statementKind(user: user, month: month)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                if admin, let p = data.profile(user) {
+                    AvatarView(profile: p, size: 26).clipShape(Circle())
+                    Text(p.displayName).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                } else {
+                    Text("Ma facture · \(monthName(month))").font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                pill(k.kind)
+            }
+            HStack(alignment: .bottom, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Muted(bigLabel(k.kind), size: 12)
+                    Text(money(k.kind == .paid ? (st.payment?.amount ?? 0) : k.kind == .complement ? k.rest : st.total))
+                        .font(.system(size: 30, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(line(k.kind, st.payment)).font(.system(size: 13)).multilineTextAlignment(.trailing)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Muted("\(st.rows.count) mission\(st.rows.count > 1 ? "s" : "")", size: 12)
+                }
+            }
+            if showRows && !st.rows.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(st.rows) { r in
+                        Rectangle().fill(Theme.line).frame(height: 1)
+                        row(r)
+                    }
+                    Rectangle().fill(Theme.line).frame(height: 1)
+                    HStack {
+                        Text("Total HTVA").font(.system(size: 13.5, weight: .semibold))
+                        Spacer()
+                        Text(money(st.total)).font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    }
+                    .padding(.vertical, 10)
+                }
+            }
+            if !st.rows.isEmpty || (admin && st.total > 0) {
+                HStack(spacing: 8) {
+                    if !st.rows.isEmpty {
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(data.statementText(user: user, month: month), forType: .string)
+                            app.showToast("Détail copié : colle-le dans ta facture")
+                        } label: { Label("Copier le détail", systemImage: "doc.on.doc") }
+                        .buttonStyle(SecondaryButton())
+                    }
+                    if admin && st.total > 0 {
+                        if k.kind == .paid {
+                            Button { confirmUndo = true } label: { Label("Payé", systemImage: "checkmark") }
+                                .buttonStyle(SecondaryButton()).disabled(busy)
+                        } else {
+                            Button { confirmPay = true } label: { Text(k.kind == .complement ? "Payer le complément" : "Marquer payé") }
+                                .buttonStyle(PrimaryButton()).disabled(busy)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(tint: k.kind == .due ? Theme.amber.opacity(0.06) : nil)
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(k.kind == .due ? Theme.amber.opacity(0.4) : k.kind == .paid ? Theme.green.opacity(0.3) : .clear))
+        .confirmationDialog("Marquer \(data.profile(user)?.firstName ?? "") payé pour \(monthName(month)) ?", isPresented: $confirmPay) {
+            Button("Marquer payé \(money(st.total))") { run { try await data.markEditorPaid(user: user, month: month, amount: (st.total * 100).rounded() / 100) } }
+        } message: { Text("Montant de son relevé : \(money(st.total)) HTVA.") }
+        .confirmationDialog("Annuler ce paiement ?", isPresented: $confirmUndo) {
+            Button("Annuler le paiement", role: .destructive) { run { try await data.unmarkEditorPaid(user: user, month: month) } }
+        } message: { Text("\(data.profile(user)?.firstName ?? "") repassera en « à payer » pour \(monthName(month)).") }
+    }
+
+    private func run(_ f: @escaping () async throws -> Void) {
+        busy = true
+        Task {
+            do { try await f(); app.showToast("C'est noté") } catch { app.showToast("Impossible : \(error.localizedDescription)") }
+            busy = false
+        }
+    }
+
+    private func row(_ r: DataStore.StatementRow) -> some View {
+        let c = data.client(r.mission.client_id)
+        let day = r.mission.missionDay.map { $0.formatted(Date.FormatStyle().day(.twoDigits).month(.twoDigits)) } ?? ""
+        return Button { presenter.open(.existing(r.mission.id)) } label: {
+            HStack(spacing: 10) {
+                Text(day).font(.system(size: 12, design: .monospaced)).foregroundStyle(Theme.muted).frame(width: 42, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(r.mission.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    Text("\(c?.name ?? "Sans client") · \(Int(r.percent.rounded())) % de \(Money.eur(r.mission.editor_budget ?? 0))\(admin && !r.mission.clientPaid ? " · client pas encore payé" : "")")
+                        .font(.system(size: 11.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(money(r.amount)).font(.system(size: 13, weight: .semibold, design: .monospaced)).lineLimit(1).fixedSize()
+            }
+            .padding(.vertical, 8).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).hoverRow(radius: 8)
+    }
+
+    private func pill(_ k: StatementKind) -> some View {
+        let (t, c): (String, Color) = {
+            switch k {
+            case .paid: return ("Payé", Theme.green)
+            case .due: return (admin ? "À payer" : "À facturer", Theme.amber)
+            case .complement: return ("Complément", Theme.amber)
+            case .current: return ("En cours", Theme.muted)
+            case .empty: return ("–", Theme.muted)
+            }
+        }()
+        return Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(c)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(c.opacity(0.15), in: Capsule())
+    }
+
+    private func bigLabel(_ k: StatementKind) -> String {
+        switch k {
+        case .paid: return "Payé"
+        case .complement: return "Reste à payer"
+        default: return admin ? "À lui payer" : "Montant à facturer HTVA"
+        }
+    }
+
+    private func line(_ k: StatementKind, _ p: EditorPayment?) -> String {
+        switch k {
+        case .paid:
+            let d = p.flatMap { DateFmt.parse($0.paid_at) }?.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "fr_BE"))) ?? ""
+            return admin ? "Payé le \(d)" : "Minimalist t'a payé le \(d)"
+        case .complement: return "Déjà payé \(money(p?.amount ?? 0)) · missions ajoutées après le paiement"
+        case .current: return admin ? "Mois en cours : le total peut encore bouger" : "Mois en cours : tu factureras début \(monthOnly(Calendar.current.date(byAdding: .month, value: 1, to: month) ?? month))"
+        case .due: return admin ? "À payer" : "À facturer à Minimalist Belgium"
+        case .empty: return "Aucune mission à facturer ce mois-ci"
+        }
+    }
+}
+
+/// Trésorerie : payer les monteurs avant d'avoir été payé par les clients ?
+struct CashCard: View {
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var presenter: Presenter
+    let month: Date
+
+    var body: some View {
+        let cal = Calendar.current
+        let ms = data.missions.filter { $0.status != "requested" && ($0.billMonth.map { cal.isDate($0, equalTo: month, toGranularity: .month) } ?? false) }
+        let people = data.payees
+        let dues = ms.map { m in (m, people.map { data.share(of: m, user: $0.id).amount }.reduce(0, +)) }.filter { $0.1 > 0 }
+        let toPay = dues.map(\.1).reduce(0, +)
+        let paid = people.compactMap { data.statement(user: $0.id, month: month).payment?.amount }.reduce(0, +)
+        let cashIn = ms.filter(\.clientPaid).compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
+        let waiting = ms.filter { !$0.clientPaid }.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
+        let late = dues.filter { !$0.0.clientPaid }
+        let balance = cashIn - toPay
+        if toPay > 0 || cashIn > 0 {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Trésorerie · \(monthName(month))").font(.system(size: 15, weight: .semibold))
+                    Muted("Paiement des monteurs comparé à ce que les clients t'ont déjà payé", size: 12)
+                }
+                HStack(alignment: .top, spacing: 12) {
+                    figure("Encaissé des clients", Money.eur(cashIn.rounded()), Theme.green)
+                    figure("À verser aux monteurs", Money.eur(toPay.rounded()), Theme.text, foot: paid > 0 ? "dont \(Money.eur(paid.rounded())) déjà versés" : "rien versé pour l'instant")
+                    figure("Solde", (balance >= 0 ? "+" : "−") + Money.eur(abs(balance).rounded()), balance >= 0 ? Theme.green : Theme.red)
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: balance >= 0 ? "checkmark.circle" : "exclamationmark.triangle").foregroundStyle(balance >= 0 ? Theme.green : Theme.red)
+                    Text(balance >= 0
+                         ? "Les clients ont déjà payé de quoi couvrir les monteurs : il te reste \(Money.eur(balance.rounded()))."
+                         : "Si tu payes les monteurs maintenant, tu avances \(Money.eur((-balance).rounded())) de ta poche : \(late.count) mission\(late.count > 1 ? "s" : "") pas encore payée\(late.count > 1 ? "s" : "") par le client (\(Money.eur(waiting.rounded())) attendus).")
+                        .font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(11).frame(maxWidth: .infinity, alignment: .leading)
+                .background((balance >= 0 ? Theme.green : Theme.red).opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if !late.isEmpty {
+                    Muted("Pas encore payées par le client", size: 12)
+                    VStack(spacing: 0) {
+                        ForEach(late.prefix(6), id: \.0.id) { m, due in
+                            HStack(spacing: 10) {
+                                ClientDot(color: data.client(m.client_id)?.color)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(m.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                    Muted("\(data.client(m.client_id)?.name ?? "Sans client") · \(data.finances[m.id]?.client_price.map { "client \(Money.eur($0))" } ?? "prix client à renseigner") · monteur \(Money.eur(due.rounded()))", size: 11.5).lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                Button("Ouvrir") { presenter.open(.existing(m.id)) }.buttonStyle(SecondaryButton())
+                            }
+                            .padding(.vertical, 7)
+                        }
+                    }
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard()
+        }
+    }
+
+    private func figure(_ l: String, _ v: String, _ c: Color, foot: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Muted(l, size: 12).lineLimit(1)
+            Text(v).font(.system(size: 22, weight: .semibold)).monospacedDigit().foregroundStyle(c).lineLimit(1).minimumScaleFactor(0.6)
+            if let foot { Muted(foot, size: 11.5).lineLimit(1) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Section admin de la page Finances : trésorerie et relevé de chaque monteur.
+struct EditorPayoutsSection: View {
+    @EnvironmentObject var data: DataStore
+    let month: Date
+
+    var body: some View {
+        let people = data.payees.filter { data.statement(user: $0.id, month: month).total > 0 || data.statement(user: $0.id, month: month).payment != nil }
+        VStack(alignment: .leading, spacing: 14) {
+            CashCard(month: month)
+            SectionTitle(text: "Paiement des monteurs · \(monthName(month))", trailing: "Ce que chacun doit te facturer")
+            if people.isEmpty {
+                EmptyHint(text: "Aucune mission à payer aux monteurs pour \(monthName(month)).").card()
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 380), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+                    ForEach(people) { p in EditorStatementCard(user: p.id, month: month, admin: true) }
+                }
+            }
+        }
+    }
+}
+
+/// Rappel de fin de mois sur l'accueil du monteur.
+struct InvoiceNudge: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+
+    var body: some View {
+        if let me = app.profile?.id {
+            let list = data.unpaidMonths(user: me, back: 6)
+            if !list.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(list, id: \.month) { x in
+                        HStack(spacing: 10) {
+                            Image(systemName: "doc.text").foregroundStyle(Theme.amber)
+                            Text("Ta facture de \(monthOnly(x.month)) : ") .font(.system(size: 13.5))
+                                + Text(money(x.amount)).font(.system(size: 13.5, weight: .semibold))
+                                + Text(" HTVA à facturer à Minimalist Belgium. Le détail est dans Finances.").font(.system(size: 13.5))
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.amber.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Theme.amber.opacity(0.35)))
+            }
+        }
+    }
+}

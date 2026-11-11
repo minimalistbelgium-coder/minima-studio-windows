@@ -137,8 +137,26 @@ struct Mission: Codable, Identifiable, Hashable {
     var delivery_url: String? = nil
     /// Claude est choisi comme monteur de cette mission (défini par l'admin).
     var claude_editor: Bool? = nil
+    /// Mois où le monteur facture la mission (« 2026-10-01 »), choisi par l'admin. Vide : mois de la première livraison.
+    var bill_month: String? = nil
 
     var hasClaude: Bool { claude_editor ?? false }
+    var isDelivered: Bool { ["v1_delivered", "revisions", "fix_delivered", "validated", "paid"].contains(status) }
+    var clientPaid: Bool { status == "paid" }
+    /// Mois de facturation du monteur (nil : pas encore livrée).
+    var billMonth: Date? {
+        let cal = Calendar.current
+        func month(_ d: Date?) -> Date? { d.flatMap { cal.dateInterval(of: .month, for: $0)?.start } }
+        if let b = bill_month, let d = BillMonth.parse(b) { return d }
+        if let v = v1_delivered_at, let d = DateFmt.parse(v) { return month(d) }
+        if isDelivered { return month(validated_at.flatMap(DateFmt.parse) ?? deadlineDate ?? DateFmt.parse(created_at)) }
+        return nil
+    }
+    /// Mois de rattachement pour les finances : facturation, sinon deadline.
+    var workMonth: Date? {
+        billMonth ?? Calendar.current.dateInterval(of: .month, for: deadlineDate ?? DateFmt.parse(created_at) ?? Date())?.start
+    }
+    var missionDay: Date? { v1_delivered_at.flatMap(DateFmt.parse) ?? deadlineDate ?? DateFmt.parse(created_at) }
     var files: [BriefFile] { brief_files ?? [] }
     var deadlineDate: Date? { deadline.flatMap(DateFmt.parse) }
     var isOpen: Bool { !["validated", "paid"].contains(status) }
@@ -224,7 +242,7 @@ enum MissionStatus {
         case "revisions": return "Retours"
         case "fix_delivered": return "Corrections livrées"
         case "validated": return "Validée"
-        case "paid": return "Payée"
+        case "paid": return "Client payé"
         default: return s
         }
     }
@@ -285,6 +303,45 @@ struct AIWork: Codable, Identifiable, Hashable {
     let ended_at: String
     let duration_sec: Int?
     let notes: String?
+}
+
+/// Paiement mensuel d'un monteur par l'admin (différent du paiement par le client).
+struct EditorPayment: Codable, Identifiable, Hashable {
+    let id: String
+    let user_id: String
+    let month: String
+    let amount: Double
+    let paid_at: String
+    let note: String?
+}
+
+struct EditorPaymentUpsert: Encodable {
+    let user_id: String
+    let month: String
+    let amount: Double
+    let paid_at: String
+}
+
+/// Met à jour bill_month en écrivant null explicitement quand on revient au mode automatique.
+struct BillMonthUpdate: Encodable {
+    let bill_month: String?
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        if let b = bill_month { try c.encode(b, forKey: .bill_month) } else { try c.encodeNil(forKey: .bill_month) }
+    }
+    enum CodingKeys: String, CodingKey { case bill_month }
+}
+
+enum BillMonth {
+    private static let f: DateFormatter = {
+        let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+    static func parse(_ s: String) -> Date? { f.date(from: String(s.prefix(10))) }
+    static func key(_ d: Date) -> String { f.string(from: Calendar.current.dateInterval(of: .month, for: d)?.start ?? d) }
+    static func label(_ d: Date) -> String {
+        let s = d.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "fr_BE")))
+        return s.prefix(1).uppercased() + s.dropFirst()
+    }
 }
 
 struct AIWorkInsert: Encodable {

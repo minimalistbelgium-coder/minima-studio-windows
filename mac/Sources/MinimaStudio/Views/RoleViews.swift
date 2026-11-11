@@ -34,6 +34,8 @@ struct MyDashboardView: View {
                 }
             }
 
+            InvoiceNudge()
+
             SessionHero()
 
             StatGrid {
@@ -205,7 +207,9 @@ struct MyFinancesView: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var data: DataStore
     @EnvironmentObject var presenter: Presenter
-    @State private var month = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+    @State private var month: Date
+
+    init(month: Date? = nil) { _month = State(initialValue: Calendar.current.dateInterval(of: .month, for: month ?? Date())?.start ?? Date()) }
 
     private struct Row: Identifiable {
         let mission: Mission
@@ -225,7 +229,7 @@ struct MyFinancesView: View {
         let label = monthLabel(month)
 
         Page {
-            PageHeader(kicker: "Ton récapitulatif", title: "Finances") {
+            PageHeader(kicker: "Ce que tu factures chaque mois", title: "Finances") {
                 HStack(spacing: 8) {
                     Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton())
                     Text(label).font(.system(size: 14, weight: .medium)).lineLimit(1).frame(width: 136)
@@ -233,8 +237,10 @@ struct MyFinancesView: View {
                 }
             }
 
+            if let me = app.profile?.id { EditorStatementCard(user: me, month: month, showRows: false) }
+
             StatGrid {
-                StatCard(label: "À facturer à Gaston", value: Money.eur((total * 100).rounded() / 100),
+                StatCard(label: "À facturer à Minimalist", value: Money.eur((total * 100).rounded() / 100),
                          foot: "\(Money.eur(validated.rounded())) déjà validés", footColor: Theme.green)
                 StatCard(label: "Missions", value: "\(rows.count)")
                 StatCard(label: "Heures travaillées", value: TimeFmt.hm(secs))
@@ -291,7 +297,7 @@ struct MyFinancesView: View {
                 .glassCard()
             }
 
-            Muted("Les montants « estimés » peuvent encore bouger : ils sont définitifs quand Gaston valide la mission. Tu peux coller le récap dans ta facture.", size: 12)
+            Muted("Une mission compte dans la facture du mois où tu la livres. Les montants « estimés » peuvent encore bouger tant que le mois n'est pas fini. « Copier le récap » colle le détail dans ta facture.", size: 12)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -351,27 +357,17 @@ struct MyFinancesView: View {
 
     private func rowsFor(_ m: Date) -> [Row] {
         let me = app.profile?.id ?? ""
-        return data.missions(inMonthOf: m)
-            .filter { data.memberIds(of: $0.id).contains(me) || data.mySplit[$0.id] != nil }
-            .sorted { ($0.deadlineDate ?? .distantPast) < ($1.deadlineDate ?? .distantPast) }
-            .map { mission in
-                let share = data.myShare(of: mission)
-                let secs = data.mySplit[mission.id]?.seconds ?? data.seconds(mission: mission.id, user: me)
-                return Row(mission: mission, amount: share.amount, estimated: share.estimated || !["validated", "paid"].contains(mission.status), seconds: secs)
-            }
+        // Missions de la facture du mois : celles livrées ce mois-là (ou rangées à la main par l'admin).
+        return data.statement(user: me, month: m).rows.map { r in
+            let secs = data.mySplit[r.mission.id]?.seconds ?? data.seconds(mission: r.mission.id, user: me)
+            return Row(mission: r.mission, amount: r.amount, estimated: r.estimated || !["validated", "paid"].contains(r.mission.status), seconds: secs)
+        }
     }
 
     private func copyRecap(_ rows: [Row], total: Double, label: String) {
-        var lines = ["Récapitulatif \(label) · \(app.profile?.displayName ?? "")", ""]
-        for r in rows {
-            let c = data.client(r.mission.client_id)?.name ?? "Sans client"
-            lines.append("\(c) · \(r.mission.title) : \(Money.eur((r.amount * 100).rounded() / 100)) (\(TimeFmt.hm(r.seconds)))")
-        }
-        lines.append("")
-        lines.append("Total HTVA : \(Money.eur((total * 100).rounded() / 100))")
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
-        app.showToast("Récapitulatif copié")
+        NSPasteboard.general.setString(data.statementText(user: app.profile?.id ?? "", month: month), forType: .string)
+        app.showToast("Détail copié : colle-le dans ta facture")
     }
 
     private func shift(_ n: Int) {

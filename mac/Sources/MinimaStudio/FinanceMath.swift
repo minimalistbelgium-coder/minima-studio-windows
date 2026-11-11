@@ -41,10 +41,9 @@ enum ChartSeries {
 }
 
 extension DataStore {
-    /// Mois de rattachement d'une mission : sa deadline, sinon sa date de création.
+    /// Mois de rattachement d'une mission : mois de facturation du monteur, sinon sa deadline.
     func financeMonth(of m: Mission) -> Date? {
-        guard let d = m.deadlineDate ?? DateFmt.parse(m.created_at) else { return nil }
-        return Calendar.current.dateInterval(of: .month, for: d)?.start
+        m.workMonth
     }
 
     /// Facturé, budget équipe et marge sur les `count` mois qui finissent à `end` (inclus).

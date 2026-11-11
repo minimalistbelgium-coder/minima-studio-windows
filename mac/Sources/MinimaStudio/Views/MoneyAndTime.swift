@@ -20,9 +20,11 @@ private func monthStart(_ d: Date?) -> Date {
 struct FinancesView: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var data: DataStore
-    @State private var month: Date = monthStart(Date())
+    @State private var month: Date
     @State private var wideScope = false
     @EnvironmentObject var presenter: Presenter
+
+    init(month: Date? = nil) { _month = State(initialValue: monthStart(month ?? Date())) }
 
     /// Dernier mois affiché dans le graphique : le mois courant, ou le mois choisi s'il sort des 12 derniers mois.
     private var chartEnd: Date {
@@ -32,7 +34,7 @@ struct FinancesView: View {
     }
 
     var body: some View {
-        let inMonth = data.missions.filter { monthStart($0.deadlineDate ?? DateFmt.parse($0.created_at)) == month }
+        let inMonth = data.missions(inMonthOf: month).filter { $0.status != "requested" }
         let revenue = inMonth.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
         let cost = inMonth.compactMap(\.editor_budget).reduce(0, +)
         let margin = revenue - cost
@@ -51,12 +53,14 @@ struct FinancesView: View {
 
             StatGrid {
                 StatCard(label: "Facturé aux clients", value: Money.eur(revenue), foot: "\(inMonth.count) mission\(inMonth.count > 1 ? "s" : "") ce mois")
-                StatCard(label: "Payé à l'équipe", value: Money.eur(cost), foot: revenue > 0 ? "\(Int((cost / revenue * 100).rounded())) % du CA" : "Budgets montage")
+                StatCard(label: "Pour les monteurs", value: Money.eur(cost), foot: revenue > 0 ? "\(Int((cost / revenue * 100).rounded())) % du CA" : "Budgets montage")
                 StatCard(label: "Marge", value: Money.eur(margin),
                          foot: revenue > 0 ? "\(Int((margin / revenue * 100).rounded())) % du CA" : "Renseigne les prix clients",
                          footColor: margin >= 0 ? Theme.green : Theme.red)
                 StatCard(label: "À facturer", value: "\(toInvoice.count)", foot: "Missions validées non facturées")
             }
+
+            EditorPayoutsSection(month: month)
 
             FinanceTrendCard(points: trend, month: $month)
 

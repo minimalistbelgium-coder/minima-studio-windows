@@ -628,6 +628,8 @@ struct MissionEditor: View {
     @State private var deadline = MissionEditor.defaultDeadline()
     @State private var rushes = ""
     @State private var memberIds: Set<String> = []
+    /// Mois de facturation monteur choisi à la main (« 2026-10-01 ») ou vide pour automatique.
+    @State private var billKey = ""
     @State private var files: [BriefFile] = []
     @State private var pendingFiles: [URL] = []
     @State private var removedFiles: [BriefFile] = []
@@ -636,6 +638,20 @@ struct MissionEditor: View {
     @State private var didLoad = false
     /// Largeur de la fiche (transmise par PanelHost).
     @Environment(\.layoutWidth) private var sheetWidth
+
+    private var autoBillLabel: String {
+        if let v = mission?.v1_delivered_at, let d = DateFmt.parse(v) { return "Automatique : mois de livraison (\(BillMonth.label(d)))" }
+        return "Automatique : mois de livraison"
+    }
+
+    /// 12 mois en arrière, 2 mois en avant.
+    private var billChoices: [String] {
+        let cal = Calendar.current
+        let now = cal.dateInterval(of: .month, for: Date())?.start ?? Date()
+        var keys = (-12...2).compactMap { cal.date(byAdding: .month, value: $0, to: now) }.map(BillMonth.key)
+        if !billKey.isEmpty && !keys.contains(billKey) { keys.insert(billKey, at: 0) }
+        return keys
+    }
 
     static func defaultDeadline() -> Date {
         let cal = Calendar.current
@@ -717,6 +733,17 @@ struct MissionEditor: View {
                                 MoneyField(text: $price)
                             }
                         }
+                        if app.isAdmin {
+                            FormField(label: "Facturée par le monteur en", hint: "Par défaut, le mois où la mission est livrée") {
+                                Picker("", selection: $billKey) {
+                                    Text(autoBillLabel).tag("")
+                                    ForEach(billChoices, id: \.self) { k in
+                                        Text(BillMonth.parse(k).map(BillMonth.label) ?? k).tag(k)
+                                    }
+                                }
+                                .labelsHidden().frame(maxWidth: 320, alignment: .leading)
+                            }
+                        }
                     }
                 }
                 .layoutWidth(sheetWidth - 56)
@@ -765,6 +792,7 @@ struct MissionEditor: View {
             rushes = m.rushes_url ?? ""
             memberIds = Set(data.memberIds(of: m.id))
             if m.hasClaude { memberIds.insert(MissionTimeStrip.claude) }
+            billKey = m.bill_month.map { String($0.prefix(10)) } ?? ""
             files = m.files
         } else {
             if let p = presetDeadline { deadline = p; hasDeadline = true }
@@ -814,6 +842,11 @@ struct MissionEditor: View {
                         rushes_added_at: r.isEmpty ? nil : DateFmt.iso(Date()),
                         claude_editor: withClaude
                     ), memberIds: people, clientPrice: priceValue)
+                }
+
+                if app.isAdmin && billKey != (mission?.bill_month.map { String($0.prefix(10)) } ?? "") {
+                    try await data.setBillMonth(missionId, billKey.isEmpty ? nil : billKey)
+                    await data.reload()
                 }
 
                 if !pendingFiles.isEmpty || !removedFiles.isEmpty {

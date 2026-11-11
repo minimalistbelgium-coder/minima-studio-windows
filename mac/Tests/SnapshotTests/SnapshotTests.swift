@@ -37,7 +37,7 @@ final class SnapshotTests: XCTestCase {
         Mission(id: id, client_id: client, series_id: nil, title: title, brief: brief, editor_budget: budget,
                 deadline: deadline.map(DateFmt.iso), rushes_url: rushes ? "https://exemple.be/rushes/\(id)" : nil,
                 rushes_added_at: rushes ? DateFmt.iso(at(-3)) : nil, status: status, admin_weight: 1.5, split_comment: nil,
-                v1_delivered_at: ["v1_delivered", "revisions", "fix_delivered", "validated", "paid"].contains(status) ? DateFmt.iso(at(-2)) : nil,
+                v1_delivered_at: ["v1_delivered", "revisions", "fix_delivered", "validated", "paid"].contains(status) ? DateFmt.iso(min(deadline ?? at(-2), at(-2))) : nil,
                 validated_at: ["validated", "paid"].contains(status) ? DateFmt.iso(at(-1)) : nil,
                 created_at: DateFmt.iso((deadline ?? Date()).addingTimeInterval(-6 * 86_400)), premiere_key: status == "editing" ? "EP48_montage_v3" : nil,
                 brief_files: id == "m1" ? [BriefFile(path: "m1/brief.pdf", name: "Brief épisode 48 et charte graphique.pdf")] : nil,
@@ -133,6 +133,13 @@ final class SnapshotTests: XCTestCase {
                                ended_at: DateFmt.iso(Date().addingTimeInterval(600)), duration_sec: 4200, source: "premiere", live: true, project_path: nil)
         data.sessions = sessions.sorted { $0.started_at > $1.started_at }
         data.liveSessions = [live]
+        // Paiements des monteurs : tout est payé sauf le mois dernier.
+        data.payments = (2...11).flatMap { k -> [EditorPayment] in
+            let mo = cal.date(byAdding: .month, value: -k, to: Date()) ?? Date()
+            return ["u-leo", "u-max", "u-ines"].map { u in
+                EditorPayment(id: "p\(k)\(u)", user_id: u, month: BillMonth.key(mo), amount: 500, paid_at: DateFmt.iso(cal.date(byAdding: .month, value: -k + 1, to: Date()) ?? Date()), note: nil)
+            }
+        }
 
         data.notifications = [
             AppNotification(id: "n1", user_id: "u-admin", mission_id: "m3", from_user: "u-ines", kind: "status",
@@ -295,6 +302,10 @@ final class SnapshotTests: XCTestCase {
         window("admin-aujourdhui-min-700x540", width: 700, height: 540) { shell(.today) }
         window("admin-aujourdhui-1120x540", width: 1120, height: 540) { shell(.today) }
         window("admin-finances-760x560", width: 760, height: 560) { shell(.finances) }
+        let prevMonth = cal.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        for w in [760, 1200] as [CGFloat] {
+            window("admin-paiements-mois-dernier-\(tag(w, true))", width: w, height: 2600) { FinancesView(month: prevMonth).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(Theme.bg) }
+        }
 
         // Bandeau de mise à jour.
         updater.setPreviewRelease(AppRelease(id: "r1", version: "99.0.0", zip_path: "x.zip", dmg_path: "x.dmg",
@@ -337,6 +348,10 @@ final class SnapshotTests: XCTestCase {
                 window("monteur-\(name)-\(tag(w, true))", width: w, height: name == "tableau-de-bord" ? 2300 : tall) { shell(route) }
             }
             window("monteur-\(name)-\(tag(700, false))", width: 700, height: name == "tableau-de-bord" ? 2300 : tall, dark: false) { shell(route) }
+        }
+        let prevMonthE = cal.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        for w in [700, 1200] as [CGFloat] {
+            window("monteur-facture-mois-dernier-\(tag(w, true))", width: w, height: 1800) { MyFinancesView(month: prevMonthE).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(Theme.bg) }
         }
         presenter.mission = .existing("m5")
         for w in [700, 1440] as [CGFloat] {

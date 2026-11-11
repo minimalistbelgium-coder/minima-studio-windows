@@ -30,7 +30,7 @@ struct NextStepCard: View {
         case "v1_delivered", "fix_delivered":
             return app.isAdmin ? "Vérifie la version, puis préviens le client pour qu'il la valide." : "Livré. En attente de la validation du client."
         case "validated":
-            return app.isAdmin ? "Validée par le client. Passe-la en « Payée » quand le paiement arrive." : "Validée par le client. Bravo !"
+            return app.isAdmin ? "Validée par le client. Passe-la en « Client payé » quand son paiement arrive." : "Validée par le client. Bravo !"
         default:
             return nil
         }
@@ -94,7 +94,7 @@ struct NextStepCard: View {
             }
         case "validated":
             if app.isAdmin {
-                Button("Marquer payée") { run { try await data.setStatus(mission, "paid") } }.buttonStyle(SecondaryButton())
+                Button("Le client a payé") { run { try await data.setStatus(mission, "paid") } }.buttonStyle(SecondaryButton())
             }
         default:
             EmptyView()

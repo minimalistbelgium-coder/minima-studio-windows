@@ -26,6 +26,8 @@ final class DataStore: ObservableObject {
     @Published var versions: [MissionVersion] = []
     /// Montages faits par Claude.
     @Published var aiWork: [AIWork] = []
+    /// Paiements mensuels des monteurs.
+    @Published var payments: [EditorPayment] = []
 
     /// Sessions de travail visibles (toutes pour l'admin, celles de ses missions pour un monteur).
     @Published var sessions: [WorkSession] = []
@@ -77,6 +79,8 @@ final class DataStore: ObservableObject {
                 .order("created_at", ascending: true).execute().value) ?? []
             aiWork = (try? await supa.from("ai_work").select()
                 .order("ended_at", ascending: false).execute().value) ?? []
+            payments = (try? await supa.from("editor_payments").select()
+                .order("month", ascending: false).execute().value) ?? []
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -322,12 +326,58 @@ final class DataStore: ObservableObject {
         return hasEditor ? (m.editor_budget ?? 0) : 0
     }
 
-    /// Missions dont la deadline (ou la création) tombe dans le mois donné.
+    /// Missions rattachées au mois donné : mois de facturation du monteur, sinon deadline.
     func missions(inMonthOf month: Date) -> [Mission] {
         missions.filter { m in
-            guard let d = m.deadlineDate ?? DateFmt.parse(m.created_at) else { return false }
+            guard let d = m.workMonth else { return false }
             return Calendar.current.isDate(d, equalTo: month, toGranularity: .month)
         }
+    }
+
+    // MARK: facturation des monteurs (fin de mois)
+
+    /// Part d'une personne sur une mission (parts égales tant qu'aucun temps n'est enregistré).
+    func share(of m: Mission, user: String) -> (amount: Double, percent: Double, estimated: Bool) {
+        if !isAdmin { guard mySplit[m.id] != nil || memberIds(of: m.id).contains(user) else { return (0, 0, true) }; let s = myShare(of: m); let pct = (m.editor_budget ?? 0) > 0 ? 100 * s.amount / (m.editor_budget ?? 1) : 0; return (s.amount, pct, s.estimated) }
+        let split = localSplit(m)
+        if !split.isEmpty { let r = split.first { $0.user_id == user }; return (r?.amount ?? 0, r?.percent ?? 0, false) }
+        let ids = memberIds(of: m.id)
+        guard ids.contains(user) else { return (0, 0, true) }
+        return ((m.editor_budget ?? 0) / Double(ids.count), 100 / Double(ids.count), true)
+    }
+
+    struct StatementRow: Identifiable { let mission: Mission; let amount: Double; let percent: Double; let estimated: Bool; var id: String { mission.id } }
+
+    func statement(user: String, month: Date) -> (rows: [StatementRow], total: Double, payment: EditorPayment?) {
+        let cal = Calendar.current
+        let rows = missions.filter { $0.status != "requested" && ($0.billMonth.map { cal.isDate($0, equalTo: month, toGranularity: .month) } ?? false) }
+            .map { m -> StatementRow in let s = share(of: m, user: user); return StatementRow(mission: m, amount: s.amount, percent: s.percent, estimated: s.estimated) }
+            .filter { $0.amount > 0 }
+            .sorted { ($0.mission.missionDay ?? .distantPast) < ($1.mission.missionDay ?? .distantPast) }
+        let total = rows.map(\.amount).reduce(0, +)
+        let key = BillMonth.key(month)
+        return (rows, total, payments.first { $0.user_id == user && $0.month.hasPrefix(String(key.prefix(7))) })
+    }
+
+    /// Monteurs à qui l'admin peut devoir de l'argent.
+    var payees: [Profile] {
+        profiles.filter { $0.role != "admin" && $0.role != "client" && ($0.active || payments.contains(where: { p in p.user_id == $0.id })) }
+    }
+
+    func markEditorPaid(user: String, month: Date, amount: Double) async throws {
+        try await supa.from("editor_payments")
+            .upsert(EditorPaymentUpsert(user_id: user, month: BillMonth.key(month), amount: amount, paid_at: DateFmt.iso(Date())), onConflict: "user_id,month")
+            .execute()
+        await reload()
+    }
+
+    func unmarkEditorPaid(user: String, month: Date) async throws {
+        try await supa.from("editor_payments").delete().eq("user_id", value: user).eq("month", value: BillMonth.key(month)).execute()
+        await reload()
+    }
+
+    func setBillMonth(_ missionId: String, _ key: String?) async throws {
+        try await supa.from("missions").update(BillMonthUpdate(bill_month: key)).eq("id", value: missionId).execute()
     }
 
     // MARK: équipe

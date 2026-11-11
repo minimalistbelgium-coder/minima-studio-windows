@@ -586,3 +586,10 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .x.sm{width:24px;height:24px;font-size:14px;box-shadow:none;background:transparent;border-color:transparent}
 .x.sm:hover{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
 .sheet-box{will-change:transform}
+.inv-pill.sent{background:color-mix(in srgb,var(--blue,#4C8DFF) 16%,transparent);color:var(--blue,#4C8DFF)}
+.invoice.sent{border-color:color-mix(in srgb,var(--blue,#4C8DFF) 35%,transparent)}
+.stmt-sep{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:16px 2px 6px;border-bottom:1px solid var(--line)}
+.stmt-r.pending{opacity:.55}
+.stmt-r.pending:hover{opacity:.8}
+.pending-f{color:var(--muted);font-size:13.5px}
+.ok-btn{border-color:color-mix(in srgb,var(--green) 45%,transparent);color:var(--green)}

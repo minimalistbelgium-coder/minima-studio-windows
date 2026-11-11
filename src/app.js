@@ -15,7 +15,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
-  versions: {}, settings: {}, comments: {}, ai: [], payments: [],
+  versions: {}, settings: {}, comments: {}, ai: [], payments: [], invoices: [],
   filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
@@ -167,6 +167,7 @@ function shareOf(m, u) {
   const ids = memberIds(m.id); if (!ids.includes(u)) return { amount: 0, pct: 0, secs: 0, estimated: true };
   return { amount: (m.editor_budget || 0) / ids.length, pct: 100 / ids.length, secs: 0, estimated: true };
 }
+const invoiceOf = (u, mo) => S.invoices.find((p) => p.user_id === u && sameMonth(fromYmd(p.month), mo)) || null;
 const paymentOf = (u, mo) => S.payments.find((p) => p.user_id === u && sameMonth(fromYmd(p.month), mo)) || null;
 // Relevé d'un monteur pour un mois : ce qu'il doit facturer.
 function statement(u, mo) {
@@ -177,7 +178,7 @@ function statement(u, mo) {
   const total = Math.round(rows.reduce((a, r) => a + r.amount, 0) * 100) / 100;
   const pay = paymentOf(u, mo);
   const now = startOfMonth(new Date());
-  return { rows, total, pay, current: sameMonth(mo, now), future: mo > now, rest: Math.max(0, Math.round((total - (pay?.amount || 0)) * 100) / 100) };
+  return { rows, total, pay, sent: invoiceOf(u, mo), current: sameMonth(mo, now), future: mo > now, rest: Math.max(0, Math.round((total - (pay?.amount || 0)) * 100) / 100) };
 }
 // « d'octobre », « de mai »
 const deMois = (mo) => { const n = mo.toLocaleDateString('fr-BE', { month: 'long' }); return /^[aeiouyéèh]/i.test(n) ? `d'${n}` : `de ${n}`; };
@@ -223,11 +224,13 @@ async function loadAll() {
   S.ai = ai.error ? [] : ai.data || [];
   const pay = await sb.from('editor_payments').select('*').order('month', { ascending: false });
   S.payments = pay.error ? [] : pay.data || [];
+  const inv = await sb.from('editor_invoices').select('*');
+  S.invoices = inv.error ? [] : inv.data || [];
 }
 function groupVersions(rows) { S.versions = {}; (rows || []).forEach((v) => { (S.versions[v.mission_id] ||= []).push(v); }); }
 function digest() {
   const ses = S.sessions.reduce((a, s) => a + (s.duration_sec || 0) + (s.live ? 1 : 0), S.sessions.length);
-  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, S.payments, ses, liveSessions().length]);
+  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, S.payments, S.invoices, ses, liveSessions().length]);
 }
 
 async function loadMe() {
@@ -501,12 +504,13 @@ const paidDay = (p) => d(p.paid_at).toLocaleDateString('fr-BE', { day: 'numeric'
 function statementState(st, mo, admin) {
   if (st.pay && st.rest <= 0.5) return ['ok', admin ? `Payé le ${paidDay(st.pay)}` : `Minimalist t'a payé le ${paidDay(st.pay)}`];
   if (st.pay) return ['warn', `Déjà payé ${eur(st.pay.amount)} le ${paidDay(st.pay)} · reste ${eur(st.rest)} (le relevé a changé depuis le paiement)`];
+  if (st.sent && st.total) return ['sent', admin ? `Facture reçue le ${paidDay({ paid_at: st.sent.sent_at })} (${eur(st.sent.amount)}) · à payer` : `Facture envoyée le ${paidDay({ paid_at: st.sent.sent_at })} · en attente de paiement`];
   if (st.future) return ['future', 'Rien à facturer pour l’instant.'];
   if (!st.total) return ['muted', st.rows.length ? 'Aucun temps enregistré pour toi sur ces missions.' : 'Rien à facturer pour ce mois.'];
   if (st.current) return ['muted', admin ? `Mois en cours : le total peut encore bouger jusqu'à fin ${mo.toLocaleDateString('fr-BE', { month: 'long' })}.` : `Mois en cours : le total peut encore bouger. Tu factureras début ${nextMonthName(mo)}.`];
   return ['due', admin ? 'À payer' : 'À facturer à Minimalist Belgium'];
 }
-const PILL = { ok: 'Payé', due: 'À facturer', warn: 'Complément', muted: 'En cours', future: 'À venir' };
+const PILL = { ok: 'Payé', due: 'À facturer', warn: 'Complément', muted: 'En cours', future: 'À venir', sent: 'Envoyée' };
 function rowNote(r, mo, admin) {
   const notes = [];
   if (r.m.bill_month && !sameMonth(missionDay(r.m), mo)) notes.push('<i class="cl-note">reportée sur ce mois par Gaston</i>');
@@ -514,14 +518,19 @@ function rowNote(r, mo, admin) {
   if (admin && !clientPaid(r.m)) notes.push('<i class="cl-unpaid">client pas encore payé</i>');
   return notes.length ? ` · ${notes.join(' · ')}` : '';
 }
-function statementTable(st, mo, { admin = false } = {}) {
-  if (!st.rows.length) return '';
+function statementTable(st, mo, { admin = false, pending = [] } = {}) {
+  if (!st.rows.length && !pending.length) return '';
+  const pend = pending.reduce((a, r) => a + r.amount, 0);
   return `<div class="stmt" role="table" aria-label="Missions du mois">
     <div class="stmt-r stmt-h" role="row"><span role="columnheader">Date</span><span role="columnheader">Mission</span><span role="columnheader" class="num">Part</span><span role="columnheader" class="num">Montant</span></div>
     ${st.rows.map((r) => `<div class="stmt-r" role="row" tabindex="0" data-open="${r.m.id}"><span role="cell" class="mono lbl">${dshort(missionDay(r.m))}</span>
       <span role="cell" class="stmt-t"><b>${esc(r.m.title)}</b><small>${pctTxt(r.pct)} de ${eur(r.m.editor_budget || 0)} · ${esc(client(r.m.client_id)?.name || 'Sans client')}${r.estimated ? '' : ` · ${hm(r.secs)}`}${rowNote(r, mo, admin)}</small></span>
       <span role="cell" class="num lbl">${pctTxt(r.pct)}</span><span role="cell" class="num mono"><b>${eur(r.amount)}</b></span></div>`).join('')}
     <div class="stmt-r stmt-f" role="row"><span role="cell"></span><span role="cell"><b>Total HTVA</b></span><span role="cell"></span><span role="cell" class="num mono"><b>${eur(st.total)}</b></span></div>
+    ${pending.length ? `<div class="stmt-sep">En cours de montage · pas encore dans la facture</div>${pending.map((r) => `<div class="stmt-r pending" role="row" tabindex="0" data-open="${r.m.id}"><span role="cell" class="mono lbl">${r.m.deadline ? dshort(d(r.m.deadline)) : ''}</span>
+      <span role="cell" class="stmt-t"><b>${esc(r.m.title)}</b><small>${pctTxt(r.pct)} de ${eur(r.m.editor_budget || 0)} · ${esc(client(r.m.client_id)?.name || 'Sans client')} · ${esc((STATUS[r.m.status] || [r.m.status])[0].toLowerCase())}${r.estimated ? ' · estimation' : ''}</small></span>
+      <span role="cell" class="num lbl">${pctTxt(r.pct)}</span><span role="cell" class="num mono">≈ ${eur(Math.round(r.amount))}</span></div>`).join('')}
+    <div class="stmt-r stmt-f pending-f" role="row"><span role="cell"></span><span role="cell">Si ${admin ? 'il livre' : 'tu livres'} tout ce mois-ci</span><span role="cell"></span><span role="cell" class="num mono">≈ ${eur(Math.round(st.total + pend))}</span></div>` : ''}
     ${st.pay && st.rest > 0.5 ? `<div class="stmt-r stmt-p" role="row"><span role="cell"></span><span role="cell">Déjà payé le ${paidDay(st.pay)}</span><span role="cell"></span><span role="cell" class="num mono">−${eur(st.pay.amount)}</span></div>
     <div class="stmt-r stmt-f" role="row"><span role="cell"></span><span role="cell"><b>${admin ? 'Reste à payer' : 'Reste à facturer'} HTVA</b></span><span role="cell"></span><span role="cell" class="num mono"><b>${eur(st.rest)}</b></span></div>` : ''}</div>`;
 }
@@ -529,20 +538,24 @@ function statementTable(st, mo, { admin = false } = {}) {
 function invoiceCard(u, mo, { admin = false } = {}) {
   const st = statement(u, mo); const [kind, line] = statementState(st, mo, admin);
   const who = profile(u);
+  const pending = st.current ? upcomingFor(u).filter((r) => ['assigned', 'editing'].includes(r.m.status)) : [];
   const big = kind === 'ok' ? st.pay.amount : kind === 'warn' ? st.rest : st.total;
-  const bigLbl = kind === 'ok' ? 'Payé' : kind === 'warn' ? (admin ? 'Reste à payer' : 'Reste à facturer HTVA') : admin ? 'À lui payer' : 'Montant à facturer HTVA';
+  const canSend = !admin && st.total && !st.pay && !st.future;
+  const bigLbl = kind === 'ok' ? 'Payé' : kind === 'sent' ? (admin ? 'À lui payer' : 'Facturé HTVA') : kind === 'warn' ? (admin ? 'Reste à payer' : 'Reste à facturer HTVA') : admin ? 'À lui payer' : 'Montant à facturer HTVA';
   const head = admin ? `<div class="row">${avatar(who, 26)}<h2>${esc(who?.full_name || firstName(who))}</h2></div>` : `<h2>Ma facture · ${esc(monthName(mo))}</h2>`;
-  const pillTxt = admin && kind === 'due' ? 'À payer' : PILL[kind];
+  const pillTxt = admin && kind === 'due' ? 'À payer' : admin && kind === 'sent' ? 'Facture reçue' : PILL[kind];
   const btns = [];
   if (st.total) btns.push(`<button class="btn sm" data-act="copystatement" data-u="${u}" data-mo="${ymd(mo)}">${small(I.copy)}Copier le détail</button>`);
-  if (!admin && st.total && kind !== 'ok' && S.settings.invoice_link) btns.unshift(`<a class="btn sm pri" href="${esc(S.settings.invoice_link)}" target="_blank" rel="noopener">Faire ma facture sur Smart ↗</a>`);
+  if (canSend && !st.sent) btns.unshift(`<button class="btn sm ok-btn" data-act="invsent" data-mo="${ymd(mo)}">${small(I.check)}J'ai envoyé ma facture</button>`);
+  if (canSend && st.sent) btns.push(`<button class="lnk-btn" data-act="invunsent" data-mo="${ymd(mo)}">Pas encore envoyée</button>`);
+  if (!admin && st.total && kind !== 'ok' && !st.sent && S.settings.invoice_link) btns.unshift(`<a class="btn sm pri" href="${esc(S.settings.invoice_link)}" target="_blank" rel="noopener">Faire ma facture sur Smart ↗</a>`);
   if (admin && st.total && kind !== 'ok') btns.push(`<button class="btn sm pri" data-act="payeditor" data-u="${u}" data-mo="${ymd(mo)}">${kind === 'warn' ? 'Payer le complément' : 'Marquer payé'}</button>`);
   if (admin && st.pay) btns.push(`<button class="lnk-btn" data-act="unpay" data-u="${u}" data-mo="${ymd(mo)}">Annuler le paiement</button>`);
   return `<div class="card invoice ${kind}">
     <div class="card-head">${head}<span class="inv-pill ${kind}">${kind === 'ok' ? small(I.check) : ''}${pillTxt}</span></div>
     <div class="inv-sum"><div><div class="lbl">${bigLbl}</div><div class="big">${eur(big)}</div></div>
       <div class="inv-line">${esc(line)}${st.rows.length ? `<br><span class="lbl">${st.rows.length} mission${st.rows.length > 1 ? 's' : ''} livrée${st.rows.length > 1 ? 's' : ''}${admin ? '' : ' · détail ci-dessous'}</span>` : ''}</div></div>
-    ${statementTable(st, mo, { admin })}
+    ${statementTable(st, mo, { admin, pending })}
     ${btns.length ? `<div class="row inv-btns">${btns.join('')}</div>` : ''}</div>`;
 }
 // Missions pas encore livrées : elles iront dans la facture du mois de livraison.
@@ -559,7 +572,7 @@ function unpaidMonths(u, back = 12) {
   return out;
 }
 function invoiceNudge() {
-  const list = unpaidMonths(S.me.id); if (!list.length) return '';
+  const list = unpaidMonths(S.me.id).filter((x) => !x.st.sent); if (!list.length) return '';
   const [first, ...rest] = list; const restSum = rest.reduce((a, x) => a + x.due, 0);
   return `<div class="card next nudge" style="--c:#F5A524"><div class="next-in"><div><div class="lbl">Fin de mois</div><div style="margin-top:4px">Ta facture ${esc(deMois(first.mo))} : <b class="mono">${eur(first.due)}</b> HTVA à facturer à Minimalist Belgium${rest.length ? `<div class="lbl" style="margin-top:4px">+ ${rest.length} autre${rest.length > 1 ? 's' : ''} mois pas encore réglé${rest.length > 1 ? 's' : ''} : ${eur(restSum)}</div>` : ''}</div></div>
     <button class="btn sm pri" data-go="earnings" data-gomonth="${ymd(first.mo)}">Voir le détail</button></div></div>`;
@@ -960,7 +973,7 @@ function earningsPage() {
   const total = list.reduce((a, r) => a + r.amount, 0); const secs = list.reduce((a, r) => a + r.secs, 0);
   const aheadSum = ahead.reduce((a, r) => a + r.amount, 0);
   return `${header('Ce que tu factures chaque mois', 'Mes revenus', monthSeg(mo))}
-  <div class="stack" style="margin-bottom:16px">${invoiceCard(S.me.id, mo)}${ahead.length ? upcomingInvoiceCard(S.me.id) : ''}</div>
+  <div class="stack" style="margin-bottom:16px">${invoiceCard(S.me.id, mo)}</div>
   <div class="grid">
     ${stat('Facture du mois', eur(st.total), `${list.length} mission${list.length > 1 ? 's' : ''} livrée${list.length > 1 ? 's' : ''}`)}
     ${ahead.length ? stat('Pas encore livrées', `≈ ${eur(Math.round(aheadSum))}`, `${ahead.length} mission${ahead.length > 1 ? 's' : ''} en cours`) : stat('Paiement', st.pay ? 'Reçu' : st.total ? 'En attente' : '–', st.pay ? `le ${paidDay(st.pay)}` : '', st.pay ? 'var(--green)' : 'var(--muted)')}
@@ -1505,6 +1518,16 @@ const ACTIONS = {
     const txt = statementText(t.dataset.u, fromYmd(t.dataset.mo));
     try { await navigator.clipboard.writeText(txt); toast('Détail copié : colle-le dans ta facture'); } catch { toast('Copie impossible sur cet appareil'); }
   },
+  async invsent(t) {
+    const mo = fromYmd(t.dataset.mo); const st = statement(S.me.id, mo);
+    if (!(await dialog({ title: `Facture ${deMois(mo)} envoyée ?`, body: `Gaston sera prévenu que tu as envoyé ta facture de ${eur(st.total)} HTVA.`, ok: 'Oui, envoyée' }))) return;
+    fail(await sb.from('editor_invoices').upsert({ user_id: S.me.id, month: ymd(mo), amount: st.total, sent_at: new Date().toISOString() }, { onConflict: 'user_id,month' }));
+    await refresh(); toast('Facture marquée comme envoyée');
+  },
+  async invunsent(t) {
+    fail(await sb.from('editor_invoices').delete().eq('user_id', S.me.id).eq('month', t.dataset.mo));
+    await refresh(); toast('Facture repassée en « à envoyer »');
+  },
   allsessions(t) { S.allSes = t.dataset.id; renderSheet(true); },
   async delsession(t) {
     const x = S.sessions.find((s) => s.id === t.dataset.id); if (!x) return;
@@ -1754,7 +1777,8 @@ function goLive() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'mission_versions' }, bump)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mission_comments' }, (p) => { const id = p.new?.mission_id; if (id && S.comments[id] && p.new.author !== S.me.id) loadComments(id); });
   if (!isClient()) ch.on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, bump).on('postgres_changes', { event: '*', schema: 'public', table: 'mission_members' }, bump)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'editor_payments' }, bump);
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'editor_payments' }, bump)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'editor_invoices' }, bump);
   S.channel = ch.subscribe();
 }
 

@@ -129,10 +129,13 @@ function avatar(p, size = 26) {
 const avatars = (ids, size = 20) => `<span class="avs">${ids.map(profile).filter(Boolean).map((p) => avatar(p, size)).join('')}</span>`;
 const clientColor = (c) => (c?.color ? `#${c.color.replace('#', '')}` : '#8B8D94');
 
+const MIN_SPLIT_SECS = 120;
 // Même règle que l'app Mac : l'admin compte ×1,5 seulement s'il partage la mission.
 function split(m) {
   const by = {};
   missionSessions(m.id).forEach((s) => { by[s.user_id] = (by[s.user_id] || 0) + (s.duration_sec || 0); });
+  // Moins de 2 minutes (mission ouverte par erreur) : ne compte pas, sauf si personne n'a plus.
+  if (Object.values(by).some((v) => v >= MIN_SPLIT_SECS)) Object.keys(by).forEach((u) => { if (by[u] < MIN_SPLIT_SECS) delete by[u]; });
   const ids = Object.keys(by); const shared = ids.length > 1;
   const rows = ids.map((u) => { const w = shared && profile(u)?.role === 'admin' ? (m.admin_weight || 1.5) : 1; return { u, secs: by[u], w: by[u] * w }; });
   const tot = rows.reduce((a, r) => a + r.w, 0); if (!tot) return [];
@@ -1097,6 +1100,38 @@ function sheetWrap(kicker, title, sub, body, keep, narrow) {
   if (keep) sheetRoot.querySelector('.sheet').scrollTop = y;
   placeThumbs(false);
 }
+// Mobile : glisser la fiche vers le bas pour la fermer.
+(() => {
+  let y0 = 0; let dy = 0; let t0 = 0; let box = null; let on = false;
+  sheetRoot.addEventListener('touchstart', (e) => {
+    box = e.target.closest('.sheet-box'); if (!box || !isMobile() || e.touches.length !== 1) { box = null; return; }
+    const sc = box.querySelector('.sheet');
+    on = !!e.target.closest('.grab,.sheet-head') || (sc && sc.scrollTop <= 0);
+    y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
+  }, { passive: true });
+  sheetRoot.addEventListener('touchmove', (e) => {
+    if (!box || !on) return;
+    dy = e.touches[0].clientY - y0;
+    const sc = box.querySelector('.sheet');
+    if (dy <= 0 || (sc && sc.scrollTop > 0 && !e.target.closest('.grab,.sheet-head'))) { if (dy <= 0) { box.style.transform = ''; } return; }
+    e.preventDefault();
+    box.style.transition = 'none'; box.style.transform = `translateY(${dy}px)`;
+    const scrim = box.parentElement; if (scrim) scrim.style.opacity = String(Math.max(0.35, 1 - dy / 600));
+  }, { passive: false });
+  sheetRoot.addEventListener('touchend', () => {
+    if (!box || !on) return; const b = box; const scrim = b.parentElement; box = null;
+    const fast = dy > 40 && dy / Math.max(1, Date.now() - t0) > 0.6;
+    if (dy > 120 || fast) {
+      b.style.transition = 'transform .22s ease-in'; b.style.transform = 'translateY(110%)';
+      if (scrim) { scrim.style.transition = 'opacity .22s'; scrim.style.opacity = '0'; }
+      setTimeout(closeSheet, 200);
+    } else {
+      b.style.transition = 'transform .25s cubic-bezier(.2,.9,.3,1.2)'; b.style.transform = '';
+      if (scrim) { scrim.style.transition = 'opacity .25s'; scrim.style.opacity = ''; }
+    }
+    dy = 0;
+  });
+})();
 function renderSheet(keep = false) {
   const s = S.sheet; if (!s) return;
   if (s.type === 'mission') {
@@ -1289,8 +1324,9 @@ function teamDetail(m) {
         ${dep ? `<a class="lnk" href="${esc(dep)}" target="_blank" rel="noopener">Déposer mon montage ↗</a>` : ''}</div></div>
     ${m.brief ? `<div class="card"><h2 style="margin-bottom:10px">Brief</h2><div class="brief">${esc(m.brief)}</div></div>` : ''}
     <div class="card"><div class="card-head"><h2>${isAdmin() ? 'Sessions' : 'Mes sessions'}</h2><span class="lbl mono">${hm(ses.reduce((a, s) => a + (s.duration_sec || 0), 0))}</span></div>
-      ${ses.slice(0, 10).map((s) => `<div class="kv"><span class="row">${avatar(profile(s.user_id), 22)}${esc(s.user_id === S.me.id ? 'Toi' : firstName(profile(s.user_id)))}</span><span class="lbl">${fmtDay(d(s.started_at))} ${fmtTime(d(s.started_at))}</span><span class="mono">${hm(s.duration_sec)}</span></div>`).join('') || '<div class="empty">Aucune session.</div>'}
-      ${ses.length > 10 ? `<div class="lbl" style="margin-top:8px">et ${ses.length - 10} autres sessions</div>` : ''}</div>
+      ${(S.allSes === m.id ? ses : ses.slice(0, 10)).map((s) => `<div class="kv"><span class="row">${avatar(profile(s.user_id), 22)}${esc(s.user_id === S.me.id ? 'Toi' : firstName(profile(s.user_id)))}</span><span class="lbl">${fmtDay(d(s.started_at))} ${fmtTime(d(s.started_at))}</span><span class="row" style="gap:4px"><span class="mono" style="${(s.duration_sec || 0) < MIN_SPLIT_SECS ? 'color:var(--muted)' : ''}">${(s.duration_sec || 0) < 60 ? `${s.duration_sec || 0} s` : hm(s.duration_sec)}</span>${isAdmin() ? `<button class="x sm" data-act="delsession" data-id="${s.id}" aria-label="Supprimer cette session" title="Supprimer cette session">×</button>` : ''}</span></div>`).join('') || '<div class="empty">Aucune session.</div>'}
+      ${ses.length > 10 && S.allSes !== m.id ? `<button class="lnk-btn" style="margin:8px 0 0" data-act="allsessions" data-id="${m.id}">Voir les ${ses.length - 10} autres sessions</button>` : ''}
+      ${isAdmin() ? '<p class="hint" style="margin-top:10px">Une session de moins de 2 minutes (mission ouverte par erreur) ne compte pas dans la répartition. Tu peux aussi supprimer une session avec la croix.</p>' : ''}</div>
     ${commentsCard(m)}
   </div><div class="narrow stack">
     <div class="card">${statusMenu}${m.status !== 'requested' ? `<div class="lbl" style="margin-top:14px">Facturée par le monteur en</div><div style="margin-top:6px">${billMonth(m) ? esc(cap(monthName(billMonth(m)))) : '<span class="lbl">au mois de sa livraison</span>'}${isAdmin() && m.bill_month ? ' <span class="lbl">(choisi à la main)</span>' : ''}</div>` : ''}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>
@@ -1468,6 +1504,14 @@ const ACTIONS = {
   async copystatement(t) {
     const txt = statementText(t.dataset.u, fromYmd(t.dataset.mo));
     try { await navigator.clipboard.writeText(txt); toast('Détail copié : colle-le dans ta facture'); } catch { toast('Copie impossible sur cet appareil'); }
+  },
+  allsessions(t) { S.allSes = t.dataset.id; renderSheet(true); },
+  async delsession(t) {
+    const x = S.sessions.find((s) => s.id === t.dataset.id); if (!x) return;
+    const who = x.user_id === S.me.id ? 'ta session' : `la session de ${firstName(profile(x.user_id))}`;
+    if (!(await dialog({ title: 'Supprimer cette session ?', body: `Supprimer ${who} du ${fmtDay(d(x.started_at))} à ${fmtTime(d(x.started_at))} (${(x.duration_sec || 0) < 60 ? `${x.duration_sec || 0} s` : hm(x.duration_sec)}). La répartition du budget sera recalculée. C'est définitif.`, ok: 'Supprimer', danger: true }))) return;
+    fail(await sb.from('sessions').delete().eq('id', x.id));
+    await refresh(); toast('Session supprimée');
   },
   async claudeadd(t) {
     const v = await dialog({ title: 'Ajouter du temps à Claude', body: 'Durée de travail de Claude sur ce montage. Exemples : 45, 1h30, 2h.', ok: 'Ajouter', input: { placeholder: '1h30', required: true } });

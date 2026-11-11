@@ -532,6 +532,7 @@ function invoiceCard(u, mo, { admin = false } = {}) {
   const pillTxt = admin && kind === 'due' ? 'À payer' : PILL[kind];
   const btns = [];
   if (st.total) btns.push(`<button class="btn sm" data-act="copystatement" data-u="${u}" data-mo="${ymd(mo)}">${small(I.copy)}Copier le détail</button>`);
+  if (!admin && st.total && kind !== 'ok' && S.settings.invoice_link) btns.unshift(`<a class="btn sm pri" href="${esc(S.settings.invoice_link)}" target="_blank" rel="noopener">Faire ma facture sur Smart ↗</a>`);
   if (admin && st.total && kind !== 'ok') btns.push(`<button class="btn sm pri" data-act="payeditor" data-u="${u}" data-mo="${ymd(mo)}">${kind === 'warn' ? 'Payer le complément' : 'Marquer payé'}</button>`);
   if (admin && st.pay) btns.push(`<button class="lnk-btn" data-act="unpay" data-u="${u}" data-mo="${ymd(mo)}">Annuler le paiement</button>`);
   return `<div class="card invoice ${kind}">
@@ -1047,7 +1048,8 @@ function teamPage() {
     body = `<form class="card" id="settings-form" style="max-width:640px"><h2>Liens de dépôt</h2>
       <label class="f" for="st-del">Dépôt du montage (pour les monteurs)</label><input class="in" id="st-del" name="delivery_link" type="url" placeholder="https://" value="${esc(S.settings.delivery_link || '')}">
       <label class="f" for="st-rush">Dépôt des rushes (pour les clients)</label><input class="in" id="st-rush" name="rushes_deposit_link" type="url" placeholder="https://" value="${esc(S.settings.rushes_deposit_link || '')}">
-      <p class="lbl" style="margin:12px 0 16px">Le premier lien apparaît dans chaque mission côté monteur. Le second est proposé au client quand il crée ou suit un projet.</p>
+      <label class="f" for="st-inv">Page de facturation des monteurs (Smart)</label><input class="in" id="st-inv" name="invoice_link" type="url" placeholder="https://" value="${esc(S.settings.invoice_link || '')}">
+      <p class="lbl" style="margin:12px 0 16px">Le premier lien apparaît dans chaque mission côté monteur. Le deuxième est proposé au client quand il crée ou suit un projet. Le troisième ouvre l'espace Smart depuis la facture du mois des monteurs.</p>
       <button class="btn pri" type="submit">Enregistrer</button></form>`;
   } else {
     const members = S.profiles.filter((p) => p.role !== 'none' || !p.active).sort((a, b) => Number(b.active) - Number(a.active) || a.role.localeCompare(b.role));
@@ -1596,7 +1598,7 @@ document.addEventListener('submit', async (e) => {
       fail(f.dataset.id ? await sb.from('clients').update(row).eq('id', f.dataset.id) : await sb.from('clients').insert(row));
       closeSheet(); await refresh(); toast(f.dataset.id ? 'Client mis à jour' : 'Client ajouté');
     } else if (f.id === 'settings-form') {
-      fail(await sb.from('app_settings').upsert(['delivery_link', 'rushes_deposit_link'].map((k) => ({ key: k, value: f[k].value.trim() || null }))));
+      fail(await sb.from('app_settings').upsert(['delivery_link', 'rushes_deposit_link', 'invoice_link'].map((k) => ({ key: k, value: f[k].value.trim() || null }))));
       await refresh(); toast('Réglages enregistrés');
     } else if (f.id === 'account-form') {
       fail(await sb.from('profiles').update({ full_name: f.elements.name.value.trim() || null }).eq('id', S.me.id));

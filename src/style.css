@@ -505,3 +505,11 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 @media (hover:none){.item[role=button]:hover:not(:active),.bar-row:hover:not(.tip-on),.cal-d:hover:not(.sel),.nav:hover:not(.on){background:none}.pcard:hover{transform:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.side,.tabbar,.sheet-box,.dlg,#toast,#tip,.tracker{background:var(--solid)}}
+
+/* Temps passé par personne (fiche mission) */
+.tstrip{padding:16px 18px}
+.tbarline{display:flex;gap:2px;height:8px;border-radius:999px;overflow:hidden;margin-bottom:12px}
+.tbarline i{min-width:3px;display:block}
+.tpeople{display:flex;flex-wrap:wrap;gap:8px}
+.tperson{display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:12px;background:color-mix(in srgb,var(--text) 5%,transparent);font-size:13px;min-width:0}
+.tperson b{font-weight:600}

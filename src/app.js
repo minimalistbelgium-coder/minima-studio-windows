@@ -1022,6 +1022,29 @@ function nextStep(m) {
     default: return null;
   }
 }
+// Qui a monté cette mission, et combien de temps (bandeau en haut de la fiche).
+function timeStrip(m) {
+  if (m.status === 'requested') return '';
+  const by = {};
+  missionSessions(m.id).forEach((s) => {
+    const r = (by[s.user_id] ||= { u: s.user_id, secs: 0, last: null, live: false });
+    r.secs += s.duration_sec || 0;
+    const e = d(s.ended_at || s.started_at); if (!r.last || e > r.last) r.last = e;
+    if (s.live && d(s.ended_at) && Date.now() - d(s.ended_at).getTime() < 120000) r.live = true;
+  });
+  const rows = Object.values(by).sort((a, b) => b.secs - a.secs);
+  const total = rows.reduce((a, r) => a + r.secs, 0);
+  const pal = ['#A78BFA', '#34D399', '#F5A524', '#F472B6', '#2DD4BF', '#FB7185'];
+  const eds = rows.filter((r) => profile(r.u)?.role !== 'admin').map((r) => r.u);
+  const col = (u) => (profile(u)?.role === 'admin' ? '#4C8DFF' : pal[eds.indexOf(u) % pal.length]);
+  const who = (u) => (u === S.me.id ? 'Toi' : profile(u) ? firstName(profile(u)) : 'Ancien membre');
+  const last = (r) => (r.live ? 'en train de monter' : r.last ? (isToday(r.last) ? `dernière session aujourd'hui à ${fmtTime(r.last)}` : `dernière session ${relative(r.last)}`) : '');
+  if (!total) return `<div class="card tstrip"><div class="card-head" style="margin:0"><h2>Temps passé</h2><span class="lbl">Personne n'a encore travaillé dessus</span></div></div>`;
+  return `<div class="card tstrip"><div class="card-head" style="margin-bottom:10px"><h2>Temps passé</h2><span class="lbl mono">${hm(total)} au total</span></div>
+    <div class="tbarline">${rows.map((r) => `<i style="flex:${r.secs};background:${col(r.u)}" title="${esc(who(r.u))} · ${hm(r.secs)}"></i>`).join('')}</div>
+    <div class="tpeople">${rows.map((r) => `<div class="tperson">${profile(r.u) ? avatar(profile(r.u), 26) : ''}<div><div class="row" style="gap:6px"><span class="dot" style="background:${col(r.u)}"></span><b>${esc(who(r.u))}</b><span class="mono" style="font-weight:600">${hm(r.secs)}</span><span class="lbl">${Math.round((100 * r.secs) / total)} %</span></div><div class="lbl" style="${r.live ? 'color:var(--green)' : ''}">${esc(last(r))}</div></div></div>`).join('')}</div></div>`;
+}
+
 function teamDetail(m) {
   const rows = split(m);
   const ses = missionSessions(m.id).filter((s) => isAdmin() || s.user_id === S.me.id);
@@ -1049,6 +1072,7 @@ function teamDetail(m) {
   return `${isAdmin() ? `<div class="acts"><button class="btn sm" data-act="edit" data-id="${m.id}">${small(I.edit)}Modifier</button><button class="btn sm" data-act="duplicate" data-id="${m.id}">${small(I.copy)}Dupliquer</button><button class="btn sm danger" data-act="delete" data-id="${m.id}">${small(I.trash)}Supprimer</button></div>` : ''}
   <div class="stack">
   ${step ? `<div class="card next" style="--c:${statusColor(m.status)}"><div class="next-in"><div><div class="lbl">Prochaine étape</div><div style="margin-top:4px">${esc(step[0])}</div></div><div class="row" style="flex-wrap:wrap">${step[1]}</div></div></div>` : ''}
+  ${timeStrip(m)}
   ${stepsHtml(m, labels)}
   <div class="cols" style="margin:0"><div class="wide stack">
     <div class="cols" style="margin:0">${linkBlock('Rushes', m.rushes_url, 'Télécharger les rushes', '#4C8DFF', isAdmin(), 'rushes')}

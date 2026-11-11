@@ -581,7 +581,7 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
   .stmt-t b,.stmt-t small{white-space:normal}
   .cash-item{flex-wrap:wrap}
   .cash-item .grow{flex:1 1 calc(100% - 30px)}
-  .cash-item .btn{width:100%;margin-left:22px}
+  .cash-item .btn{width:calc(100% - 22px);margin-left:22px}
 }
 .x.sm{width:24px;height:24px;font-size:14px;box-shadow:none;background:transparent;border-color:transparent}
 .x.sm:hover{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}

@@ -441,7 +441,7 @@ function financeCharts(mo, list) {
       <div class="ch-legend"><span class="lbl">Total</span>${SER.map(([t, c, k]) => `<span><i style="--c:${c}"></i>${t}<b>${eur(Math.round(sum(k)))}</b></span>`).join('')}</div></div>${evo}</div>
   <div class="cols even">
     <div class="card"><div class="ch-head"><div><h2>Par client</h2><div class="lbl">Facturé · ${esc(period)}</div></div>${seg}</div>${share}<div class="bars">${clRows || emptyArt('Aucune mission sur cette période.')}</div></div>
-    <div class="card"><div class="ch-head"><div><h2>Par monteur</h2><div class="lbl">Reversé · ${esc(period)}</div></div>${seg}</div><div class="bars">${edRows || emptyArt('Pas encore de temps enregistré.')}</div></div>
+    <div class="card"><div class="ch-head"><div><h2>Par monteur</h2><div class="lbl">Pour les monteurs · ${esc(period)}</div></div>${seg}</div><div class="bars">${edRows || emptyArt('Pas encore de temps enregistré.')}</div></div>
   </div>`;
 }
 

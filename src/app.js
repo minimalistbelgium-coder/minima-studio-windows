@@ -15,7 +15,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
-  versions: {}, settings: {}, comments: {}, ai: [], payments: [], invoices: [],
+  versions: {}, settings: {}, comments: {}, ai: [], payments: [], invoices: [], splits: {},
   filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
@@ -130,14 +130,18 @@ const avatars = (ids, size = 20) => `<span class="avs">${ids.map(profile).filter
 const clientColor = (c) => (c?.color ? `#${c.color.replace('#', '')}` : '#8B8D94');
 
 const MIN_SPLIT_SECS = 120;
-// Même règle que l'app Mac : l'admin compte ×1,5 seulement s'il partage la mission.
+// Répartition calculée par la base (visible_splits) : depuis novembre 2026, quand l'admin monte avec un monteur,
+// sa part (temps ×1,2) se prend d'abord sur sa marge ; seul le dépassement réduit la part du monteur.
+// Le calcul local ne sert que de secours (mission sans répartition serveur, ou pendant un chrono en cours).
 function split(m) {
+  const srv = S.splits[m.id];
+  if (srv && srv.length) return srv.map((r) => ({ u: r.user_id, secs: Number(r.seconds) || 0, pct: Number(r.percent) || 0, amount: Number(r.amount) || 0 })).sort((a, b) => b.amount - a.amount);
   const by = {};
   missionSessions(m.id).forEach((s) => { by[s.user_id] = (by[s.user_id] || 0) + (s.duration_sec || 0); });
   // Moins de 2 minutes (mission ouverte par erreur) : ne compte pas, sauf si personne n'a plus.
   if (Object.values(by).some((v) => v >= MIN_SPLIT_SECS)) Object.keys(by).forEach((u) => { if (by[u] < MIN_SPLIT_SECS) delete by[u]; });
   const ids = Object.keys(by); const shared = ids.length > 1;
-  const rows = ids.map((u) => { const w = shared && profile(u)?.role === 'admin' ? (m.admin_weight || 1.5) : 1; return { u, secs: by[u], w: by[u] * w }; });
+  const rows = ids.map((u) => { const w = shared && profile(u)?.role === 'admin' ? (m.admin_weight || 1.2) : 1; return { u, secs: by[u], w: by[u] * w }; });
   const tot = rows.reduce((a, r) => a + r.w, 0); if (!tot) return [];
   return rows.map((r) => ({ ...r, pct: (100 * r.w) / tot, amount: ((m.editor_budget || 0) * r.w) / tot })).sort((a, b) => b.amount - a.amount);
 }
@@ -226,11 +230,13 @@ async function loadAll() {
   S.payments = pay.error ? [] : pay.data || [];
   const inv = await sb.from('editor_invoices').select('*');
   S.invoices = inv.error ? [] : inv.data || [];
+  const spl = await sb.rpc('visible_splits');
+  S.splits = {}; (spl.error ? [] : spl.data || []).forEach((r) => { (S.splits[r.mission_id] ||= []).push(r); });
 }
 function groupVersions(rows) { S.versions = {}; (rows || []).forEach((v) => { (S.versions[v.mission_id] ||= []).push(v); }); }
 function digest() {
   const ses = S.sessions.reduce((a, s) => a + (s.duration_sec || 0) + (s.live ? 1 : 0), S.sessions.length);
-  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, S.payments, S.invoices, ses, liveSessions().length]);
+  return JSON.stringify([S.me, S.missions, S.members, S.notifs, S.finances, S.profiles, S.clients, S.invites, S.versions, S.settings, S.ai, S.payments, S.invoices, S.splits, ses, liveSessions().length]);
 }
 
 async function loadMe() {
@@ -941,7 +947,7 @@ function financePage() {
     return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span>
       <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${p ? eur(p) : 'prix à renseigner'} → ${eur(Math.round(pay))}</div></div>
       <div class="mono" style="flex-shrink:0;font-weight:600;color:${p == null ? 'var(--muted)' : p - pay >= 0 ? 'var(--green)' : 'var(--red)'}">${p == null ? '–' : eur(Math.round(p - pay))}</div>
-      ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Facturée` : 'Facturer'}</button>` : ''}</div>`;
+      ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Client facturé` : 'Facturer le client'}</button>` : ''}</div>`;
   }).join('');
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}
   <div class="grid">
@@ -1313,10 +1319,11 @@ function teamDetail(m) {
   const right = isAdmin()
     ? `<div class="card" style="border-color:rgba(76,141,255,.35)"><div class="card-head"><h2>Répartition</h2>${pill('Calcul auto', '#4C8DFF')}</div>
         <div class="lbl">Budget montage</div><div class="big" style="margin:6px 0 14px">${eur(m.editor_budget)}</div>
-        ${rows.length ? `<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:8px">${rows.map((r, i) => `<div style="width:${r.pct}%;background:${profile(r.u)?.role === 'admin' ? '#4C8DFF' : AV[i % AV.length]}"></div>`).join('')}</div>` : '<div class="lbl">Pas encore de temps enregistré.</div>'}
+        ${rows.length ? `<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:8px">${rows.map((r, i) => `<div style="width:${(100 * r.amount) / (rows.reduce((a, x) => a + x.amount, 0) || 1)}%;background:${profile(r.u)?.role === 'admin' ? '#4C8DFF' : AV[i % AV.length]}"></div>`).join('')}</div>` : '<div class="lbl">Pas encore de temps enregistré.</div>'}
         ${rows.map((r) => `<div class="kv"><span>${esc(r.u === S.me.id ? 'Toi' : firstName(profile(r.u)))} · ${Math.round(r.pct)} % <span class="lbl">${hm(r.secs)}</span></span><span class="mono" style="font-weight:600">${eur(Math.round(r.amount * 100) / 100)}</span></div>`).join('')}
+        ${m.margin_split && rows.some((r) => profile(r.u)?.role === 'admin') && rows.some((r) => profile(r.u)?.role !== 'admin') ? `<p class="hint" style="margin:8px 0 4px">Ton temps compte ×${String(m.admin_weight || 1.2).replace('.', ',')} et se prend d'abord sur ta marge : la part du monteur ne baisse que si tu la dépasses.</p>` : ''}
         ${f?.client_price != null ? `<div class="kv"><span>Prix client</span><span class="mono">${eur(f.client_price)}</span></div><div class="kv"><span>Ta marge</span><span class="mono" style="font-weight:600;color:var(--green)">${eur(Math.round(f.client_price - editorPayout(m)))}</span></div>
-          <div class="kv"><span>Facturation</span><button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Facturée` : 'Marquer facturée'}</button></div>` : '<div class="kv"><span class="lbl">Prix client non renseigné</span><button class="btn sm" data-act="edit" data-id="' + m.id + '">Ajouter</button></div>'}
+          <div class="kv"><span>Facture au client</span><button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Client facturé` : 'Facturer le client'}</button></div>` : '<div class="kv"><span class="lbl">Prix client non renseigné</span><button class="btn sm" data-act="edit" data-id="' + m.id + '">Ajouter</button></div>'}
       </div>`
     : `<div class="card"><div class="lbl">Budget de la mission</div><div class="big" style="margin:6px 0 14px">${eur(m.editor_budget)}</div>
         <div class="kv"><span>Ta part${share.estimated ? ' (estimation)' : ''}</span><span class="mono" style="font-weight:600;color:var(--green)">${eur(Math.round(share.amount * 100) / 100)}</span></div>

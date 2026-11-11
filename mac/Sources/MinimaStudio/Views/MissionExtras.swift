@@ -261,7 +261,7 @@ struct MissionTimeStrip: View {
     @EnvironmentObject var data: DataStore
     let mission: Mission
 
-    private static let colors = ["A78BFA", "34D399", "F5A524", "F472B6", "2DD4BF", "FB7185"]
+    private static let colors = ["A78BFA", "4C8DFF", "34D399", "F5A524", "F472B6", "2DD4BF"]
 
     private struct Row: Identifiable {
         let id: String

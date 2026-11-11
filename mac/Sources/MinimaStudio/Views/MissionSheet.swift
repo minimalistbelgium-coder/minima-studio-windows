@@ -111,7 +111,6 @@ private struct MissionDetail: View {
                         if app.isTeam { premiereLine }
                     } right: {
                         if app.isAdmin {
-                            timeCard(rows)
                             splitCard(rows)
                         } else {
                             myShareCard(rows, me: me)

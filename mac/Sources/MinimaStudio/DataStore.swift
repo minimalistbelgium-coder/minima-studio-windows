@@ -351,8 +351,8 @@ final class DataStore: ObservableObject {
     func statement(user: String, month: Date) -> (rows: [StatementRow], total: Double, payment: EditorPayment?) {
         let cal = Calendar.current
         let rows = missions.filter { $0.status != "requested" && ($0.billMonth.map { cal.isDate($0, equalTo: month, toGranularity: .month) } ?? false) }
-            .map { m -> StatementRow in let s = share(of: m, user: user); return StatementRow(mission: m, amount: s.amount, percent: s.percent, estimated: s.estimated) }
-            .filter { $0.amount > 0 }
+            .map { m -> StatementRow in let s = share(of: m, user: user); return StatementRow(mission: m, amount: (s.amount * 100).rounded() / 100, percent: s.percent, estimated: s.estimated) }
+            .filter { $0.amount > 0 || memberIds(of: $0.mission.id).contains(user) }
             .sorted { ($0.mission.missionDay ?? .distantPast) < ($1.mission.missionDay ?? .distantPast) }
         let total = rows.map(\.amount).reduce(0, +)
         let key = BillMonth.key(month)
@@ -361,12 +361,13 @@ final class DataStore: ObservableObject {
 
     /// Monteurs à qui l'admin peut devoir de l'argent.
     var payees: [Profile] {
-        profiles.filter { $0.role != "admin" && $0.role != "client" && ($0.active || payments.contains(where: { p in p.user_id == $0.id })) }
+        profiles.filter { pr in pr.role != "admin" && pr.role != "client" && (pr.active || payments.contains { $0.user_id == pr.id }) }
     }
 
     func markEditorPaid(user: String, month: Date, amount: Double) async throws {
         try await supa.from("editor_payments")
-            .upsert(EditorPaymentUpsert(user_id: user, month: BillMonth.key(month), amount: amount, paid_at: DateFmt.iso(Date())), onConflict: "user_id,month")
+            .upsert(EditorPaymentUpsert(user_id: user, month: BillMonth.key(month), amount: amount,
+                                        paid_at: statement(user: user, month: month).payment?.paid_at ?? DateFmt.iso(Date())), onConflict: "user_id,month")
             .execute()
         await reload()
     }

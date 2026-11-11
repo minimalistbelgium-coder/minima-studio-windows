@@ -91,6 +91,8 @@ private struct MissionDetail: View {
                         NextStepCard(mission: mission)
                     }
 
+                    if app.isTeam && mission.status != "requested" { MissionTimeStrip(mission: mission) }
+
                     StepProgress(mission: mission, notes: stepNotes(rows)).card()
 
                     Columns(minLeft: 380, rightWidth: 300) {

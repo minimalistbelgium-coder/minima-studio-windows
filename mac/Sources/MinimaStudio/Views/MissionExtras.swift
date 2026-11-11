@@ -252,3 +252,128 @@ struct RequestBanner: View {
         }
     }
 }
+
+// MARK: - Qui a monté cette mission, et combien de temps
+
+/// Bandeau en haut de la fiche : temps passé par chaque personne, d'un coup d'œil.
+struct MissionTimeStrip: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+    let mission: Mission
+
+    private static let colors = ["A78BFA", "34D399", "F5A524", "F472B6", "2DD4BF", "FB7185"]
+
+    private struct Row: Identifiable {
+        let id: String
+        let seconds: Double
+        let last: Date?
+        let live: Bool
+    }
+
+    private var rows: [Row] {
+        var secs: [String: Double] = [:]
+        var last: [String: Date] = [:]
+        var live: Set<String> = []
+        for s in data.sessions(for: mission.id) {
+            secs[s.user_id, default: 0] += Double(s.duration_sec ?? 0)
+            if let d = DateFmt.parse(s.ended_at ?? s.started_at), d > (last[s.user_id] ?? .distantPast) { last[s.user_id] = d }
+            if s.isLiveNow { live.insert(s.user_id) }
+        }
+        return secs.map { Row(id: $0.key, seconds: $0.value, last: last[$0.key], live: live.contains($0.key)) }
+            .sorted { $0.seconds > $1.seconds }
+    }
+
+    private func color(_ uid: String, _ all: [Row]) -> Color {
+        if data.profile(uid)?.role == "admin" { return Theme.blue }
+        let others = all.map(\.id).filter { data.profile($0)?.role != "admin" }
+        return Color(hex: Self.colors[(others.firstIndex(of: uid) ?? 0) % Self.colors.count])
+    }
+
+    private func name(_ uid: String) -> String {
+        uid == app.profile?.id ? "Toi" : (data.profile(uid)?.firstName ?? "Ancien membre")
+    }
+
+    private func lastLabel(_ r: Row) -> String {
+        if r.live { return "en train de monter" }
+        guard let d = r.last else { return "" }
+        let day = DateFmt.relative(d).lowercased()
+        return "dernière session " + (day == "aujourd'hui" ? "aujourd'hui à \(AgendaCal.time(d))" : day)
+    }
+
+    var body: some View {
+        let list = rows
+        let total = list.map(\.seconds).reduce(0, +)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Temps passé").font(.system(size: 13.5, weight: .semibold))
+                Spacer(minLength: 8)
+                Text(total > 0 ? "\(TimeFmt.hm(total)) au total" : "Personne n'a encore travaillé dessus")
+                    .font(.system(size: 12.5)).monospacedDigit().foregroundStyle(Theme.muted).lineLimit(1)
+            }
+            if total > 0 {
+                GeometryReader { g in
+                    HStack(spacing: 2) {
+                        ForEach(list) { r in
+                            Rectangle().fill(color(r.id, list))
+                                .frame(width: max(3, (g.size.width - CGFloat(list.count - 1) * 2) * CGFloat(r.seconds / total)))
+                        }
+                    }
+                }
+                .frame(height: 8).clipShape(Capsule())
+                FlowRows(spacing: 10) {
+                    ForEach(list) { r in
+                        HStack(spacing: 8) {
+                            ZStack(alignment: .bottomTrailing) {
+                                if let p = data.profile(r.id) { AvatarView(profile: p, size: 26).clipShape(Circle()) }
+                                else { Circle().fill(Theme.card2).frame(width: 26, height: 26) }
+                                if r.live { Circle().fill(Theme.green).frame(width: 8, height: 8).overlay(Circle().stroke(Theme.bg, lineWidth: 1.5)) }
+                            }
+                            VStack(alignment: .leading, spacing: 1) {
+                                HStack(spacing: 6) {
+                                    Circle().fill(color(r.id, list)).frame(width: 7, height: 7)
+                                    Text(name(r.id)).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                    Text(TimeFmt.hm(r.seconds)).font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                                    Text("\(Int((100 * r.seconds / total).rounded())) %").font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                                }
+                                Text(lastLabel(r)).font(.system(size: 11.5))
+                                    .foregroundStyle(r.live ? Theme.green : Theme.muted).lineLimit(1)
+                            }
+                        }
+                        .padding(.vertical, 6).padding(.horizontal, 10)
+                        .background(Theme.ink.opacity(0.04), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    }
+                }
+            }
+        }
+        .card(padding: 16)
+    }
+}
+
+/// Dispose les éléments en lignes qui passent à la ligne quand la place manque.
+struct FlowRows: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0, maxX: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0 && x + s.width > width { x = 0; y += rowH + spacing; rowH = 0 }
+            x += s.width + spacing
+            maxX = max(maxX, x - spacing)
+            rowH = max(rowH, s.height)
+        }
+        return CGSize(width: width.isFinite ? width : maxX, height: y + rowH)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowH: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + s.width > bounds.maxX { x = bounds.minX; y += rowH + spacing; rowH = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(width: min(s.width, bounds.width), height: s.height))
+            x += s.width + spacing
+            rowH = max(rowH, s.height)
+        }
+    }
+}

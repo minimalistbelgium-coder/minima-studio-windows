@@ -273,24 +273,11 @@ private struct Sidebar: View {
 
     }
 
+    /// Bouton du compte : un vrai bouton SwiftUI qui ouvre un popover.
+    /// (Un Menu macOS convertit son étiquette en image et perd le découpage rond de l'avatar :
+    /// la photo s'affichait en grand rectangle dans la barre réduite.)
     private func accountMenu<L: View>(@ViewBuilder label: () -> L) -> some View {
-        Menu {
-            Button("Actualiser") { Task { @MainActor in await data.reload() } }
-            Toggle("Ouvrir au démarrage du Mac", isOn: Binding(
-                get: { launchAtLogin },
-                set: { v in
-                    do { try LaunchAtLogin.set(v); launchAtLogin = LaunchAtLogin.isEnabled }
-                    catch { app.showToast("Impossible : \(error.localizedDescription)") }
-                }))
-            if app.isTeam {
-                Button("Mode mini (⇧⌘M)") { MiniWindow.shared.show(app: app, data: data, tracker: tracker) }
-                Button("Diagnostic du chrono") { DiagnosticWindow.show(tracker: tracker) }
-            }
-            Divider()
-            Button("Se déconnecter") { Task { @MainActor in await app.signOut() } }
-        } label: { label() }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        AccountButton(launchAtLogin: $launchAtLogin, label: label())
     }
 
     @ViewBuilder
@@ -308,6 +295,69 @@ private struct Sidebar: View {
         SidebarItem(title: title, icon: icon, active: route == r, compact: compact, badge: badge, live: live, nav: nav) {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { route = r }
         }
+    }
+}
+
+/// Compte : popover avec les réglages et la déconnexion.
+private struct AccountButton<L: View>: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var tracker: Tracker
+    @Binding var launchAtLogin: Bool
+    let label: L
+    @State private var open = false
+
+    var body: some View {
+        Button { open.toggle() } label: { label.contentShape(Rectangle()) }
+            .buttonStyle(.plain)
+            .help("Mon compte")
+            .accessibilityLabel("Mon compte")
+            .popover(isPresented: $open, arrowEdge: .trailing) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let p = app.profile {
+                        HStack(spacing: 10) {
+                            AvatarView(profile: p, size: 34)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(p.displayName).font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
+                                Text("\(p.roleLabel) · v\(AppVersion.current)").font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                            }
+                        }
+                        .padding(.bottom, 8)
+                    }
+                    row("Actualiser", "arrow.clockwise") { Task { @MainActor in await data.reload() } }
+                    Toggle(isOn: Binding(
+                        get: { launchAtLogin },
+                        set: { v in
+                            do { try LaunchAtLogin.set(v); launchAtLogin = LaunchAtLogin.isEnabled }
+                            catch { app.showToast("Impossible : \(error.localizedDescription)") }
+                        })) {
+                        Text("Ouvrir au démarrage du Mac").font(.system(size: 13))
+                    }
+                    .toggleStyle(.switch).controlSize(.small).padding(.vertical, 6).padding(.horizontal, 8)
+                    if app.isTeam {
+                        row("Mode mini (⇧⌘M)", "rectangle.inset.bottomright.filled") { MiniWindow.shared.show(app: app, data: data, tracker: tracker) }
+                        row("Diagnostic du chrono", "stethoscope") { DiagnosticWindow.show(tracker: tracker) }
+                    }
+                    Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 4)
+                    row("Se déconnecter", "rectangle.portrait.and.arrow.right", danger: true) { Task { @MainActor in await app.signOut() } }
+                }
+                .padding(14)
+                .frame(width: 260)
+            }
+    }
+
+    private func row(_ title: String, _ icon: String, danger: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button { open = false; action() } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon).frame(width: 18).foregroundStyle(danger ? Theme.red : Theme.muted)
+                Text(title).font(.system(size: 13)).foregroundStyle(danger ? Theme.red : Theme.text)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 7).padding(.horizontal, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hoverRow(radius: 8)
     }
 }
 
@@ -334,6 +384,7 @@ private struct SidebarItem: View {
         .onHover { hover = $0 }
         .animation(.easeOut(duration: 0.12), value: hover)
         .help(compact ? title : "")
+        .accessibilityLabel(title)
     }
 
     @ViewBuilder private func plate(_ radius: CGFloat) -> some View {

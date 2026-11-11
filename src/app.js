@@ -510,7 +510,7 @@ function missionRow(m, right) {
   const c = client(m.client_id);
   const people = memberIds(m.id).map(profile).filter(Boolean);
   const live = liveSessions().some((s) => s.mission_id === m.id);
-  const names = [...people.map(firstName), ...(aiFor(m.id).length ? ['Claude'] : [])];
+  const names = [...people.map(firstName), ...(m.claude_editor ? ['Claude'] : [])];
   const sub = [c?.name, isClient() ? null : names.join(' + ') || (m.status === 'requested' ? null : 'Personne'), deadlineLabel(m)].filter(Boolean).join(' · ');
   return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(c)}"></span>
     <div class="grow"><div class="t">${esc(m.title)}${live ? ' <span class="dot pulse" style="background:var(--green);width:6px;height:6px;vertical-align:middle"></span>' : ''}</div><div class="s" style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(sub)}</div></div>
@@ -1029,27 +1029,37 @@ function nextStep(m) {
 // ---------- Claude monteur ----------
 const CLAUDE = '#D97757';
 const aiFor = (mid) => S.ai.filter((a) => a.mission_id === mid);
+const claudeOn = (mid) => !!mission(mid)?.claude_editor;
+const claudeSecs = (mid) => aiFor(mid).reduce((a, w) => a + (w.duration_sec || 0), 0);
+// Saisie souple : « 1h30 », « 1:30 », « 45 », « 45 min », « 2h ».
+function parseDuration(v) {
+  const t = String(v || '').toLowerCase().replace(',', '.').replace(/\s+/g, '');
+  let m = t.match(/^(\d+(?:\.\d+)?)h(\d{1,2})?(?:m|min)?$/); if (m) return Math.round(Number(m[1]) * 3600 + Number(m[2] || 0) * 60);
+  m = t.match(/^(\d+):(\d{1,2})$/); if (m) return Number(m[1]) * 3600 + Number(m[2]) * 60;
+  m = t.match(/^(\d+)(?:m|min|mn)?$/); if (m) return Number(m[1]) * 60;
+  return null;
+}
 const claudeAvatar = (size = 26) => `<span class="av claude" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.55)}px" aria-label="Claude">✳</span>`;
 // Temps humain de référence : moyenne des 5 dernières missions livrées du même podcast (même client), montées sans Claude.
 function humanReference(m) {
   const done = ['v1_delivered', 'revisions', 'fix_delivered', 'validated', 'paid'];
-  const refs = S.missions.filter((x) => x.id !== m.id && x.client_id === m.client_id && done.includes(x.status) && !aiFor(x.id).length)
+  const refs = S.missions.filter((x) => x.id !== m.id && x.client_id === m.client_id && done.includes(x.status) && !x.claude_editor && !aiFor(x.id).length)
     .map((x) => ({ x, secs: missionSessions(x.id).reduce((a, s) => a + (s.duration_sec || 0), 0) }))
     .filter((r) => r.secs >= 600)
     .sort((a, b) => d(b.x.v1_delivered_at || b.x.created_at) - d(a.x.v1_delivered_at || a.x.created_at)).slice(0, 5);
   return refs.length ? { secs: refs.reduce((a, r) => a + r.secs, 0) / refs.length, n: refs.length } : null;
 }
 function claudeSaved(m) {
-  const ai = aiFor(m.id).reduce((a, w) => a + (w.duration_sec || 0), 0); const ref = humanReference(m);
-  return ref ? { saved: Math.max(0, ref.secs - ai), ref } : null;
+  const ai = claudeSecs(m.id); const ref = humanReference(m);
+  return ref && ai ? { saved: Math.max(0, ref.secs - ai), ref } : null;
 }
 function claudeCard() {
-  if (!isAdmin() || !S.ai.length) return '';
-  const now = new Date(); const month = S.ai.filter((w) => sameMonth(d(w.ended_at), now));
+  if (!isAdmin() || !S.missions.some((m) => m.claude_editor)) return '';
+  const now = new Date(); const month = S.ai.filter((w) => claudeOn(w.mission_id) && sameMonth(d(w.ended_at), now));
   const ids = [...new Set(month.map((w) => w.mission_id))].filter(mission);
   const time = month.reduce((a, w) => a + (w.duration_sec || 0), 0);
   const saved = ids.reduce((a, id) => a + (claudeSaved(mission(id))?.saved || 0), 0);
-  const last = S.ai.find((w) => mission(w.mission_id));
+  const last = S.ai.find((w) => claudeOn(w.mission_id));
   return `<div class="card claude-card"><div class="card-head"><h2 class="row" style="gap:8px">${claudeAvatar(22)}Claude</h2><span class="lbl">ce mois</span></div>
     <div class="claude-nums"><div><div class="big">${ids.length}</div><div class="lbl">montage${ids.length > 1 ? 's' : ''}</div></div><div><div class="big">${hm(time)}</div><div class="lbl">de travail</div></div><div><div class="big" style="color:var(--green)">${saved ? hm(saved) : '–'}</div><div class="lbl">gagnées</div></div></div>
     ${last ? `<div class="item" role="button" tabindex="0" data-open="${last.mission_id}" style="border-top:1px solid var(--line);margin-top:12px"><div class="grow"><div class="t">${esc(mission(last.mission_id).title)}</div><div class="s">Dernier montage ${relative(d(last.ended_at))}</div></div></div>` : ''}</div>`;
@@ -1065,10 +1075,10 @@ function timeStrip(m) {
     const e = d(s.ended_at || s.started_at); if (!r.last || e > r.last) r.last = e;
     if (s.live && d(s.ended_at) && Date.now() - d(s.ended_at).getTime() < 120000) r.live = true;
   });
-  aiFor(m.id).forEach((w) => {
-    const r = (by.__claude ||= { u: '__claude', secs: 0, last: null, live: false });
-    r.secs += w.duration_sec || 0; const e = d(w.ended_at); if (!r.last || e > r.last) r.last = e;
-  });
+  if (m.claude_editor) {
+    const r = (by.__claude = { u: '__claude', secs: 0, last: null, live: false });
+    aiFor(m.id).forEach((w) => { r.secs += w.duration_sec || 0; const e = d(w.ended_at); if (!r.last || e > r.last) r.last = e; });
+  }
   const rows = Object.values(by).sort((a, b) => b.secs - a.secs);
   const total = rows.reduce((a, r) => a + r.secs, 0);
   const cs = by.__claude ? claudeSaved(m) : null;
@@ -1077,11 +1087,14 @@ function timeStrip(m) {
   const col = (u) => (u === '__claude' ? CLAUDE : profile(u)?.role === 'admin' ? '#4C8DFF' : pal[eds.filter((x) => x !== '__claude').indexOf(u) % pal.length]);
   const who = (u) => (u === '__claude' ? 'Claude' : u === S.me.id ? 'Toi' : profile(u) ? firstName(profile(u)) : 'Ancien membre');
   const last = (r) => (r.live ? 'en train de monter' : r.last ? (isToday(r.last) ? `dernière session aujourd'hui à ${fmtTime(r.last)}` : `dernière session ${relative(r.last)}`) : '');
-  if (!total) return `<div class="card tstrip"><div class="card-head" style="margin:0"><h2>Temps passé</h2><span class="lbl">Personne n'a encore travaillé dessus</span></div></div>`;
-  return `<div class="card tstrip"><div class="card-head" style="margin-bottom:10px"><h2>Temps passé</h2><span class="lbl mono">${hm(total)} au total</span></div>
-    <div class="tbarline">${rows.map((r) => `<i style="flex:${r.secs};background:${col(r.u)}" title="${esc(who(r.u))} · ${hm(r.secs)}"></i>`).join('')}</div>
-    <div class="tpeople">${rows.map((r) => `<div class="tperson ${r.u === '__claude' ? 'ai' : ''}">${r.u === '__claude' ? claudeAvatar(26) : profile(r.u) ? avatar(profile(r.u), 26) : ''}<div><div class="row" style="gap:6px"><span class="dot" style="background:${col(r.u)}"></span><b>${esc(who(r.u))}</b><span class="mono" style="font-weight:600">${hm(r.secs)}</span><span class="lbl">${Math.round((100 * r.secs) / total)} %</span></div><div class="lbl" style="${r.live ? 'color:var(--green)' : ''}">${esc(r.u === '__claude' ? `montage IA ${last(r).replace('dernière session ', '')}` : last(r))}</div></div></div>`).join('')}</div>
-    ${cs ? `<div class="claude-saved">${claudeAvatar(18)}<span>Claude t'a fait gagner environ <b>${hm(cs.saved)}</b> sur ce montage</span><span class="lbl">par rapport à la moyenne des ${cs.ref.n} dernier${cs.ref.n > 1 ? 's' : ''} épisode${cs.ref.n > 1 ? 's' : ''} monté${cs.ref.n > 1 ? 's' : ''} à la main (${hm(cs.ref.secs)})</span></div>` : by.__claude ? '<div class="claude-saved"><span class="lbl">Pas encore assez d\'épisodes montés à la main pour estimer le temps gagné.</span></div>' : ''}</div>`;
+  const entries = isAdmin() && m.claude_editor ? aiFor(m.id) : [];
+  const tools = isAdmin() && m.claude_editor ? `<div class="claude-tools">${claudeAvatar(18)}<span class="lbl">Temps de Claude</span>${entries.map((w) => `<span class="chip sm">${hm(w.duration_sec || 0)}${w.notes ? ` · ${esc(w.notes)}` : ''}<button type="button" class="x" data-act="claudedel" data-id="${w.id}" aria-label="Supprimer ce temps">×</button></span>`).join('')}<button type="button" class="btn sm" data-act="claudeadd" data-id="${m.id}">+ Ajouter du temps</button></div>` : '';
+  if (!rows.length) return `<div class="card tstrip"><div class="card-head" style="margin:0"><h2>Temps passé</h2><span class="lbl">Personne n'a encore travaillé dessus</span></div></div>`;
+  const pct = (r) => (total ? `${Math.round((100 * r.secs) / total)} %` : '');
+  return `<div class="card tstrip"><div class="card-head" style="margin-bottom:10px"><h2>Temps passé</h2><span class="lbl mono">${total ? `${hm(total)} au total` : 'pas encore de temps'}</span></div>
+    ${total ? `<div class="tbarline">${rows.filter((r) => r.secs).map((r) => `<i style="flex:${r.secs};background:${col(r.u)}" title="${esc(who(r.u))} · ${hm(r.secs)}"></i>`).join('')}</div>` : ''}
+    <div class="tpeople">${rows.map((r) => `<div class="tperson ${r.u === '__claude' ? 'ai' : ''}">${r.u === '__claude' ? claudeAvatar(26) : profile(r.u) ? avatar(profile(r.u), 26) : ''}<div><div class="row" style="gap:6px"><span class="dot" style="background:${col(r.u)}"></span><b>${esc(who(r.u))}</b><span class="mono" style="font-weight:600">${hm(r.secs)}</span><span class="lbl">${pct(r)}</span></div><div class="lbl" style="${r.live ? 'color:var(--green)' : ''}">${esc(r.u === '__claude' ? (r.secs ? `montage IA ${last(r).replace('dernière session ', '')}` : 'monteur IA · pas encore de temps') : last(r))}</div></div></div>`).join('')}</div>
+    ${cs ? `<div class="claude-saved">${claudeAvatar(18)}<span>Claude t'a fait gagner environ <b>${hm(cs.saved)}</b> sur ce montage</span><span class="lbl">par rapport à la moyenne des ${cs.ref.n} dernier${cs.ref.n > 1 ? 's' : ''} épisode${cs.ref.n > 1 ? 's' : ''} monté${cs.ref.n > 1 ? 's' : ''} à la main (${hm(cs.ref.secs)})</span></div>` : by.__claude?.secs ? '<div class="claude-saved"><span class="lbl">Pas encore assez d\'épisodes montés à la main pour estimer le temps gagné.</span></div>' : ''}${tools}</div>`;
 }
 
 function teamDetail(m) {
@@ -1125,7 +1138,7 @@ function teamDetail(m) {
       ${ses.length > 10 ? `<div class="lbl" style="margin-top:8px">et ${ses.length - 10} autres sessions</div>` : ''}</div>
     ${commentsCard(m)}
   </div><div class="narrow stack">
-    <div class="card">${statusMenu}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`).join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>
+    <div class="card">${statusMenu}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>
     ${right}
   </div></div></div>`;
 }
@@ -1151,7 +1164,7 @@ function missionForm(m, mode) {
       <div style="flex:1 1 150px"><label class="f" for="nm-budget">Budget montage (€)</label><input class="in" id="nm-budget" name="budget" type="number" inputmode="decimal" min="0" step="1" required value="${m?.id && mode !== 'accept' ? m.editor_budget ?? '' : m?.editor_budget || ''}"></div>
     </div>
     <label class="f">Qui monte ?</label>
-    <div class="pick">${team().map((p) => `<button type="button" data-pick="${p.id}" class="${picked.includes(p.id) ? 'on' : ''}" aria-pressed="${picked.includes(p.id)}">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}</div>
+    <div class="pick">${team().map((p) => `<button type="button" data-pick="${p.id}" class="${picked.includes(p.id) ? 'on' : ''}" aria-pressed="${picked.includes(p.id)}">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}<button type="button" data-pick="__claude" class="${m?.claude_editor ? 'on' : ''}" aria-pressed="${!!m?.claude_editor}">${claudeAvatar(22)}Claude</button></div>
     ${mode === 'accept' ? '' : `<label class="f" for="nm-rushes">Lien des rushes</label><input class="in" id="nm-rushes" name="rushes" type="url" inputmode="url" placeholder="https:// (facultatif)" value="${esc(m?.rushes_url || '')}">
     <label class="f" for="nm-brief">Brief</label><textarea class="in" id="nm-brief" name="brief" placeholder="Format, durée, consignes… (facultatif)">${esc(m?.brief || '')}</textarea>`}
     <div class="row" style="margin-top:20px;flex-wrap:wrap">
@@ -1267,7 +1280,7 @@ const ACTIONS = {
     const m = mission(t.dataset.id);
     const dl = m.deadline ? addDays(d(m.deadline), 7) : null; if (dl) dl.setHours(d(m.deadline).getHours(), d(m.deadline).getMinutes());
     const title = m.title.replace(/(\d+)(?!.*\d)/, (n) => String(Number(n) + 1));
-    const ins = fail(await sb.from('missions').insert({ client_id: m.client_id, title: title === m.title ? `${m.title} (copie)` : title, brief: m.brief, editor_budget: m.editor_budget, deadline: dl?.toISOString() || null, status: 'assigned', admin_weight: m.admin_weight }).select().single());
+    const ins = fail(await sb.from('missions').insert({ client_id: m.client_id, title: title === m.title ? `${m.title} (copie)` : title, brief: m.brief, editor_budget: m.editor_budget, deadline: dl?.toISOString() || null, status: 'assigned', admin_weight: m.admin_weight, claude_editor: !!m.claude_editor }).select().single());
     const id = ins.data.id; const f = S.finances[m.id];
     if (f?.client_price != null) fail(await sb.from('mission_finance').upsert({ mission_id: id, client_price: f.client_price }));
     const ids = memberIds(m.id);
@@ -1279,6 +1292,20 @@ const ACTIONS = {
     if (!(await dialog({ title: `Supprimer « ${m.title} » ?`, body: `C'est définitif.${secs ? ` Le temps enregistré (${hm(secs)}) sera aussi supprimé.` : ''}`, ok: 'Supprimer', danger: true }))) return;
     fail(await sb.from('missions').delete().eq('id', m.id));
     closeSheet(); await refresh(); toast('Mission supprimée');
+  },
+  async claudeadd(t) {
+    const v = await dialog({ title: 'Ajouter du temps à Claude', body: 'Durée de travail de Claude sur ce montage. Exemples : 45, 1h30, 2h.', ok: 'Ajouter', input: { placeholder: '1h30', required: true } });
+    if (v === null) return; const secs = parseDuration(v);
+    if (!secs || secs > 24 * 3600) return toast('Durée non reconnue. Écris par exemple 45 ou 1h30.');
+    const end = new Date(); const start = new Date(end.getTime() - secs * 1000);
+    fail(await sb.from('ai_work').insert({ mission_id: t.dataset.id, started_at: start.toISOString(), ended_at: end.toISOString(), notes: 'saisi à la main' }));
+    await refresh(); toast(`${hm(secs)} ajoutées à Claude`);
+  },
+  async claudedel(t) {
+    const w = S.ai.find((x) => x.id === t.dataset.id); if (!w) return;
+    if (!(await dialog({ title: 'Supprimer ce temps ?', body: `${hm(w.duration_sec || 0)} de Claude seront retirées de cette mission.`, ok: 'Supprimer', danger: true }))) return;
+    fail(await sb.from('ai_work').delete().eq('id', w.id));
+    await refresh(); toast('Temps supprimé');
   },
   async refuse(t) {
     const reason = await dialog({ title: 'Refuser cette demande ?', body: 'Le client est prévenu. Tu peux lui laisser un mot.', ok: 'Refuser', danger: true, input: { type: 'textarea', placeholder: 'Message pour le client (facultatif)' } });
@@ -1436,10 +1463,12 @@ async function saveMission(f) {
     row.brief = f.brief.value.trim() || null; row.rushes_url = rushes;
     if (rushes !== (old?.rushes_url || null)) row.rushes_added_at = rushes ? new Date().toISOString() : null;
   }
+  const allPicks = [...f.querySelectorAll('[data-pick].on')].map((b) => b.dataset.pick);
+  row.claude_editor = allPicks.includes('__claude');
   if (mode === 'new') id = fail(await sb.from('missions').insert({ ...row, status: 'assigned' }).select().single()).data.id;
   else fail(await sb.from('missions').update(row).eq('id', id));
   if (f.price.value !== '') fail(await sb.from('mission_finance').upsert({ mission_id: id, client_price: Number(f.price.value) }));
-  const picks = [...f.querySelectorAll('[data-pick].on')].map((b) => b.dataset.pick); const cur = old ? memberIds(id) : [];
+  const picks = allPicks.filter((u) => u !== '__claude'); const cur = old ? memberIds(id) : [];
   const add = picks.filter((u) => !cur.includes(u)); const del = cur.filter((u) => !picks.includes(u));
   if (add.length) fail(await sb.from('mission_members').insert(add.map((u) => ({ mission_id: id, user_id: u }))));
   if (del.length) fail(await sb.from('mission_members').delete().eq('mission_id', id).in('user_id', del));

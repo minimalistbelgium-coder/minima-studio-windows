@@ -521,3 +521,8 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .claude-saved .lbl{flex-basis:100%}
 .claude-card .claude-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .claude-card .big{font-size:20px;margin-top:0}
+.claude-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.claude-tools>.lbl{margin-right:2px}
+.claude-tools .chip.sm{height:auto;cursor:default;display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;font-size:12.5px;background:color-mix(in srgb,#D97757 14%,transparent);border:1px solid color-mix(in srgb,#D97757 30%,transparent);color:var(--text)}
+.claude-tools .chip.sm .x{appearance:none;border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;width:20px;height:20px;border-radius:50%;cursor:pointer}
+.claude-tools .chip.sm .x:hover{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red)}

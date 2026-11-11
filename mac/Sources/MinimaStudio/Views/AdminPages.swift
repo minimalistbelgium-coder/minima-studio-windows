@@ -238,7 +238,7 @@ struct ActiveMissionsTable: View {
     private func row(_ m: Mission) -> some View {
         let c = data.client(m.client_id)
         let people = data.memberProfiles(of: m.id)
-        let names = people.map(\.firstName).joined(separator: " + ")
+        let names = (people.map(\.firstName) + (m.hasClaude ? ["Claude"] : [])).joined(separator: " + ")
         return Button { presenter.open(.existing(m.id)) } label: {
             Group {
                 if wide {

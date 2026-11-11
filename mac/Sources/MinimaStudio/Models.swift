@@ -135,7 +135,10 @@ struct Mission: Codable, Identifiable, Hashable {
     let premiere_key: String?
     let brief_files: [BriefFile]?
     var delivery_url: String? = nil
+    /// Claude est choisi comme monteur de cette mission (défini par l'admin).
+    var claude_editor: Bool? = nil
 
+    var hasClaude: Bool { claude_editor ?? false }
     var files: [BriefFile] { brief_files ?? [] }
     var deadlineDate: Date? { deadline.flatMap(DateFmt.parse) }
     var isOpen: Bool { !["validated", "paid"].contains(status) }
@@ -153,6 +156,7 @@ struct MissionInsert: Encodable {
     let deadline: String?
     let rushes_url: String?
     let rushes_added_at: String?
+    var claude_editor: Bool = false
 }
 
 struct BriefFile: Codable, Hashable, Identifiable {
@@ -170,6 +174,7 @@ struct MissionUpdate: Encodable {
     let editor_budget: Double
     let deadline: String?
     let rushes_url: String?
+    var claude_editor: Bool = false
 }
 
 struct MissionStatusUpdate: Encodable {
@@ -279,6 +284,13 @@ struct AIWork: Codable, Identifiable, Hashable {
     let started_at: String
     let ended_at: String
     let duration_sec: Int?
+    let notes: String?
+}
+
+struct AIWorkInsert: Encodable {
+    let mission_id: String
+    let started_at: String
+    let ended_at: String
     let notes: String?
 }
 

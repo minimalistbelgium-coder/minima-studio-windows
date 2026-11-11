@@ -91,6 +91,14 @@ final class SnapshotTests: XCTestCase {
                 prices[id] = Double(500 + 130 * ((k * 5 + j * 2) % 9))
             }
         }
+        // Claude monteur : m7 avec du temps, m9 choisi mais sans temps encore.
+        ms = ms.map { m in var m = m; if m.id == "m7" || m.id == "m9" { m.claude_editor = true }; return m }
+        data.aiWork = [
+            AIWork(id: "ai1", mission_id: "m7", agent: "Claude", started_at: DateFmt.iso(at(0, 9)), ended_at: DateFmt.iso(at(0, 9, 22)),
+                   duration_sec: 1320, notes: "Montage auto"),
+            AIWork(id: "ai2", mission_id: "m7", agent: "Claude", started_at: DateFmt.iso(at(0, 10)), ended_at: DateFmt.iso(at(0, 10, 45)),
+                   duration_sec: 2700, notes: "saisi à la main"),
+        ]
         data.missions = ms.sorted { ($0.deadlineDate ?? .distantFuture) < ($1.deadlineDate ?? .distantFuture) }
         data.finances = Dictionary(uniqueKeysWithValues: prices.map { id, p in
             (id, MissionFinance(mission_id: id, client_price: p, invoiced: id.hasPrefix("h") || id == "m11", notes: nil))
@@ -298,7 +306,7 @@ final class SnapshotTests: XCTestCase {
         updater.setPreviewRelease(nil)
 
         // Fiche mission (admin) et création.
-        for id in ["m5", "m3", "m6"] {
+        for id in ["m5", "m3", "m6", "m7", "m9"] {
             presenter.mission = .existing(id)
             for w in [700, 900, 1440] as [CGFloat] {
                 window("fiche-\(id)-admin-\(tag(w, true))", width: w, height: w < 800 ? 900 : 1000) { shell(.missions) }

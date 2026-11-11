@@ -282,9 +282,12 @@ struct MissionTimeStrip: View {
             if let d = DateFmt.parse(s.ended_at ?? s.started_at), d > (last[s.user_id] ?? .distantPast) { last[s.user_id] = d }
             if s.isLiveNow { live.insert(s.user_id) }
         }
-        for w in data.aiWork(for: mission.id) {
-            secs[Self.claude, default: 0] += Double(w.duration_sec ?? 0)
-            if let d = DateFmt.parse(w.ended_at), d > (last[Self.claude] ?? .distantPast) { last[Self.claude] = d }
+        if mission.hasClaude {
+            secs[Self.claude, default: 0] += 0
+            for w in data.aiWork(for: mission.id) {
+                secs[Self.claude, default: 0] += Double(w.duration_sec ?? 0)
+                if let d = DateFmt.parse(w.ended_at), d > (last[Self.claude] ?? .distantPast) { last[Self.claude] = d }
+            }
         }
         return secs.map { Row(id: $0.key, seconds: $0.value, last: last[$0.key], live: live.contains($0.key)) }
             .sorted { $0.seconds > $1.seconds }
@@ -303,7 +306,7 @@ struct MissionTimeStrip: View {
 
     private func lastLabel(_ r: Row) -> String {
         if r.live { return "en train de monter" }
-        guard let d = r.last else { return "" }
+        guard let d = r.last else { return r.id == Self.claude ? "monteur IA · pas encore de temps" : "" }
         let day = DateFmt.relative(d).lowercased()
         let prefix = r.id == Self.claude ? "montage IA " : "dernière session "
         return prefix + (day == "aujourd'hui" ? "aujourd'hui à \(AgendaCal.time(d))" : day)
@@ -316,19 +319,22 @@ struct MissionTimeStrip: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Temps passé").font(.system(size: 13.5, weight: .semibold))
                 Spacer(minLength: 8)
-                Text(total > 0 ? "\(TimeFmt.hm(total)) au total" : "Personne n'a encore travaillé dessus")
+                Text(total > 0 ? "\(TimeFmt.hm(total)) au total" : list.isEmpty ? "Personne n'a encore travaillé dessus" : "Pas encore de temps")
                     .font(.system(size: 12.5)).monospacedDigit().foregroundStyle(Theme.muted).lineLimit(1)
             }
             if total > 0 {
                 GeometryReader { g in
+                    let bars = list.filter { $0.seconds > 0 }
                     HStack(spacing: 2) {
-                        ForEach(list) { r in
+                        ForEach(bars) { r in
                             Rectangle().fill(color(r.id, list))
-                                .frame(width: max(3, (g.size.width - CGFloat(list.count - 1) * 2) * CGFloat(r.seconds / total)))
+                                .frame(width: max(3, (g.size.width - CGFloat(bars.count - 1) * 2) * CGFloat(r.seconds / total)))
                         }
                     }
                 }
                 .frame(height: 8).clipShape(Capsule())
+            }
+            if !list.isEmpty {
                 FlowRows(spacing: 10) {
                     ForEach(list) { r in
                         HStack(spacing: 8) {
@@ -343,7 +349,7 @@ struct MissionTimeStrip: View {
                                     Circle().fill(color(r.id, list)).frame(width: 7, height: 7)
                                     Text(name(r.id)).font(.system(size: 13, weight: .medium)).lineLimit(1)
                                     Text(TimeFmt.hm(r.seconds)).font(.system(size: 13, weight: .semibold)).monospacedDigit()
-                                    Text("\(Int((100 * r.seconds / total).rounded())) %").font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                                    if total > 0 { Text("\(Int((100 * r.seconds / total).rounded())) %").font(.system(size: 11.5)).foregroundStyle(Theme.muted) }
                                 }
                                 Text(lastLabel(r)).font(.system(size: 11.5))
                                     .foregroundStyle(r.live ? Theme.green : Theme.muted).lineLimit(1)
@@ -356,10 +362,88 @@ struct MissionTimeStrip: View {
                             .stroke(r.id == Self.claude ? Self.claudeColor.opacity(0.35) : .clear))
                     }
                 }
-                if list.contains(where: { $0.id == Self.claude }) { savedLine }
+                if list.contains(where: { $0.id == Self.claude && $0.seconds > 0 }) { savedLine }
             }
+            if app.isAdmin && mission.hasClaude { ClaudeTimeEditor(mission: mission) }
         }
         .card(padding: 16)
+    }
+}
+
+/// Admin : ajouter ou retirer à la main du temps de Claude sur une mission.
+struct ClaudeTimeEditor: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+    let mission: Mission
+    @State private var adding = false
+    @State private var text = ""
+    @State private var busy = false
+    @State private var toDelete: AIWork?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Rectangle().fill(Theme.line).frame(height: 1)
+            FlowRows(spacing: 8) {
+                HStack(spacing: 6) {
+                    ClaudeBadge(size: 18)
+                    Muted("Temps de Claude", size: 12)
+                }
+                .frame(height: 28)
+                ForEach(data.aiWork(for: mission.id)) { w in
+                    HStack(spacing: 4) {
+                        Text(TimeFmt.hm(Double(w.duration_sec ?? 0)) + ((w.notes ?? "").isEmpty ? "" : " · \(w.notes!)"))
+                            .font(.system(size: 12)).lineLimit(1)
+                        Button { toDelete = w } label: {
+                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.muted)
+                                .frame(width: 18, height: 18).contentShape(Circle())
+                        }
+                        .buttonStyle(.plain).help("Supprimer ce temps")
+                    }
+                    .padding(.leading, 10).padding(.trailing, 4).frame(height: 28)
+                    .background(MissionTimeStrip.claudeColor.opacity(0.12), in: Capsule())
+                    .overlay(Capsule().stroke(MissionTimeStrip.claudeColor.opacity(0.3)))
+                }
+                if adding {
+                    HStack(spacing: 6) {
+                        TextField("1h30", text: $text)
+                            .textFieldStyle(.plain).font(.system(size: 12.5)).frame(width: 70)
+                            .padding(.horizontal, 8).frame(height: 28)
+                            .background(Theme.card2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Theme.ink.opacity(0.12)))
+                            .onSubmit(save)
+                        Button("Ajouter", action: save).buttonStyle(.borderedProminent).controlSize(.small).disabled(busy)
+                        Button("Annuler") { adding = false; text = "" }.buttonStyle(.bordered).controlSize(.small)
+                    }
+                } else {
+                    Button { adding = true } label: { Label("Ajouter du temps", systemImage: "plus") }
+                        .buttonStyle(.bordered).controlSize(.small).frame(height: 28)
+                }
+            }
+            if adding { Muted("Exemples : 45, 1h30, 2h.", size: 11) }
+        }
+        .confirmationDialog("Supprimer ce temps ?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } })) {
+            Button("Supprimer", role: .destructive) {
+                guard let w = toDelete else { return }
+                Task {
+                    do { try await data.deleteAIWork(w.id); app.showToast("Temps supprimé") }
+                    catch { app.showToast("Impossible de supprimer : \(error.localizedDescription)") }
+                }
+            }
+        } message: {
+            Text("\(TimeFmt.hm(Double(toDelete?.duration_sec ?? 0))) de Claude seront retirées de cette mission.")
+        }
+    }
+
+    private func save() {
+        guard let secs = DataStore.parseDuration(text), secs > 0, secs <= 24 * 3600 else {
+            app.showToast("Durée non reconnue. Écris par exemple 45 ou 1h30."); return
+        }
+        busy = true
+        Task {
+            do { try await data.addClaudeTime(missionId: mission.id, seconds: secs); app.showToast("\(TimeFmt.hm(secs)) ajoutées à Claude"); text = ""; adding = false }
+            catch { app.showToast("Impossible d'ajouter : \(error.localizedDescription)") }
+            busy = false
+        }
     }
 }
 
@@ -406,11 +490,11 @@ struct ClaudeMonthCard: View {
 
     var body: some View {
         let cal = Calendar.current
-        let month = data.aiWork.filter { DateFmt.parse($0.ended_at).map { cal.isDate($0, equalTo: Date(), toGranularity: .month) } ?? false }
+        let month = data.aiWork.filter { data.mission($0.mission_id)?.hasClaude == true }.filter { DateFmt.parse($0.ended_at).map { cal.isDate($0, equalTo: Date(), toGranularity: .month) } ?? false }
         let ids = Array(Set(month.map(\.mission_id))).filter { data.mission($0) != nil }
         let time = month.map { Double($0.duration_sec ?? 0) }.reduce(0, +)
         let saved = ids.compactMap { data.mission($0) }.compactMap { data.claudeSaved($0)?.saved }.reduce(0, +)
-        if !data.aiWork.isEmpty {
+        if data.missions.contains(where: \.hasClaude) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     ClaudeBadge(size: 22)
@@ -423,7 +507,7 @@ struct ClaudeMonthCard: View {
                     figure(TimeFmt.hm(time), "de travail")
                     figure(saved > 0 ? TimeFmt.hm(saved) : "–", "gagnées", color: Theme.green)
                 }
-                if let last = data.aiWork.first(where: { data.mission($0.mission_id) != nil }), let m = data.mission(last.mission_id) {
+                if let last = data.aiWork.first(where: { data.mission($0.mission_id)?.hasClaude == true }), let m = data.mission(last.mission_id) {
                     Button { presenter.open(.existing(m.id)) } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(m.title).font(.system(size: 13, weight: .medium)).lineLimit(1)

@@ -119,6 +119,7 @@ final class DataStore: ObservableObject {
     @discardableResult
     func createMission(_ insert: MissionInsert, memberIds: [String], clientPrice: Double?) async throws -> String {
         let m: Mission = try await supa.from("missions").insert(insert).select().single().execute().value
+        let memberIds = memberIds.filter { $0 != MissionTimeStrip.claude }
         if !memberIds.isEmpty {
             try await supa.from("mission_members")
                 .insert(memberIds.map { MissionMember(mission_id: m.id, user_id: $0) })
@@ -136,7 +137,7 @@ final class DataStore: ObservableObject {
     func updateMission(_ id: String, _ update: MissionUpdate, memberIds: [String], clientPrice: Double?) async throws {
         try await supa.from("missions").update(update).eq("id", value: id).execute()
         let current = Set(self.memberIds(of: id))
-        let wanted = Set(memberIds)
+        let wanted = Set(memberIds).subtracting([MissionTimeStrip.claude])
         for uid in current.subtracting(wanted) {
             try await supa.from("mission_members").delete().eq("mission_id", value: id).eq("user_id", value: uid).execute()
         }
@@ -236,7 +237,7 @@ final class DataStore: ObservableObject {
     func humanReference(_ m: Mission) -> (seconds: Double, count: Int)? {
         let done: Set<String> = ["v1_delivered", "revisions", "fix_delivered", "validated", "paid"]
         let refs = missions
-            .filter { $0.id != m.id && $0.client_id == m.client_id && done.contains($0.status) && aiWork(for: $0.id).isEmpty }
+            .filter { $0.id != m.id && $0.client_id == m.client_id && done.contains($0.status) && !$0.hasClaude && aiWork(for: $0.id).isEmpty }
             .map { x in (x, seconds(mission: x.id)) }
             .filter { $0.1 >= 600 }
             .sorted { (DateFmt.parse($0.0.v1_delivered_at ?? $0.0.created_at) ?? .distantPast) > (DateFmt.parse($1.0.v1_delivered_at ?? $1.0.created_at) ?? .distantPast) }
@@ -250,6 +251,42 @@ final class DataStore: ObservableObject {
         let ai = aiWork(for: m.id).map { Double($0.duration_sec ?? 0) }.reduce(0, +)
         guard ai > 0, let ref = humanReference(m) else { return nil }
         return (max(0, ref.seconds - ai), ref.seconds, ref.count)
+    }
+
+    /// L'admin ajoute du temps de Claude à la main (se termine maintenant).
+    func addClaudeTime(missionId: String, seconds: Double) async throws {
+        let end = Date(); let start = end.addingTimeInterval(-seconds)
+        try await supa.from("ai_work")
+            .insert(AIWorkInsert(mission_id: missionId, started_at: DateFmt.iso(start), ended_at: DateFmt.iso(end), notes: "saisi à la main"))
+            .execute()
+        await reload()
+    }
+
+    func deleteAIWork(_ id: String) async throws {
+        try await supa.from("ai_work").delete().eq("id", value: id).execute()
+        await reload()
+    }
+
+    /// Saisie souple : « 1h30 », « 1:30 », « 45 », « 45 min », « 2h ».
+    static func parseDuration(_ raw: String) -> Double? {
+        let t = raw.lowercased().replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: " ", with: "")
+        func num(_ s: Substring) -> Double? { Double(String(s)) }
+        if let h = t.firstIndex(of: "h") {
+            guard let hours = num(t[..<h]) else { return nil }
+            var rest = t[t.index(after: h)...]
+            for suf in ["min", "mn", "m"] where rest.hasSuffix(suf) { rest = rest.dropLast(suf.count); break }
+            let mins = rest.isEmpty ? 0 : (num(rest) ?? -1)
+            guard mins >= 0, mins < 60 else { return nil }
+            return hours * 3600 + mins * 60
+        }
+        if let c = t.firstIndex(of: ":") {
+            guard let hours = num(t[..<c]), let mins = num(t[t.index(after: c)...]), mins < 60 else { return nil }
+            return hours * 3600 + mins * 60
+        }
+        var s = Substring(t)
+        for suf in ["min", "mn", "m"] where s.hasSuffix(suf) { s = s.dropLast(suf.count); break }
+        guard let m = num(s), m == m.rounded() else { return nil }
+        return m * 60
     }
 
     func seconds(mission: String, user: String? = nil) -> Double {
@@ -426,7 +463,8 @@ final class DataStore: ObservableObject {
         var deadline: String?
         if let d = m.deadlineDate, let next = Calendar.current.date(byAdding: .day, value: 7, to: d) { deadline = DateFmt.iso(next) }
         let insert = MissionInsert(client_id: m.client_id, title: DataStore.nextTitle(m.title), brief: m.brief,
-                                   editor_budget: m.editor_budget ?? 0, deadline: deadline, rushes_url: nil, rushes_added_at: nil)
+                                   editor_budget: m.editor_budget ?? 0, deadline: deadline, rushes_url: nil, rushes_added_at: nil,
+                                   claude_editor: m.hasClaude)
         return try await createMission(insert, memberIds: memberIds(of: m.id), clientPrice: finances[m.id]?.client_price)
     }
 

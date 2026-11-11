@@ -482,13 +482,21 @@ private struct MissionDetail: View {
         VStack(alignment: .leading, spacing: 12) {
             CardTitle("Équipe")
             let people = data.memberProfiles(of: mission.id)
-            if people.isEmpty { Muted("Personne n'est assigné.") }
+            if people.isEmpty && !mission.hasClaude { Muted("Personne n'est assigné.") }
             ForEach(people) { p in
                 HStack(spacing: 10) {
                     AvatarView(profile: p, size: 26)
                     Text(p.id == me ? "\(p.firstName) (toi)" : p.firstName).font(.system(size: 13.5)).lineLimit(1)
                     Spacer(minLength: 8)
                     Muted(p.roleLabel, size: 12).lineLimit(1).fixedSize()
+                }
+            }
+            if mission.hasClaude {
+                HStack(spacing: 10) {
+                    ClaudeBadge(size: 26)
+                    Text("Claude").font(.system(size: 13.5)).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Muted("Monteur IA", size: 12).lineLimit(1).fixedSize()
                 }
             }
         }
@@ -756,6 +764,7 @@ struct MissionEditor: View {
             if let d = m.deadlineDate { deadline = d; hasDeadline = true } else { hasDeadline = false }
             rushes = m.rushes_url ?? ""
             memberIds = Set(data.memberIds(of: m.id))
+            if m.hasClaude { memberIds.insert(MissionTimeStrip.claude) }
             files = m.files
         } else {
             if let p = presetDeadline { deadline = p; hasDeadline = true }
@@ -786,21 +795,25 @@ struct MissionEditor: View {
                 let dl = hasDeadline ? DateFmt.iso(deadline) : nil
                 let budgetValue = Money.parse(budget) ?? 0
                 let priceValue = Money.parse(price)
+                let withClaude = memberIds.contains(MissionTimeStrip.claude)
+                let people = Array(memberIds.subtracting([MissionTimeStrip.claude]))
 
                 let missionId: String
                 if let m = mission {
                     try await data.updateMission(m.id, MissionUpdate(
                         client_id: cid, title: t, brief: b.isEmpty ? nil : b,
-                        editor_budget: budgetValue, deadline: dl, rushes_url: r.isEmpty ? nil : r
-                    ), memberIds: Array(memberIds), clientPrice: priceValue)
+                        editor_budget: budgetValue, deadline: dl, rushes_url: r.isEmpty ? nil : r,
+                        claude_editor: withClaude
+                    ), memberIds: people, clientPrice: priceValue)
                     missionId = m.id
                 } else {
                     missionId = try await data.createMission(MissionInsert(
                         client_id: cid, title: t, brief: b.isEmpty ? nil : b,
                         editor_budget: budgetValue, deadline: dl,
                         rushes_url: r.isEmpty ? nil : r,
-                        rushes_added_at: r.isEmpty ? nil : DateFmt.iso(Date())
-                    ), memberIds: Array(memberIds), clientPrice: priceValue)
+                        rushes_added_at: r.isEmpty ? nil : DateFmt.iso(Date()),
+                        claude_editor: withClaude
+                    ), memberIds: people, clientPrice: priceValue)
                 }
 
                 if !pendingFiles.isEmpty || !removedFiles.isEmpty {
@@ -896,6 +909,36 @@ struct TeamPicker: View {
                 Text("Admins").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
                 grid(admins)
             }
+            if app.isAdmin {
+                Text("Monteur IA").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
+                claudeButton
+            }
+        }
+    }
+
+    private var claudeButton: some View {
+        let on = selected.contains(MissionTimeStrip.claude)
+        return LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+            Button {
+                if on { selected.remove(MissionTimeStrip.claude) } else { selected.insert(MissionTimeStrip.claude) }
+            } label: {
+                HStack(spacing: 10) {
+                    ClaudeBadge(size: 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Claude").font(.system(size: 13, weight: .medium)).lineLimit(1)
+                        Text("Son temps apparaît dans la mission").font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(on ? MissionTimeStrip.claudeColor : Theme.muted)
+                }
+                .padding(.horizontal, 10).frame(height: 48)
+                .background(on ? MissionTimeStrip.claudeColor.opacity(0.12) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(on ? MissionTimeStrip.claudeColor.opacity(0.6) : Theme.ink.opacity(0.08)))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 

@@ -194,14 +194,16 @@ const payees = () => S.profiles.filter((p) => p.role !== 'admin' && p.role !== '
 // ---------- données ----------
 async function loadAll() {
   if (isClient()) {
-    const [c, m, n, v, dep] = await Promise.all([
+    const [c, m, n, v, dep, bil] = await Promise.all([
       sb.from('clients').select('*').order('name'),
       sb.rpc('client_projects'),
       sb.from('notifications').select('*').order('created_at', { ascending: false }).limit(40),
       sb.from('mission_versions').select('*').order('created_at'),
       sb.rpc('rushes_deposit_link'),
+      S.me.client_sees_prices ? sb.rpc('client_billing') : Promise.resolve({ data: [] }),
     ]);
     S.clients = c.data || []; S.missions = m.data || []; S.notifs = n.data || [];
+    S.billing = bil?.error ? [] : bil?.data || [];
     groupVersions(v.data); S.settings = { rushes_deposit_link: dep.data || null };
     return;
   }
@@ -278,7 +280,7 @@ function routesFor() {
     return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Projets', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1],
       ['finance', 'Finances', I.euro, 0, 0, 1], ['team', 'Équipe', I.team, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
   }
-  if (isClient()) return [['projects', 'Mes projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ['agenda', 'Calendrier', I.cal, 0, 0, 1], ['new', 'Nouveau', I.plus, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
+  if (isClient()) return [['projects', 'Mes projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ['agenda', 'Calendrier', I.cal, 0, 0, 1], ['new', 'Nouveau', I.plus, 0, 0, 1], ...(S.me.client_sees_prices ? [['billing', 'Dépenses', I.euro, 0, 0, 1]] : []), ['notifs', 'Activité', I.bell, 0, unread(), 0]];
   return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
 }
 
@@ -667,6 +669,7 @@ function page() {
     case 'finance': return financePage();
     case 'earnings': return earningsPage();
     case 'new': return newProjectPage();
+    case 'billing': return clientBillingPage();
     case 'notifs': return notifsPage();
     case 'team': return teamPage();
     default: return '';
@@ -1021,7 +1024,7 @@ function clientCard(m) {
     <div class="row" style="justify-content:space-between;gap:10px"><b class="t">${esc(m.title)}</b>${pillFor(m)}</div>
     <div class="s">${S.clients.length > 1 ? `<span style="color:${tint(clientColor(client(m.client_id)))}">${esc(client(m.client_id)?.name || '')}</span> · ` : ''}${esc(CLIENT_LINE[m.status] || '')}</div>
     <div class="thin" style="margin:12px 0 8px"><div style="width:${PROGRESS[m.status] || 0}%;background:${col}"></div></div>
-    <div class="row" style="justify-content:space-between;flex-wrap:wrap"><span class="lbl">${m.deadline ? `Livraison prévue · ${esc(deadlineLabel(m))}` : 'Date à définir'}</span>${ask ? '<span class="cta">Regarder et valider →</span>' : ''}</div></div>`;
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap"><span class="lbl">${m.deadline ? `Livraison prévue · ${esc(deadlineLabel(m))}` : 'Date à définir'}${billOf(m.id) ? ` · ${eur(billOf(m.id).price)} HTVA` : ''}</span>${ask ? '<span class="cta">Regarder et valider →</span>' : ''}</div></div>`;
 }
 // Un compte client peut gérer plusieurs clients (client_id principal + client_access)
 function accessOf(p) { return [...new Set([p?.client_id, ...(S.access || []).filter((a) => a.user_id === p?.id).map((a) => a.client_id)].filter(Boolean))]; }
@@ -1031,6 +1034,40 @@ function clientChecks(sel) {
   return `<div class="cl-checks">${S.clients.map((c) => `<label class="cl-check"><input type="checkbox" name="clients" value="${c.id}" ${sel.includes(c.id) ? 'checked' : ''}><span class="dot" style="background:${clientColor(c)}"></span><span>${esc(c.name)}</span></label>`).join('') || '<span class="lbl">Ajoute d\'abord un client dans l\'onglet Clients.</span>'}</div>`;
 }
 const checkedClients = (f) => [...f.querySelectorAll('input[name=clients]:checked')].map((x) => x.value);
+// --- Dépenses (client autorisé à voir ses prix) : jamais de budget monteur, seulement le prix facturé.
+const billOf = (id) => (S.billing || []).find((b) => b.mission_id === id);
+function billState(b) {
+  if (b.paid) return ['Payée', b.paid_at ? `le ${dshort(d(b.paid_at))}` : '', '#3DD68C'];
+  if (b.invoiced) return ['Facture envoyée', b.invoiced_at ? `le ${dshort(d(b.invoiced_at))}` : '', '#4C8DFF'];
+  if (b.delivered) return ['Facture à venir', 'Livrée', '#F5A524'];
+  return ['En cours', 'Prix prévu', '#8A8F98'];
+}
+function clientBillingPage() {
+  const mo = S.month; const all = (S.billing || []).filter((b) => !S.clientFilter || b.client_id === S.clientFilter);
+  const inMonth = (b, x) => sameMonth(fromYmd(String(b.month).slice(0, 10)), x);
+  const list = all.filter((b) => inMonth(b, mo)).sort((a, b) => Number(b.delivered) - Number(a.delivered) || a.title.localeCompare(b.title));
+  const sum = (l) => l.reduce((a, b) => a + Number(b.price || 0), 0);
+  const yearL = all.filter((b) => fromYmd(String(b.month).slice(0, 10)).getFullYear() === mo.getFullYear());
+  const due = all.filter((b) => b.invoiced && !b.paid);
+  const chips = S.clients.length > 1 ? `<div class="chips"><button class="chip ${!S.clientFilter ? 'on' : ''}" data-client="">Tous</button>${S.clients.map((c) => clientChip(c, S.clientFilter === c.id, 'data-client')).join('')}</div>` : '';
+  const months = Array.from({ length: 12 }, (_, i) => new Date(mo.getFullYear(), i, 1));
+  const mTot = months.map((x) => sum(all.filter((b) => inMonth(b, x)))); const mMax = Math.max(1, ...mTot);
+  const bars = months.map((x, i) => mTot[i] ? barRow({ i, name: cap(monthLong(x)), value: eur(Math.round(mTot[i])), pct: (mTot[i] / mMax) * 100, color: 'var(--blue)', tip: '', attrs: `tabindex="0" role="button" data-jump="billing" data-jmonth="${ymd(x)}"` }) : '').join('');
+  const rows = list.map((b) => { const [t, sub, col] = billState(b); const c = client(b.client_id);
+    return `<div class="item bill-item" role="button" tabindex="0" data-open="${b.mission_id}"><span class="dot" style="background:${clientColor(c)}"></span>
+      <div class="grow"><div class="t">${esc(b.title)}</div><div class="s"><span class="bill-st" style="color:${col}">${esc(t)} · </span>${S.clients.length > 1 ? `${esc(c?.name || '')} · ` : ''}${esc(sub)}</div></div>
+      ${pill(t, col)}<div class="mono" style="flex-shrink:0;font-weight:600;min-width:82px;text-align:right">${eur(Number(b.price))}</div></div>`; }).join('');
+  return `${header(myClientLabel(), 'Dépenses', monthSeg(mo))}${chips}
+  <div class="grid">
+    ${stat(cap(monthLong(mo)), eur(Math.round(sum(list))), `${list.length} projet${list.length > 1 ? 's' : ''} · HTVA`)}
+    ${stat(`Année ${mo.getFullYear()}`, eur(Math.round(sum(yearL))), `${yearL.length} projet${yearL.length > 1 ? 's' : ''} · HTVA`)}
+    ${stat('Factures à régler', eur(Math.round(sum(due))), due.length ? `${due.length} facture${due.length > 1 ? 's' : ''} envoyée${due.length > 1 ? 's' : ''}` : 'Rien en attente', due.length ? '#F5A524' : 'var(--green)')}
+    ${stat('À venir', eur(Math.round(sum(all.filter((b) => !b.invoiced && !b.paid)))), 'Pas encore facturé')}
+  </div>
+  <div class="card flush" style="margin-bottom:16px"><div class="card-head"><h2>Projets · ${esc(monthLong(mo))}</h2><span class="lbl">Montants HTVA</span></div><div class="list">${rows || '<div class="empty">Aucun projet facturé sur ce mois.</div>'}</div></div>
+  <div class="card"><div class="ch-head"><div><h2>Par mois · ${mo.getFullYear()}</h2><div class="lbl">Clique un mois pour voir son détail</div></div></div><div class="bars">${bars || emptyArt('Aucune dépense cette année.')}</div></div>
+  <p class="lbl" style="margin-top:14px">Un projet compte dans le mois où il est livré. « Facture envoyée » indique que Minimalist Belgium t'a transmis la facture.</p>`;
+}
 function clientHome() {
   const c = { name: myClientLabel() };
   const ask = S.missions.filter((m) => awaitsClient(m) && m.delivery_url);
@@ -1111,12 +1148,13 @@ function teamPage() {
       <div class="cols" style="margin:0;gap:12px"><div style="flex:2 1 220px"><label class="f" for="iv-mail">Adresse e-mail</label><input class="in" id="iv-mail" name="email" type="email" required placeholder="prenom@entreprise.be" autocomplete="off"></div>
       <div style="flex:1 1 150px"><label class="f" for="iv-role">Rôle</label><select class="in" id="iv-role" name="role"><option value="client">Client</option><option value="editor">Monteur</option><option value="admin">Admin</option></select></div>
 </div>
-      <div id="iv-client-wrap"><label class="f">Clients gérés par cette adresse</label>${clientChecks([])}<p class="lbl" style="margin:6px 0 0">Coche plusieurs clients si une même personne (une agence, un manager) suit plusieurs comptes.</p></div>
+      <div id="iv-client-wrap"><label class="f">Clients gérés par cette adresse</label>${clientChecks([])}<p class="lbl" style="margin:6px 0 0">Coche plusieurs clients si une même personne (une agence, un manager) suit plusieurs comptes.</p>
+        <label class="cl-check" style="margin-top:12px"><input type="checkbox" name="prices"><span>Peut voir ses dépenses</span></label><p class="lbl" style="margin:6px 0 0">Prix de chaque projet, totaux par mois et factures envoyées. Jamais ce que touchent les monteurs.</p></div>
       <button class="btn pri" type="submit" style="margin-top:16px">Ajouter</button>
       <p class="lbl" style="margin:10px 0 0">La personne se connecte ensuite avec cette adresse : sur studio.minimalistbelgium.com, ou dans l'app Mac ou PC pour un monteur.</p>
     </form>
     <div class="card flush" style="margin-bottom:16px"><div class="card-head"><h2>Membres</h2><span class="lbl">${members.filter((p) => p.active).length} actifs</span></div><div class="list">
-      ${members.map((p) => `<div class="item" role="button" tabindex="0" data-member="${p.id}" style="${p.active ? '' : 'opacity:.5'}">${avatar(p, 30)}<div class="grow"><div class="t">${esc(p.full_name || p.email)}${p.id === S.me.id ? ' (toi)' : ''}</div><div class="s">${esc(p.email)}${p.role === 'client' ? ` · ${esc(clientNames(accessOf(p)) || 'client non relié')}` : ''}</div></div>${pill(p.active ? ROLE_LABEL[p.role] || p.role : 'Désactivé', p.active ? ROLE_COLOR[p.role] : '#8B8D94')}</div>`).join('')}
+      ${members.map((p) => `<div class="item" role="button" tabindex="0" data-member="${p.id}" style="${p.active ? '' : 'opacity:.5'}">${avatar(p, 30)}<div class="grow"><div class="t">${esc(p.full_name || p.email)}${p.id === S.me.id ? ' (toi)' : ''}</div><div class="s">${esc(p.email)}${p.role === 'client' ? ` · ${esc(clientNames(accessOf(p)) || 'client non relié')}${p.client_sees_prices ? ' · voit ses dépenses' : ''}` : ''}</div></div>${pill(p.active ? ROLE_LABEL[p.role] || p.role : 'Désactivé', p.active ? ROLE_COLOR[p.role] : '#8B8D94')}</div>`).join('')}
     </div></div>
     ${pending.length ? `<div class="card flush"><div class="card-head"><h2>Invitations en attente</h2></div><div class="list">${pending.map((i) => `<div class="item"><div class="grow"><div class="t">${esc(i.email)}</div><div class="s">${ROLE_LABEL[i.role] || ''}${i.client_id ? ` · ${esc(clientNames([i.client_id, ...(i.extra_client_ids || [])]))}` : ''}</div></div><button class="btn sm" data-uninvite="${esc(i.email)}">Annuler</button></div>`).join('')}</div></div>` : ''}`;
   }
@@ -1189,7 +1227,9 @@ function renderSheet(keep = false) {
     const c = client(m.client_id);
     if (s.mode === 'edit') return sheetWrap(c?.name || '', isClient() ? 'Modifier ma demande' : 'Modifier la mission', '', isClient() ? requestEditForm(m) : missionForm(m, 'edit'), keep, true);
     const sub = `<div class="row" style="flex-wrap:wrap">${pillFor(m)}<span class="lbl" style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(deadlineLabel(m))}</span></div>`;
-    const body = isClient() ? clientDetail(m) : m.status === 'requested' && isAdmin() ? missionForm(m, 'accept') : teamDetail(m);
+    const bo = isClient() && billOf(m.id);
+    const priceCard = bo ? (() => { const [t, sub, col] = billState(bo); return `<div class="card" style="margin-top:16px"><h2>Facturation</h2><div class="kv"><span>Prix du projet</span><b class="mono">${eur(Number(bo.price))} HTVA</b></div><div class="kv"><span>Facture</span><span class="row">${pill(t, col)}${sub ? `<span class="lbl">${esc(sub)}</span>` : ''}</span></div></div>`; })() : '';
+    const body = isClient() ? clientDetail(m) + priceCard : m.status === 'requested' && isAdmin() ? missionForm(m, 'accept') : teamDetail(m);
     return sheetWrap(c?.name || 'Sans client', m.title, sub, body, keep);
   }
   if (s.type === 'new') return sheetWrap('Minima Studio', 'Nouvelle mission', '', missionForm(s.preset || null, 'new'), keep, true);
@@ -1435,7 +1475,8 @@ function memberForm(p) {
   return `<form class="card" id="member-form" data-id="${p.id}">
     <div class="row" style="gap:12px">${avatar(p, 44)}<div><b>${esc(p.full_name || p.email)}</b><div class="lbl">${esc(p.email)}</div></div></div>
     <label class="f" for="mb-role">Rôle</label><select class="in" id="mb-role" name="role" ${self ? 'disabled' : ''}>${['admin', 'editor', 'client'].map((r) => `<option value="${r}" ${p.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}${p.role === 'none' ? '<option value="none" selected>Sans accès</option>' : ''}</select>
-    <div id="mb-client-wrap" style="${p.role === 'client' ? '' : 'display:none'}"><label class="f">Clients gérés</label>${clientChecks(accessOf(p))}<p class="lbl" style="margin:6px 0 0">Cette personne voit les projets de tous les clients cochés et peut en demander pour chacun.</p></div>
+    <div id="mb-client-wrap" style="${p.role === 'client' ? '' : 'display:none'}"><label class="f">Clients gérés</label>${clientChecks(accessOf(p))}<p class="lbl" style="margin:6px 0 0">Cette personne voit les projets de tous les clients cochés et peut en demander pour chacun.</p>
+      <label class="cl-check" style="margin-top:12px"><input type="checkbox" name="prices" ${p.client_sees_prices ? 'checked' : ''}><span>Peut voir ses dépenses</span></label><p class="lbl" style="margin:6px 0 0">Prix de chaque projet, totaux par mois et factures envoyées. Jamais ce que touchent les monteurs.</p></div>
     ${self ? '<p class="lbl" style="margin-top:12px">Tu ne peux pas modifier ton propre rôle.</p>' : ''}
     <div class="row" style="margin-top:20px;flex-wrap:wrap"><button class="btn pri" type="submit" style="flex:2" ${self ? 'disabled' : ''}>Enregistrer</button>
       ${self ? '' : `<button class="btn ${p.active ? 'danger' : ''}" type="button" data-act="toggleactive" data-id="${p.id}" style="flex:1">${p.active ? "Désactiver l'accès" : "Réactiver l'accès"}</button>`}</div></form>`;
@@ -1712,13 +1753,13 @@ document.addEventListener('submit', async (e) => {
     } else if (f.id === 'invite-form') {
       const email = f.email.value.trim().toLowerCase(); const role = f.role.value; const ids = role === 'client' ? checkedClients(f) : [];
       if (role === 'client' && !ids.length) throw new Error('Coche au moins un client');
-      fail(await sb.from('team_invites').upsert({ email, role, client_id: ids[0] || null, extra_client_ids: ids.slice(1) }));
+      fail(await sb.from('team_invites').upsert({ email, role, client_id: ids[0] || null, extra_client_ids: ids.slice(1), client_sees_prices: role === 'client' && f.prices.checked }));
       f.reset(); await refresh(); toast('Ajouté, il peut se connecter');
     } else if (f.id === 'member-form') {
       const role = f.role.value; const ids = role === 'client' ? checkedClients(f) : []; const uid = f.dataset.id;
       if (role === 'client' && !ids.length) throw new Error('Coche au moins un client');
       const old = profile(uid)?.client_id; const cid = ids.includes(old) ? old : ids[0] || null;
-      fail(await sb.from('profiles').update({ role, client_id: cid }).eq('id', uid));
+      fail(await sb.from('profiles').update({ role, client_id: cid, client_sees_prices: role === 'client' && f.prices.checked }).eq('id', uid));
       fail(await sb.from('client_access').delete().eq('user_id', uid));
       const extra = ids.filter((x) => x !== cid);
       if (extra.length) fail(await sb.from('client_access').insert(extra.map((x) => ({ user_id: uid, client_id: x }))));

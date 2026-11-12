@@ -616,3 +616,7 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .flash{animation:flash 1.3s ease}
 @keyframes flash{0%,40%{box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 55%,transparent)}100%{box-shadow:0 0 0 3px transparent}}
 @media (prefers-reduced-motion:reduce){.flash{animation:none}}
+
+/* Dépenses client */
+.bill-st{display:none;font-weight:600}
+@media (max-width:640px){.bill-item>.pill{display:none}.bill-st{display:inline}}

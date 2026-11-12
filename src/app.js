@@ -15,7 +15,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
-  versions: {}, settings: {}, comments: {}, thread: {}, ai: [], payments: [], invoices: [], splits: {},
+  versions: {}, settings: {}, comments: {}, thread: {}, ai: [], payments: [], invoices: [], splits: {}, access: [],
   filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
@@ -195,7 +195,7 @@ const payees = () => S.profiles.filter((p) => p.role !== 'admin' && p.role !== '
 async function loadAll() {
   if (isClient()) {
     const [c, m, n, v, dep] = await Promise.all([
-      sb.from('clients').select('*'),
+      sb.from('clients').select('*').order('name'),
       sb.rpc('client_projects'),
       sb.from('notifications').select('*').order('created_at', { ascending: false }).limit(40),
       sb.from('mission_versions').select('*').order('created_at'),
@@ -223,6 +223,7 @@ async function loadAll() {
   S.settings = {}; (r[7].data || []).forEach((x) => { S.settings[x.key] = x.value; });
   S.finances = {}; (r[8]?.data || []).forEach((f) => { S.finances[f.mission_id] = f; });
   S.invites = r[9]?.data || [];
+  if (isAdmin()) { const ca = await sb.from('client_access').select('*'); S.access = ca.error ? [] : ca.data || []; } else S.access = [];
   // Montages faits par Claude (table absente ou vide : on ignore sans erreur)
   const ai = await sb.from('ai_work').select('*').order('ended_at', { ascending: false });
   S.ai = ai.error ? [] : ai.data || [];
@@ -637,7 +638,7 @@ function render(anim = false) {
   if (!S.route || !routes.some((r) => r[0] === S.route)) S.route = routes[0][0];
   const nav = routes.map(([k, t, ic, count, badge]) => `<button class="nav ${S.route === k ? 'on' : ''}" data-go="${k}">${ic}${t}${badge ? `<span class="badge">${badge}</span>` : count ? `<span class="count">${count}</span>` : ''}</button>`).join('');
   const tabs = routes.filter((r) => r[5]).map(([k, t, ic, , badge]) => `<button class="${S.route === k ? 'on' : ''}" data-go="${k}" aria-label="${t}">${ic}<span>${t}</span>${badge ? `<span class="badge">${badge}</span>` : ''}</button>`).join('');
-  const role = isAdmin() ? 'Admin' : isClient() ? esc(client(S.me.client_id)?.name || 'Client') : 'Monteur';
+  const role = isAdmin() ? 'Admin' : isClient() ? esc(myClientLabel() || 'Client') : 'Monteur';
   const y = window.scrollY;
   app.innerHTML = `
   <div class="shell">
@@ -998,12 +999,20 @@ function clientCard(m) {
   const col = statusColor(m.status); const ask = awaitsClient(m) && m.delivery_url;
   return `<div class="pcard ${ask ? 'ask' : ''}" role="button" tabindex="0" data-open="${m.id}">
     <div class="row" style="justify-content:space-between;gap:10px"><b class="t">${esc(m.title)}</b>${pillFor(m)}</div>
-    <div class="s">${esc(CLIENT_LINE[m.status] || '')}</div>
+    <div class="s">${S.clients.length > 1 ? `<span style="color:${tint(clientColor(client(m.client_id)))}">${esc(client(m.client_id)?.name || '')}</span> · ` : ''}${esc(CLIENT_LINE[m.status] || '')}</div>
     <div class="thin" style="margin:12px 0 8px"><div style="width:${PROGRESS[m.status] || 0}%;background:${col}"></div></div>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap"><span class="lbl">${m.deadline ? `Livraison prévue · ${esc(deadlineLabel(m))}` : 'Date à définir'}</span>${ask ? '<span class="cta">Regarder et valider →</span>' : ''}</div></div>`;
 }
+// Un compte client peut gérer plusieurs clients (client_id principal + client_access)
+function accessOf(p) { return [...new Set([p?.client_id, ...(S.access || []).filter((a) => a.user_id === p?.id).map((a) => a.client_id)].filter(Boolean))]; }
+const clientNames = (ids) => ids.map((id) => client(id)?.name).filter(Boolean).join(', ');
+const myClientLabel = () => (S.clients.length > 1 ? S.clients.map((c) => c.name).join(' · ') : client(S.me.client_id)?.name || S.clients[0]?.name || '');
+function clientChecks(sel) {
+  return `<div class="cl-checks">${S.clients.map((c) => `<label class="cl-check"><input type="checkbox" name="clients" value="${c.id}" ${sel.includes(c.id) ? 'checked' : ''}><span class="dot" style="background:${clientColor(c)}"></span><span>${esc(c.name)}</span></label>`).join('') || '<span class="lbl">Ajoute d\'abord un client dans l\'onglet Clients.</span>'}</div>`;
+}
+const checkedClients = (f) => [...f.querySelectorAll('input[name=clients]:checked')].map((x) => x.value);
 function clientHome() {
-  const c = client(S.me.client_id);
+  const c = { name: myClientLabel() };
   const ask = S.missions.filter((m) => awaitsClient(m) && m.delivery_url);
   const open = S.missions.filter((m) => isOpen(m) && !ask.includes(m)); const done = S.missions.filter((m) => !isOpen(m));
   return `${header(c?.name || 'Espace client', `Bonjour ${firstName(S.me)}`, `<button class="btn pri" data-go="new">${small(I.plus)}Nouveau projet</button>`)}
@@ -1027,8 +1036,9 @@ function requestFields(m) {
     ${dep ? `<a class="btn full" href="${esc(dep)}" target="_blank" rel="noopener" style="margin-top:10px">Déposer mes rushes ici ↗</a>` : ''}`;
 }
 function newProjectPage() {
-  return `${header(client(S.me.client_id)?.name || '', 'Nouveau projet')}
-  <form class="card" id="new-form" style="max-width:640px">${requestFields(null)}
+  const many = S.clients.length > 1;
+  return `${header(myClientLabel(), 'Nouveau projet')}
+  <form class="card" id="new-form" style="max-width:640px">${many ? `<label class="f" for="np-client" style="margin-top:0">Pour quel client ?</label><select class="in" id="np-client" name="client" required><option value="" disabled ${S.lastClient ? '' : 'selected'}>Choisir…</option>${S.clients.map((c) => `<option value="${c.id}" ${S.lastClient === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}${requestFields(null)}
     <p class="lbl" style="margin:14px 0 18px">Tu peux ajouter le lien des rushes plus tard. Gaston reçoit ta demande et te confirme le lancement.</p>
     <button class="btn pri full" type="submit">Envoyer la demande</button>
   </form>`;
@@ -1064,7 +1074,7 @@ function teamPage() {
   let body = '';
   if (S.teamTab === 'clients') {
     body = `<div class="card flush"><div class="card-head"><h2>Clients</h2><button class="btn sm" data-act="newclient">${small(I.plus)}Ajouter</button></div><div class="list">
-      ${S.clients.map((c) => { const ms = S.missions.filter((m) => m.client_id === c.id); const acc = S.profiles.filter((p) => p.role === 'client' && p.active && p.client_id === c.id).length;
+      ${S.clients.map((c) => { const ms = S.missions.filter((m) => m.client_id === c.id); const acc = S.profiles.filter((p) => p.role === 'client' && p.active && accessOf(p).includes(c.id)).length;
         return `<div class="item" role="button" tabindex="0" data-client-open="${c.id}"><span class="dot" style="background:${clientColor(c)};width:12px;height:12px"></span><div class="grow"><div class="t">${esc(c.name)}</div><div class="s">${ms.filter((m) => isOpen(m)).length} en cours · ${ms.length} au total · ${acc ? `${acc} accès à l'espace client` : "pas encore d'accès client"}</div></div><span class="lbl">Modifier</span></div>`; }).join('') || '<div class="empty">Aucun client.</div>'}</div></div>`;
   } else if (S.teamTab === 'settings') {
     body = `<form class="card" id="settings-form" style="max-width:640px"><h2>Liens de dépôt</h2>
@@ -1080,14 +1090,15 @@ function teamPage() {
       <h2>Ajouter quelqu'un</h2>
       <div class="cols" style="margin:0;gap:12px"><div style="flex:2 1 220px"><label class="f" for="iv-mail">Adresse e-mail</label><input class="in" id="iv-mail" name="email" type="email" required placeholder="prenom@entreprise.be" autocomplete="off"></div>
       <div style="flex:1 1 150px"><label class="f" for="iv-role">Rôle</label><select class="in" id="iv-role" name="role"><option value="client">Client</option><option value="editor">Monteur</option><option value="admin">Admin</option></select></div>
-      <div style="flex:1 1 150px" id="iv-client-wrap"><label class="f" for="iv-client">Client concerné</label><select class="in" id="iv-client" name="client"><option value="">Choisir…</option>${S.clients.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div></div>
+</div>
+      <div id="iv-client-wrap"><label class="f">Clients gérés par cette adresse</label>${clientChecks([])}<p class="lbl" style="margin:6px 0 0">Coche plusieurs clients si une même personne (une agence, un manager) suit plusieurs comptes.</p></div>
       <button class="btn pri" type="submit" style="margin-top:16px">Ajouter</button>
       <p class="lbl" style="margin:10px 0 0">La personne se connecte ensuite avec cette adresse : sur studio.minimalistbelgium.com, ou dans l'app Mac ou PC pour un monteur.</p>
     </form>
     <div class="card flush" style="margin-bottom:16px"><div class="card-head"><h2>Membres</h2><span class="lbl">${members.filter((p) => p.active).length} actifs</span></div><div class="list">
-      ${members.map((p) => `<div class="item" role="button" tabindex="0" data-member="${p.id}" style="${p.active ? '' : 'opacity:.5'}">${avatar(p, 30)}<div class="grow"><div class="t">${esc(p.full_name || p.email)}${p.id === S.me.id ? ' (toi)' : ''}</div><div class="s">${esc(p.email)}${p.role === 'client' ? ` · ${esc(client(p.client_id)?.name || 'client non relié')}` : ''}</div></div>${pill(p.active ? ROLE_LABEL[p.role] || p.role : 'Désactivé', p.active ? ROLE_COLOR[p.role] : '#8B8D94')}</div>`).join('')}
+      ${members.map((p) => `<div class="item" role="button" tabindex="0" data-member="${p.id}" style="${p.active ? '' : 'opacity:.5'}">${avatar(p, 30)}<div class="grow"><div class="t">${esc(p.full_name || p.email)}${p.id === S.me.id ? ' (toi)' : ''}</div><div class="s">${esc(p.email)}${p.role === 'client' ? ` · ${esc(clientNames(accessOf(p)) || 'client non relié')}` : ''}</div></div>${pill(p.active ? ROLE_LABEL[p.role] || p.role : 'Désactivé', p.active ? ROLE_COLOR[p.role] : '#8B8D94')}</div>`).join('')}
     </div></div>
-    ${pending.length ? `<div class="card flush"><div class="card-head"><h2>Invitations en attente</h2></div><div class="list">${pending.map((i) => `<div class="item"><div class="grow"><div class="t">${esc(i.email)}</div><div class="s">${ROLE_LABEL[i.role] || ''}${i.client_id ? ` · ${esc(client(i.client_id)?.name || '')}` : ''}</div></div><button class="btn sm" data-uninvite="${esc(i.email)}">Annuler</button></div>`).join('')}</div></div>` : ''}`;
+    ${pending.length ? `<div class="card flush"><div class="card-head"><h2>Invitations en attente</h2></div><div class="list">${pending.map((i) => `<div class="item"><div class="grow"><div class="t">${esc(i.email)}</div><div class="s">${ROLE_LABEL[i.role] || ''}${i.client_id ? ` · ${esc(clientNames([i.client_id, ...(i.extra_client_ids || [])]))}` : ''}</div></div><button class="btn sm" data-uninvite="${esc(i.email)}">Annuler</button></div>`).join('')}</div></div>` : ''}`;
   }
   return `${header(`${S.profiles.filter((p) => p.active && p.role !== 'none').length} personnes · ${S.clients.length} clients`, 'Équipe', `<div class="seg">${tabs}</div>`)}${body}`;
 }
@@ -1164,7 +1175,7 @@ function renderSheet(keep = false) {
   if (s.type === 'new') return sheetWrap('Minima Studio', 'Nouvelle mission', '', missionForm(s.preset || null, 'new'), keep, true);
   if (s.type === 'member') return sheetWrap('Équipe', profile(s.id)?.full_name || profile(s.id)?.email || '', '', memberForm(profile(s.id)), keep, true);
   if (s.type === 'client') return sheetWrap('Clients', s.id ? client(s.id)?.name || '' : 'Nouveau client', '', clientForm(s.id ? client(s.id) : null), keep, true);
-  if (s.type === 'account') return sheetWrap(isAdmin() ? 'Admin' : isClient() ? client(S.me.client_id)?.name || 'Client' : 'Monteur', 'Mon compte', '', accountBody(), keep, true);
+  if (s.type === 'account') return sheetWrap(isAdmin() ? 'Admin' : isClient() ? myClientLabel() || 'Client' : 'Monteur', 'Mon compte', '', accountBody(), keep, true);
 }
 async function loadComments(id) {
   const { data } = await sb.from('mission_comments').select('*').eq('mission_id', id).order('created_at');
@@ -1404,7 +1415,7 @@ function memberForm(p) {
   return `<form class="card" id="member-form" data-id="${p.id}">
     <div class="row" style="gap:12px">${avatar(p, 44)}<div><b>${esc(p.full_name || p.email)}</b><div class="lbl">${esc(p.email)}</div></div></div>
     <label class="f" for="mb-role">Rôle</label><select class="in" id="mb-role" name="role" ${self ? 'disabled' : ''}>${['admin', 'editor', 'client'].map((r) => `<option value="${r}" ${p.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}${p.role === 'none' ? '<option value="none" selected>Sans accès</option>' : ''}</select>
-    <div id="mb-client-wrap" style="${p.role === 'client' ? '' : 'display:none'}"><label class="f" for="mb-client">Client concerné</label><select class="in" id="mb-client" name="client"><option value="">Choisir…</option>${S.clients.map((c) => `<option value="${c.id}" ${p.client_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div id="mb-client-wrap" style="${p.role === 'client' ? '' : 'display:none'}"><label class="f">Clients gérés</label>${clientChecks(accessOf(p))}<p class="lbl" style="margin:6px 0 0">Cette personne voit les projets de tous les clients cochés et peut en demander pour chacun.</p></div>
     ${self ? '<p class="lbl" style="margin-top:12px">Tu ne peux pas modifier ton propre rôle.</p>' : ''}
     <div class="row" style="margin-top:20px;flex-wrap:wrap"><button class="btn pri" type="submit" style="flex:2" ${self ? 'disabled' : ''}>Enregistrer</button>
       ${self ? '' : `<button class="btn ${p.active ? 'danger' : ''}" type="button" data-act="toggleactive" data-id="${p.id}" style="flex:1">${p.active ? "Désactiver l'accès" : "Réactiver l'accès"}</button>`}</div></form>`;
@@ -1447,7 +1458,7 @@ function renderPending() {
 
 // ---------- actions ----------
 const fail = (r) => { if (r.error) throw r.error; return r; };
-const hasClientAccount = (m) => S.profiles.some((p) => p.role === 'client' && p.active && p.client_id === m.client_id);
+const hasClientAccount = (m) => S.profiles.some((p) => p.role === 'client' && p.active && accessOf(p).includes(m.client_id));
 async function offerNotifyClient(m, status) {
   if (!isAdmin() || !hasClientAccount(m)) return;
   const msg = { v1_delivered: 'La V1 de ta vidéo est prête', fix_delivered: 'Les corrections de ta vidéo sont prêtes', validated: 'Ta vidéo est finalisée' }[status];
@@ -1668,7 +1679,8 @@ document.addEventListener('submit', async (e) => {
       if (error) throw new Error('Code incorrect ou expiré');
     } else if (f.id === 'new-form') {
       const dl = f.deadline.value ? new Date(f.deadline.value).toISOString() : null;
-      fail(await sb.rpc('client_request_project', { t: f.title.value, d: dl, b: f.brief.value, r: f.rushes.value }));
+      const cl = f.client?.value || null; if (cl) S.lastClient = cl;
+      fail(await sb.rpc('client_request_project', { t: f.title.value, d: dl, b: f.brief.value, r: f.rushes.value, ...(cl ? { c: cl } : {}) }));
       f.reset(); S.route = 'projects'; await refresh(); window.scrollTo(0, 0); toast('Demande envoyée, merci !');
     } else if (f.id === 'request-edit-form') {
       const dl = f.deadline.value ? new Date(f.deadline.value).toISOString() : null;
@@ -1677,14 +1689,18 @@ document.addEventListener('submit', async (e) => {
     } else if (f.id === 'mission-form') {
       await saveMission(f);
     } else if (f.id === 'invite-form') {
-      const email = f.email.value.trim().toLowerCase(); const role = f.role.value; const cid = f.client.value || null;
-      if (role === 'client' && !cid) throw new Error('Choisis le client concerné');
-      fail(await sb.from('team_invites').upsert({ email, role, client_id: role === 'client' ? cid : null }));
+      const email = f.email.value.trim().toLowerCase(); const role = f.role.value; const ids = role === 'client' ? checkedClients(f) : [];
+      if (role === 'client' && !ids.length) throw new Error('Coche au moins un client');
+      fail(await sb.from('team_invites').upsert({ email, role, client_id: ids[0] || null, extra_client_ids: ids.slice(1) }));
       f.reset(); await refresh(); toast('Ajouté, il peut se connecter');
     } else if (f.id === 'member-form') {
-      const role = f.role.value; const cid = f.client.value || null;
-      if (role === 'client' && !cid) throw new Error('Choisis le client concerné');
-      fail(await sb.from('profiles').update({ role, client_id: role === 'client' ? cid : null }).eq('id', f.dataset.id));
+      const role = f.role.value; const ids = role === 'client' ? checkedClients(f) : []; const uid = f.dataset.id;
+      if (role === 'client' && !ids.length) throw new Error('Coche au moins un client');
+      const old = profile(uid)?.client_id; const cid = ids.includes(old) ? old : ids[0] || null;
+      fail(await sb.from('profiles').update({ role, client_id: cid }).eq('id', uid));
+      fail(await sb.from('client_access').delete().eq('user_id', uid));
+      const extra = ids.filter((x) => x !== cid);
+      if (extra.length) fail(await sb.from('client_access').insert(extra.map((x) => ({ user_id: uid, client_id: x }))));
       closeSheet(); await refresh(); toast('Membre mis à jour');
     } else if (f.id === 'client-form') {
       const row = { name: f.elements.name.value.trim(), color: f.elements.color.value };

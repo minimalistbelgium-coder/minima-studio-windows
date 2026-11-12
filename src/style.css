@@ -596,3 +596,10 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .msg-del{margin-left:auto;opacity:0;transition:opacity .15s}
 .msg:hover .msg-del,.msg-del:focus-visible{opacity:1}
 @media (hover:none){.msg-del{opacity:.7}}
+
+/* Clients gérés (multi-clients) */
+.cl-checks{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.cl-check{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:13px;user-select:none}
+.cl-check input{accent-color:var(--blue);margin:0}
+.cl-check .dot{width:9px;height:9px}
+.cl-check:has(input:checked){border-color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,transparent)}

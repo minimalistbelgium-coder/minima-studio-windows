@@ -535,8 +535,12 @@ final class DataStore: ObservableObject {
             .order("created_at", ascending: true).execute().value) ?? []
     }
 
-    func addComment(_ missionId: String, body: String) async throws {
-        try await supa.rpc("add_comment", params: ["m": missionId, "body": body]).execute()
+    func addComment(_ missionId: String, body: String, audience: String = "all") async throws {
+        try await supa.rpc("add_comment", params: ["m": missionId, "body": body, "audience": audience]).execute()
+    }
+
+    func deleteComment(_ id: String) async throws {
+        try await supa.from("mission_comments").delete().eq("id", value: id).execute()
     }
 
     func setVersionLink(_ m: Mission, url: String) async throws {

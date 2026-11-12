@@ -58,6 +58,9 @@ private struct MissionDetail: View {
     @State private var editingVersion = false
     @State private var version = ""
     @State private var comments: [MissionComment] = []
+    /// Fil affiché : « all » (avec le client) ou « team » (équipe seulement).
+    @State private var thread = "all"
+    @State private var commentToDelete: MissionComment?
     @State private var newComment = ""
     /// Largeur de la fiche (transmise par PanelHost).
     @Environment(\.layoutWidth) private var sheetWidth
@@ -109,7 +112,7 @@ private struct MissionDetail: View {
                         if app.isTeam { versionCard }
                         if app.isTeam { VersionsHistory(mission: mission) }
                         briefCard
-                        if mission.client_id != nil { commentsCard }
+                        if mission.client_id != nil || app.isTeam { commentsCard }
                         sessionsCard
                         if app.isTeam { premiereLine }
                     } right: {
@@ -255,11 +258,36 @@ private struct MissionDetail: View {
         )
     }
 
+    private var currentThread: String { mission.client_id == nil ? "team" : thread }
+
+    private var seenBy: String {
+        let me = app.profile?.id
+        var names = data.memberIds(of: mission.id).filter { $0 != me }.compactMap { data.profile($0)?.firstName }
+        if !app.isAdmin { names.append("Gaston") }
+        var all = ["toi"] + names
+        if currentThread == "all" { all.append("le client") }
+        let list = all.count < 2 ? all.joined() : all.dropLast().joined(separator: ", ") + " et " + all.last!
+        return "Visible par \(list)." + (currentThread == "team" ? " Le client ne le voit pas." : "")
+    }
+
     private var commentsCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CardTitle(text: "Échanges avec le client") { Muted("\(comments.count)") }.padding(.bottom, 8)
-            if comments.isEmpty { Muted("Aucun message pour l'instant.").padding(.vertical, 6) }
-            ForEach(comments) { c in
+        let shown = comments.filter { $0.thread == currentThread }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Échanges").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                if app.isTeam && mission.client_id != nil {
+                    Picker("", selection: $thread) {
+                        Text("Avec le client · \(comments.filter { $0.thread == "all" }.count)").tag("all")
+                        Text("Équipe · \(comments.filter { $0.thread == "team" }.count)").tag("team")
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
+                }
+            }
+            .padding(.bottom, 4)
+            if app.isTeam { Muted(seenBy, size: 12).padding(.bottom, 8) }
+            if shown.isEmpty { Muted(currentThread == "team" ? "Aucun message d'équipe pour l'instant." : "Aucun message pour l'instant.").padding(.vertical, 6) }
+            ForEach(shown) { c in
                 Rectangle().fill(Theme.line).frame(height: 1)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -268,6 +296,14 @@ private struct MissionDetail: View {
                         if c.kind == "approve" { Tag(text: "Validé", color: Theme.green) }
                         if c.kind == "changes" { Tag(text: "Retours", color: Theme.amber) }
                         Muted(DateFmt.parse(c.created_at).map { DateFmt.relative($0) } ?? "", size: 11.5)
+                        Spacer(minLength: 0)
+                        if app.isAdmin || c.author == app.profile?.id {
+                            Button { commentToDelete = c } label: {
+                                Image(systemName: "trash").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                                    .frame(width: 22, height: 22).contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain).help("Supprimer ce message")
+                        }
                     }
                     Text(c.body).font(.system(size: 13.5)).foregroundStyle(Theme.text2).textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -275,20 +311,30 @@ private struct MissionDetail: View {
                 .padding(.vertical, 9)
             }
             HStack(spacing: 8) {
-                TextField("Écrire au client…", text: $newComment).input().onSubmit(sendComment)
+                TextField(currentThread == "team" ? "Message à l'équipe…" : "Écrire au client…", text: $newComment).input().onSubmit(sendComment)
                 Button("Envoyer", action: sendComment).buttonStyle(SecondaryButton())
                     .disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(.top, 10)
         }
         .card()
+        .confirmationDialog("Supprimer ce message ?", isPresented: Binding(get: { commentToDelete != nil }, set: { if !$0 { commentToDelete = nil } })) {
+            Button("Supprimer", role: .destructive) {
+                guard let c = commentToDelete else { return }
+                run {
+                    try await data.deleteComment(c.id)
+                    comments = await data.comments(for: mission.id)
+                    app.showToast("Message supprimé")
+                }
+            }
+        } message: { Text("Il disparaîtra pour tout le monde. C'est définitif.") }
     }
 
     private func sendComment() {
         let body = newComment.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
         run {
-            try await data.addComment(mission.id, body: body)
+            try await data.addComment(mission.id, body: body, audience: currentThread)
             newComment = ""
             comments = await data.comments(for: mission.id)
         }

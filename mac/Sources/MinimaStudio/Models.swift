@@ -486,6 +486,9 @@ struct MissionComment: Codable, Identifiable, Hashable {
     let body: String
     let kind: String
     let created_at: String
+    /// « all » : client + équipe ; « team » : monteurs + admin seulement.
+    var audience: String? = nil
+    var thread: String { audience ?? "all" }
 }
 
 struct AppSetting: Codable, Hashable { let key: String; let value: String? }

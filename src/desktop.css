@@ -33,3 +33,10 @@ body:has(#sheet-root .scrim) #tracker-root,body:has(#dialog-root .scrim) #tracke
   .tracker{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--spec),var(--sh2)}
   body.desktop main{padding-bottom:320px}
 }
+.tr-open{appearance:none;border:0;background:none;color:inherit;font:inherit;font-size:12.5px;font-weight:600;text-align:left;padding:0;cursor:pointer;border-radius:4px}
+.tr-open:hover{color:var(--blue,#4C8DFF);text-decoration:underline}
+.chrono-btn{display:inline-flex;align-items:center;gap:8px}
+.chrono-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chrono-btn.live{border-color:color-mix(in srgb,var(--green) 50%,transparent)}
+.chrono-btn.live .dot{background:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 25%,transparent)}
+.chrono-btn .chr{font-weight:600}

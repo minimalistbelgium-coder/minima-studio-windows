@@ -249,7 +249,7 @@ function renderCard() {
   const mine = S.missions.filter((m) => !['validated', 'paid', 'requested'].includes(m.status) && (S.me.role === 'admin' || window.MS.memberIds(m.id).includes(S.me.id)));
   const c = st.mission ? client(st.mission.client_id) : null;
   root.innerHTML = `<div class="tracker ${st.status}">
-    <div class="tr-head"><span class="dot" style="background:${col}"></span><span class="tr-title">${esc(st.mission ? `${c ? c.name + ' · ' : ''}${st.mission.title}` : 'Chrono')}</span>
+    <div class="tr-head"><span class="dot" style="background:${col}"></span>${st.mission ? `<button class="tr-title tr-open" data-tr="open" title="Ouvrir la fiche mission">${esc(`${c ? c.name + ' · ' : ''}${st.mission.title}`)} ›</button>` : '<span class="tr-title">Chrono</span>'}
       <button class="tr-icon" data-tr="mini" title="Mode mini" aria-label="Mode mini">⤢</button></div>
     <div class="tr-clock mono" style="color:${st.status === 'running' ? 'var(--green)' : 'var(--text)'}">${clock(totalSeconds())}</div>
     ${st.mission && st.budget ? `<div class="tr-stats"><div><span>À LA CLÉ</span><b style="color:var(--green)">${eur(st.budget)}</b></div><div><span>RATIO</span><b>${r ? eur(Math.round(r)) + ' / h' : '–'}</b></div></div>` : ''}
@@ -263,12 +263,15 @@ function renderCard() {
     ${st.showDiag ? `<div class="tr-diag">Premiere ouvert : ${st.premiereOpen ? 'oui' : 'non'}<br>Au premier plan : ${st.premiereFront ? 'oui' : 'non'}<br>Projet : ${esc(st.projectName || 'aucun')}<br>Titres lus :<br>${st.titles.map((t) => '· ' + esc(t)).join('<br>') || 'aucun'}<br>Version : ${esc(st.version)}</div>` : ''}
     ${updateBanner()}
   </div>`;
+  // Le bouton chrono de la fiche ouverte suit l'état du chrono.
+  const cb = document.querySelector('[data-start-chrono]'); if (cb) { cb.remove(); injectMissionButton(); }
 }
 
 async function onCardClick(e) {
   const b = e.target.closest('[data-tr]'); if (!b) return;
   const a = b.dataset.tr;
-  if (a === 'mini') await invoke('show_mini');
+  if (a === 'open' && st.mission) window.MS.openMission(st.mission.id);
+  else if (a === 'mini') await invoke('show_mini');
   else if (a === 'still') await answerAway(true);
   else if (a === 'away') await answerAway(false);
   else if (a === 'stop') await stopManual();
@@ -288,13 +291,19 @@ function injectMissionButton() {
   const m = S.missions.find((x) => x.id === S.openId);
   if (!m || ['validated', 'paid', 'requested'].includes(m.status)) return;
   const btn = document.createElement('button');
-  btn.className = 'btn'; btn.dataset.startChrono = '1'; btn.style.minHeight = '36px';
-  const running = st.manual && st.manualMission?.id === m.id;
-  btn.textContent = running ? 'Arrêter le chrono' : 'Démarrer le chrono';
+  btn.className = 'btn chrono-btn'; btn.dataset.startChrono = m.id; btn.style.minHeight = '36px';
+  const paint = () => {
+    const here = st.mission?.id === m.id; const manualHere = st.manual && st.manualMission?.id === m.id;
+    btn.classList.toggle('live', here && st.status === 'running');
+    btn.innerHTML = here ? `<span class="dot"></span><span class="mono chr">${clock(totalSeconds())}</span><span>${manualHere ? 'Arrêter' : 'Suivi Premiere'}</span>` : 'Démarrer le chrono';
+    btn.title = here ? (manualHere ? 'Arrêter le chrono' : 'Le chrono suit Premiere sur cette mission') : 'Compte le temps sur cette mission même hors de Premiere';
+  };
+  paint();
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (st.manual && st.manualMission?.id === m.id) await stopManual(); else await startManual(m);
-    btn.textContent = st.manual ? 'Arrêter le chrono' : 'Démarrer le chrono';
+    if (st.manual && st.manualMission?.id === m.id) await stopManual();
+    else if (st.mission?.id !== m.id) await startManual(m);
+    paint();
   });
   head.insertBefore(btn, head.querySelector('.x'));
 }
@@ -314,6 +323,7 @@ function publishMini() {
 }
 function renderClockOnly() {
   const el = document.querySelector('#tracker-root .tr-clock'); if (el) el.textContent = clock(totalSeconds());
+  const chr = document.querySelector(`[data-start-chrono="${st.mission?.id}"] .chr`); if (chr) chr.textContent = clock(totalSeconds());
 }
 
 // ---------- notifications Windows ----------

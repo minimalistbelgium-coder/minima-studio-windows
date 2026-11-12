@@ -346,6 +346,34 @@ function showTip(t, x) {
 const tipTarget = (e) => (e.target instanceof Element ? e.target.closest('[data-tip]') : null);
 document.addEventListener('pointermove', (e) => { if (e.pointerType === 'touch') return; const t = tipTarget(e); if (t) showTip(t, e.clientX); else if (tipFor) hideTip(); });
 document.addEventListener('pointerdown', (e) => { const t = tipTarget(e); if (t && e.pointerType === 'touch') showTip(t, e.clientX); else if (!t) hideTip(); });
+// Au doigt : glisser sur une courbe fait suivre l'infobulle et le repère, colonne par colonne.
+// Le défilement vertical reste libre (touch-action: pan-y sur .ch-cols) ; seul le geste horizontal pilote le graphique.
+let scrub = null;
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  const cols = e.target instanceof Element && e.target.closest('.ch-cols'); if (!cols) return;
+  scrub = { cols, x0: e.clientX, moved: false, id: e.pointerId };
+}, { capture: true });
+document.addEventListener('pointermove', (e) => {
+  if (!scrub || e.pointerId !== scrub.id) return;
+  if (Math.abs(e.clientX - scrub.x0) > 6) scrub.moved = true;
+  const r = scrub.cols.getBoundingClientRect(); const kids = scrub.cols.children; if (!kids.length) return;
+  const i = Math.max(0, Math.min(kids.length - 1, Math.floor(((e.clientX - r.left) / r.width) * kids.length)));
+  const col = kids[i];
+  if (col.dataset.tip) showTip(col, Math.max(r.left, Math.min(r.right, e.clientX)));
+  if (tipFor === col && col !== scrub.last) { scrub.last = col; navigator.vibrate?.(4); }
+}, { passive: true });
+const endScrub = (e) => {
+  if (!scrub || e.pointerId !== scrub.id) return;
+  // Après un glissé, on n'ouvre pas la colonne sous le doigt (le clic qui suit est ignoré).
+  if (scrub.moved) {
+    const eat = (c) => { c.stopPropagation(); c.preventDefault(); };
+    document.addEventListener('click', eat, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener('click', eat, { capture: true }), 350);
+  }
+  scrub = null;
+};
+document.addEventListener('pointerup', endScrub); document.addEventListener('pointercancel', (e) => { if (scrub && e.pointerId === scrub.id) scrub = null; });
 document.addEventListener('focusin', (e) => { const t = tipTarget(e); if (t && t.matches(':focus-visible')) showTip(t); });
 document.addEventListener('focusout', (e) => { if (tipFor && e.target === tipFor) hideTip(); });
 document.documentElement.addEventListener('mouseleave', hideTip);
@@ -417,7 +445,7 @@ function financeBreakdown(list) {
   });
   return { byClient, byEditor };
 }
-function financeCharts(mo, list) {
+function financeCharts(mo, list, part = 'all') {
   const nowM = startOfMonth(new Date());
   const diff = (mo.getFullYear() - nowM.getFullYear()) * 12 + mo.getMonth() - nowM.getMonth();
   const end = diff > 0 || diff < -11 ? mo : nowM;
@@ -449,8 +477,10 @@ function financeCharts(mo, list) {
     tip: tipHtml(r.p?.full_name || firstName(r.p), [['Reversé', eur(Math.round(r.amount))], ['Temps de montage', hm(r.secs)], ['Taux horaire', rate(r) || '–'], ['Missions', String(r.n)]]) })).join('');
   const period = year ? `${monthShort(from)} ${from.getFullYear()} à ${monthShort(end)} ${end.getFullYear()}` : monthLong(mo);
   const seg = `<div class="seg mini"><button class="${year ? '' : 'on'}" data-set="finRange:month">Ce mois</button><button class="${year ? 'on' : ''}" data-set="finRange:year">12 mois</button></div>`;
-  return `<div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>Évolution sur 12 mois</h2><div class="lbl">Montants HTVA par mois. Choisis un mois sur la courbe pour voir son détail.</div></div>
-      <div class="ch-legend"><span class="lbl">Total</span>${SER.map(([t, c, k]) => `<span><i style="--c:${c}"></i>${t}<b>${eur(Math.round(sum(k)))}</b></span>`).join('')}</div></div>${evo}</div>
+  const evoCard = `<div class="card" id="fin-evo" style="margin-bottom:16px"><div class="ch-head"><div><h2>Évolution sur 12 mois</h2><div class="lbl">Montants HTVA par mois. Choisis un mois sur la courbe pour voir son détail.</div></div>
+      <div class="ch-legend"><span class="lbl">Total</span>${SER.map(([t, c, k]) => `<span><i style="--c:${c}"></i>${t}<b>${eur(Math.round(sum(k)))}</b></span>`).join('')}</div></div>${evo}</div>`;
+  if (part === 'evo') return evoCard;
+  return `${part === 'all' ? evoCard : ''}
   <div class="cols even" id="fin-charts">
     <div class="card"><div class="ch-head"><div><h2>Par client</h2><div class="lbl">Facturé · ${esc(period)}</div></div>${seg}</div>${share}<div class="bars">${clRows || emptyArt('Aucune mission sur cette période.')}</div></div>
     <div class="card"><div class="ch-head"><div><h2>Par monteur</h2><div class="lbl">Pour les monteurs · ${esc(period)}</div></div>${seg}</div><div class="bars">${edRows || emptyArt('Pas encore de temps enregistré.')}</div></div>
@@ -616,8 +646,7 @@ function cashCard(mo) {
 }
 function payoutsSection(mo) {
   const people = payees().filter((p) => statement(p.id, mo).total || paymentOf(p.id, mo));
-  return `${cashCard(mo)}
-  <div class="section-h" id="payouts"><h2>Paiement des monteurs · ${esc(monthName(mo))}</h2><span class="lbl">Ce que chacun doit te facturer pour le mois</span></div>
+  return `<div class="section-h" id="payouts" style="margin-top:0"><h2>Paiement des monteurs · ${esc(monthName(mo))}</h2><span class="lbl">Ce que chacun doit te facturer pour le mois</span></div>
   ${people.length ? `<div class="cols even inv-grid">${people.map((p) => invoiceCard(p.id, mo, { admin: true })).join('')}</div>` : `<div class="card"><div class="empty">Aucune mission à payer aux monteurs pour ${esc(monthName(mo))}.</div></div>`}`;
 }
 // Texte à coller dans une facture ou un tableur (tabulations, montants en chiffres).
@@ -693,6 +722,7 @@ function doJump(D) {
   if (D.jfilter) { S.filter = D.jfilter; S.search = ''; }
   if (D.jclient !== undefined) S.clientFilter = D.jclient;
   S.finToBill = D.jtobill ? '1' : '';
+  if (route === 'finance') S.finTab = !anchor ? S.finTab : anchor === 'fin-missions' ? 'missions' : anchor.startsWith('payout') ? 'payouts' : anchor === 'fin-charts' ? 'charts' : 'overview';
   const same = S.route === route; S.route = route; render(!same);
   requestAnimationFrame(() => {
     const el = anchor && (document.getElementById(anchor) || (anchor.startsWith('payout-') && document.getElementById('payouts')));
@@ -751,21 +781,37 @@ function homeAdmin() {
     ${stat('En cours', String(open.length), late ? `${late} en retard` : 'Tout est à l’heure', late ? 'var(--red)' : 'var(--green)', jump('projects', '', { filter: 'open', client: '' }))}
   </div>
   <div class="cols">
-    <div class="wide stack">
-      <div class="card flush"><div class="card-head"><h2>À faire</h2>${pill(todo.length ? `${todo.length} action${todo.length > 1 ? 's' : ''}` : 'Rien en attente', todo.length ? '#F5A524' : '#3DD68C')}</div>
-        <div class="list">${todo.slice(0, 8).map((t) => todoRow(t)).join('') || '<div class="empty">Tout est à jour. Rien ne demande ton attention.</div>'}</div></div>
-      <div class="card flush"><div class="card-head"><h2>En cours</h2><button class="btn sm" data-go="projects">Tout voir</button></div><div class="list">${open.filter((m) => !isDelivered(m)).slice(0, 6).map((m) => missionRow(m)).join('') || '<div class="empty">Aucune mission en cours.</div>'}</div></div>
-    </div>
-    <div class="narrow stack">${owed ? `<div class="card next nudge" style="--c:#F5A524"><div class="lbl">Fin de mois</div><div style="margin:4px 0 10px">${eur(Math.round(owed))} à payer aux monteurs</div><button class="btn sm pri" data-go="finance" data-gomonth="${ymd(prev)}">Voir les paiements</button></div>` : ''}${upcomingCard()}${claudeCard()}${liveCard()}</div>
+    <div class="wide stack">${todoCard(todo)}</div>
+    <div class="narrow stack">${upcomingCard(3)}</div>
   </div>
-  ${hoursCard(team(), 'Heures par jour')}`;
+  ${teamFold()}`;
 }
-function upcomingCard() {
-  const from = new Date(); from.setHours(0, 0, 0, 0); const to = addDays(from, 7);
+// À faire : les 3 plus urgents, le reste derrière « voir les autres ».
+function todoCard(todo) {
+  const all = S.todoAll === '1'; const shown = all ? todo : todo.slice(0, 3); const more = todo.length - shown.length;
+  return `<div class="card flush"><div class="card-head"><h2>À faire</h2>${pill(todo.length ? `${todo.length} action${todo.length > 1 ? 's' : ''}` : 'Rien en attente', todo.length ? '#F5A524' : '#3DD68C')}</div>
+    <div class="list">${shown.map((t) => todoRow(t)).join('') || '<div class="empty">Tout est à jour. Rien ne demande ton attention.</div>'}</div>
+    ${more > 0 ? `<button class="more-btn" data-set="todoAll:1">Voir ${more === 1 ? "l'autre action" : `les ${more} autres`}</button>` : all && todo.length > 3 ? '<button class="more-btn" data-set="todoAll:">Réduire</button>' : ''}</div>`;
+}
+// Équipe : un résumé d'une ligne, le détail (en direct, Claude, heures) se déplie.
+function teamFold() {
+  const open = store.get('ms-team-open') === '1';
+  const live = liveSessions(); const ppl = team();
+  const now = live.map((x) => { const p = profile(x.user_id); const m = mission(x.mission_id); return p ? `${esc(firstName(p))}${m ? ` sur ${esc(m.title)}` : ''}` : ''; }).filter(Boolean);
+  const ws = startOfWeek(new Date());
+  const week = S.sessions.filter((x) => d(x.started_at) >= ws).reduce((a, x) => a + (x.duration_sec || 0), 0);
+  const sum = now.length ? `<span style="color:var(--green)">● ${now.join(' · ')}</span>` : 'Personne en montage en ce moment';
+  return `<section class="fold ${open ? 'open' : ''}">
+    <button class="fold-head" data-act="toggleteam" aria-expanded="${open}"><span class="av-stack">${ppl.slice(0, 4).map((p) => avatar(p, 26)).join('')}</span>
+      <span class="grow"><b>Équipe</b><span class="lbl">${sum} · ${hm(week)} cette semaine</span></span><span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button>
+    ${open ? `<div class="fold-body"><div class="cols"><div class="wide stack">${hoursCard(ppl, 'Heures par jour')}</div><div class="narrow stack">${liveCard()}${claudeCard()}</div></div></div>` : ''}</section>`;
+}
+function upcomingCard(days = 7) {
+  const from = new Date(); from.setHours(0, 0, 0, 0); const to = addDays(from, days);
   const list = S.missions.filter((m) => { const x = d(m.deadline); return x && x >= from && x < to && isOpen(m) && m.status !== 'requested'; });
   const byDay = {}; list.forEach((m) => { (byDay[ymd(d(m.deadline))] ||= []).push(m); });
   const rows = Object.keys(byDay).sort().map((k) => `<div class="day-h">${esc(dayName(fromYmd(k)))}</div>${byDay[k].sort((a, b) => d(a.deadline) - d(b.deadline)).map((m) => evRow(m, true)).join('')}`).join('');
-  return `<div class="card"><div class="card-head"><h2>7 prochains jours</h2><button class="btn sm" data-go="agenda">Agenda</button></div>${rows || '<div class="empty" style="padding:6px 0">Aucune deadline cette semaine.</div>'}</div>`;
+  return `<div class="card"><div class="card-head"><h2>${days === 3 ? 'Les 3 prochains jours' : `${days} prochains jours`}</h2><button class="btn sm" data-go="agenda">Agenda</button></div>${rows || '<div class="empty" style="padding:6px 0">Aucune deadline cette semaine.</div>'}</div>`;
 }
 function dayName(x) {
   if (isToday(x)) return "Aujourd'hui";
@@ -971,18 +1017,22 @@ function financePage() {
     return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span>
       <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${p ? eur(p) : 'prix à renseigner'} → ${eur(Math.round(pay))}</div></div>
       <div class="mono" style="flex-shrink:0;font-weight:600;color:${p == null ? 'var(--muted)' : p - pay >= 0 ? 'var(--green)' : 'var(--red)'}">${p == null ? '–' : eur(Math.round(p - pay))}</div>
-      ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Client facturé` : 'Facturer le client'}</button>` : ''}</div>`;
+      ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}<span class="lg-only">Client facturé</span><span class="sm-only">Facturé</span>` : 'Facturer<span class="lg-only"> le client</span>'}</button>` : ''}</div>`;
   }).join('');
-  return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}
-  <div class="grid">
+  const tab = S.finTab || 'overview';
+  const TABS = [['overview', 'Résumé', ''], ['missions', 'Missions', toBill.length ? `<span class="tb-n" title="${toBill.length} à facturer">${toBill.length}</span>` : ''], ['payouts', 'Monteurs', ''], ['charts', 'Graphiques', '']];
+  const tabs = `<div class="tabs-bar" role="tablist">${TABS.map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="finTab:${k}">${esc(l)}${n}</button>`).join('')}</div>`;
+  let body = '';
+  if (tab === 'overview') body = `<div class="grid">
     ${stat('Facturé aux clients', eur(billed), `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`, undefined, jump('finance', 'fin-missions'))}
     ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '', undefined, jump('finance', 'payouts'))}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)', jump('finance', 'fin-charts'))}
     ${stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
-  </div>
-  ${payoutsSection(mo)}
-  ${financeCharts(mo, list)}
-  <div class="card flush" id="fin-missions"><div class="card-head"><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
+  </div>${cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
+  else if (tab === 'missions') body = `<div class="card flush" id="fin-missions"><div class="card-head"><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
+  else if (tab === 'payouts') body = payoutsSection(mo);
+  else body = financeCharts(mo, list, 'split');
+  return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
 }
 function monthSeg(mo) {
   const label = cap(mo.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' }));
@@ -1117,7 +1167,7 @@ function notifsPage() {
   const groups = {}; const t0 = new Date(); t0.setHours(0, 0, 0, 0);
   S.notifs.forEach((n) => { const x = d(n.created_at); const k = x >= t0 ? "Aujourd'hui" : x >= addDays(t0, -1) ? 'Hier' : x >= addDays(t0, -7) ? 'Cette semaine' : 'Plus tôt'; (groups[k] ||= []).push(n); });
   const body = Object.entries(groups).map(([k, l]) => `<div class="day-h">${k}</div>${l.map((n) => `
-    <div class="item ${n.read_at ? '' : 'unread'}" role="button" tabindex="0" data-notif="${n.id}" ${n.mission_id && mission(n.mission_id) ? `data-open="${n.mission_id}"` : ''}><span class="dot" style="background:${KIND_COLOR[n.kind] || '#8B8D94'};opacity:${n.read_at ? 0.35 : 1}"></span>
+    <div class="item ${n.read_at ? '' : 'unread'}" role="button" tabindex="0" data-notif="${n.id}" data-nkind="${n.kind}" ${n.mission_id && mission(n.mission_id) ? `data-open="${n.mission_id}"` : ''}><span class="dot" style="background:${KIND_COLOR[n.kind] || '#8B8D94'};opacity:${n.read_at ? 0.35 : 1}"></span>
       <div class="grow"><div class="t" style="white-space:normal">${esc(n.title)}</div><div class="s" style="white-space:normal">${esc(n.body || '')}${n.body ? ' · ' : ''}${relative(d(n.created_at))}</div></div></div>`).join('')}`).join('');
   return `${header(unread() ? `${unread()} non lue${unread() > 1 ? 's' : ''}` : 'Tout est lu', 'Activité', unread() ? '<button class="btn" data-act="readall">Tout marquer lu</button>' : '')}${pushCard()}
   <div class="card flush"><div class="list">${body || '<div class="empty">Rien de neuf.</div>'}</div></div>`;
@@ -1164,8 +1214,9 @@ function teamPage() {
 // ---------- feuilles ----------
 function setSheet(sheet) { S.sheet = sheet; S.openId = sheet?.type === 'mission' && sheet.mode === 'view' ? sheet.id : null; }
 function openSheet(sheet) { setSheet(sheet); renderSheet(); }
-function openMission(id, mode = 'view') {
+function openMission(id, mode = 'view', tab = 'infos') {
   if (!mission(id)) return;
+  if (S.sheet?.type !== 'mission' || S.sheet.id !== id) S.mTab = tab; else if (tab !== 'infos') S.mTab = tab;
   if (!S.comments[id]) loadComments(id);
   openSheet({ type: 'mission', id, mode });
 }
@@ -1415,27 +1466,30 @@ function teamDetail(m) {
         <div class="kv"><span>Ton taux horaire</span><span class="mono">${me && me.secs >= 300 ? `${eur(Math.round(me.amount / (me.secs / 3600)))}/h` : '–'}</span></div></div>`;
   const vs = S.versions[m.id] || [];
   const dep = S.settings.delivery_link;
-  return `${isAdmin() ? `<div class="acts"><button class="btn sm" data-act="edit" data-id="${m.id}">${small(I.edit)}Modifier</button><button class="btn sm" data-act="duplicate" data-id="${m.id}">${small(I.copy)}Dupliquer</button><button class="btn sm danger" data-act="delete" data-id="${m.id}">${small(I.trash)}Supprimer</button></div>` : ''}
-  <div class="stack">
-  ${step ? `<div class="card next" style="--c:${statusColor(m.status)}"><div class="next-in"><div><div class="lbl">Prochaine étape</div><div style="margin-top:4px">${esc(step[0])}</div></div><div class="row" style="flex-wrap:wrap">${step[1]}</div></div></div>` : ''}
-  ${timeStrip(m)}
-  ${stepsHtml(m, labels)}
-  <div class="cols" style="margin:0"><div class="wide stack">
-    <div class="cols" style="margin:0">${linkBlock('Rushes', m.rushes_url, 'Télécharger les rushes', '#4C8DFF', isAdmin(), 'rushes')}
+  const linksH = `    <div class="cols" style="margin:0">${linkBlock('Rushes', m.rushes_url, 'Télécharger les rushes', '#4C8DFF', isAdmin(), 'rushes')}
       <div class="card" style="flex:1 1 240px"><div class="card-head" style="margin-bottom:10px"><h2>Versions</h2><span class="lbl">${vs.length || ''}</span></div>
         ${versionsList(m) || '<div class="lbl" style="min-height:44px;display:flex;align-items:center">Aucune version livrée.</div>'}
         <form data-link="delivery" style="display:flex;gap:8px;margin-top:10px"><input class="in" name="url" type="url" placeholder="Lien d'une nouvelle version" aria-label="Lien d'une nouvelle version" style="min-height:40px"><button class="btn" type="submit" style="min-height:40px">OK</button></form>
-        ${dep ? `<a class="lnk" href="${esc(dep)}" target="_blank" rel="noopener">Déposer mon montage ↗</a>` : ''}</div></div>
-    ${m.brief ? `<div class="card"><h2 style="margin-bottom:10px">Brief</h2><div class="brief">${esc(m.brief)}</div></div>` : ''}
-    <div class="card"><div class="card-head"><h2>${isAdmin() ? 'Sessions' : 'Mes sessions'}</h2><span class="lbl mono">${hm(ses.reduce((a, s) => a + (s.duration_sec || 0), 0))}</span></div>
+        ${dep ? `<a class="lnk" href="${esc(dep)}" target="_blank" rel="noopener">Déposer mon montage ↗</a>` : ''}</div></div>`;
+  const briefH = `    ${m.brief ? `<div class="card"><h2 style="margin-bottom:10px">Brief</h2><div class="brief">${esc(m.brief)}</div></div>` : ''}`;
+  const sessionsH = `    <div class="card"><div class="card-head"><h2>${isAdmin() ? 'Sessions' : 'Mes sessions'}</h2><span class="lbl mono">${hm(ses.reduce((a, s) => a + (s.duration_sec || 0), 0))}</span></div>
       ${(S.allSes === m.id ? ses : ses.slice(0, 10)).map((s) => `<div class="kv"><span class="row">${avatar(profile(s.user_id), 22)}${esc(s.user_id === S.me.id ? 'Toi' : firstName(profile(s.user_id)))}</span><span class="lbl">${fmtDay(d(s.started_at))} ${fmtTime(d(s.started_at))}</span><span class="row" style="gap:4px"><span class="mono" style="${(s.duration_sec || 0) < MIN_SPLIT_SECS ? 'color:var(--muted)' : ''}">${(s.duration_sec || 0) < 60 ? `${s.duration_sec || 0} s` : hm(s.duration_sec)}</span>${isAdmin() ? `<button class="x sm" data-act="delsession" data-id="${s.id}" aria-label="Supprimer cette session" title="Supprimer cette session">×</button>` : ''}</span></div>`).join('') || '<div class="empty">Aucune session.</div>'}
       ${ses.length > 10 && S.allSes !== m.id ? `<button class="lnk-btn" style="margin:8px 0 0" data-act="allsessions" data-id="${m.id}">Voir les ${ses.length - 10} autres sessions</button>` : ''}
-      ${isAdmin() ? '<p class="hint" style="margin-top:10px">Une session de moins de 2 minutes (mission ouverte par erreur) ne compte pas dans la répartition. Tu peux aussi supprimer une session avec la croix.</p>' : ''}</div>
-    ${commentsCard(m)}
-  </div><div class="narrow stack">
-    <div class="card">${statusMenu}${m.status !== 'requested' ? `<div class="lbl" style="margin-top:14px">Facturée par le monteur en</div><div style="margin-top:6px">${billMonth(m) ? esc(cap(monthName(billMonth(m)))) : '<span class="lbl">au mois de sa livraison</span>'}${isAdmin() && m.bill_month ? ' <span class="lbl">(choisi à la main)</span>' : ''}</div>` : ''}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>
-    ${right}
-  </div></div></div>`;
+      ${isAdmin() ? '<p class="hint" style="margin-top:10px">Une session de moins de 2 minutes (mission ouverte par erreur) ne compte pas dans la répartition. Tu peux aussi supprimer une session avec la croix.</p>' : ''}</div>`;
+  const statusH = `    <div class="card">${statusMenu}${m.status !== 'requested' ? `<div class="lbl" style="margin-top:14px">Facturée par le monteur en</div><div style="margin-top:6px">${billMonth(m) ? esc(cap(monthName(billMonth(m)))) : '<span class="lbl">au mois de sa livraison</span>'}${isAdmin() && m.bill_month ? ' <span class="lbl">(choisi à la main)</span>' : ''}</div>` : ''}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>`;
+  // Fiche en onglets : Infos (avancement, fichiers, brief, statut) · Messages · Temps et argent.
+  const tab = S.mTab || 'infos'; const nMsg = (S.comments[m.id] || []).length;
+  const TABS = [['infos', 'Infos', ''], ['messages', 'Messages', nMsg ? `<span class="tb-c">${nMsg}</span>` : ''], ['time', isAdmin() ? 'Temps et répartition' : 'Temps et gains', '']];
+  const tabsH = `<div class="tabs-bar sheet-tabs" role="tablist">${TABS.map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-mtab="${k}">${esc(l)}${n}</button>`).join('')}</div>`;
+  const bodyH = tab === 'messages' ? commentsCard(m)
+    : tab === 'time' ? `${timeStrip(m)}<div class="cols" style="margin:0"><div class="wide stack">${sessionsH}</div><div class="narrow stack">${right}</div></div>`
+    : `${stepsHtml(m, labels)}<div class="cols" style="margin:0"><div class="wide stack">${linksH}${briefH}</div><div class="narrow stack">${statusH}</div></div>`;
+  return `${isAdmin() ? `<div class="acts"><button class="btn sm" data-act="edit" data-id="${m.id}">${small(I.edit)}Modifier</button><button class="btn sm" data-act="duplicate" data-id="${m.id}">${small(I.copy)}Dupliquer</button><button class="btn sm danger" data-act="delete" data-id="${m.id}">${small(I.trash)}Supprimer</button></div>` : ''}
+  <div class="stack">
+  ${step ? `<div class="card next" style="--c:${statusColor(m.status)}"><div class="next-in"><div><div class="lbl">Prochaine étape</div><div style="margin-top:4px">${esc(step[0])}</div></div><div class="row" style="flex-wrap:wrap">${step[1]}</div></div></div>` : ''}
+  ${tabsH}
+  <div class="tab-body stack">${bodyH}</div>
+  </div>`;
 }
 
 // Formulaire commun : nouvelle mission, modification, acceptation d'une demande.
@@ -1538,6 +1592,7 @@ async function setStatus(m, s) {
   await offerNotifyClient(m, s);
 }
 const ACTIONS = {
+  toggleteam() { store.set('ms-team-open', store.get('ms-team-open') === '1' ? '0' : '1'); render(); },
   newmission: (t) => { const preset = t.dataset.day ? { deadline: new Date(`${t.dataset.day}T18:00`).toISOString() } : null; openSheet({ type: 'new', preset }); },
   newclient: () => openSheet({ type: 'client', id: null }),
   account: () => openSheet({ type: 'account' }),
@@ -1674,20 +1729,26 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-jump],[data-set],[data-thread]');
+  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-jump],[data-set],[data-thread],[data-mtab]');
   if (!t) return;
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
   try {
     if (D.jump) doJump(D);
-    else if (D.go) { closeSheet(); S.finToBill = ''; if (D.gomonth) S.month = fromYmd(D.gomonth); const same = S.route === D.go; S.route = D.go; render(!same); if (!same) window.scrollTo(0, 0); }
-    else if (D.notif) { if (D.open) openMission(D.open); markRead(D.open || null, D.notif); }
+    else if (D.go) {
+      const hadSheet = !!S.sheet; closeSheet(); S.finToBill = ''; if (D.gomonth) S.month = fromYmd(D.gomonth);
+      const same = S.route === D.go; S.route = D.go; render(!same);
+      // Re-toucher l'onglet de la page en cours remonte tout en haut (comme sur iOS).
+      if (!same) window.scrollTo(0, 0); else if (!hadSheet && !D.gomonth) window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+    else if (D.notif) { if (D.open) openMission(D.open, 'view', D.nkind === 'comment' || D.nkind === 'client' ? 'messages' : 'infos'); markRead(D.open || null, D.notif); }
     else if (D.open) { openMission(D.open); markRead(D.open); }
     else if (D.hweek) { S.hoursWeek = Math.min(0, S.hoursWeek + Number(D.hweek)); render(); }
     else if (t.hasAttribute('data-close')) closeSheet();
     else if (D.act && ACTIONS[D.act]) { e.preventDefault(); await ACTIONS[D.act](t); }
     else if (D.filter) { S.filter = D.filter; S.clientFilter = ''; render(); }
     else if (D.client !== undefined && t.classList.contains('chip')) { S.clientFilter = D.client; render(); }
+    else if (D.mtab) { S.mTab = D.mtab; keepFields(sheetRoot, () => renderSheet(true)); sheetRoot.querySelector('.sheet')?.scrollTo({ top: 0 }); }
     else if (D.thread) { const [mid, aud] = D.thread.split(':'); S.thread[mid] = aud; keepFields(sheetRoot, () => renderSheet(true)); }
     else if (D.month) { S.month = new Date(S.month.getFullYear(), S.month.getMonth() + Number(D.month), 1); render(); }
     else if (D.pick) { t.classList.toggle('on'); t.setAttribute('aria-pressed', t.classList.contains('on')); }

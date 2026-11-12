@@ -148,16 +148,7 @@ private struct MissionDetail: View {
                         run { try await data.editorSetStatus(mission, s); app.showToast("Statut envoyé à l'admin") }
                     }
                 }
-                if app.isTeam && (app.isAdmin || data.memberIds(of: mission.id).contains(me)) {
-                    if tracker.manual && tracker.mission?.id == mission.id {
-                        Button("Arrêter le chrono") { Task { @MainActor in await tracker.stopManual() } }
-                            .buttonStyle(SecondaryButton(danger: true))
-                    } else {
-                        Button("Démarrer le chrono") { Task { @MainActor in await tracker.startManual(mission) } }
-                            .buttonStyle(SecondaryButton())
-                            .help("Compte le temps sur cette mission même hors de Premiere")
-                    }
-                }
+                // Le chrono est maintenant dans la fiche (MissionChronoCard).
                 if busy { ProgressView().controlSize(.small) }
                 Spacer(minLength: 0)
                 Button("Fermer", action: onClose).buttonStyle(SecondaryButton()).keyboardShortcut(.cancelAction)

@@ -438,7 +438,7 @@ private struct MissionDetail: View {
     }
 
     private var weightLabel: String {
-        let w = mission.admin_weight ?? 1.5
+        let w = mission.admin_weight ?? 1.2
         return w.rounded() == w ? "\(Int(w))" : String(format: "%.1f", w).replacingOccurrences(of: ".", with: ",")
     }
 
@@ -492,7 +492,8 @@ private struct MissionDetail: View {
             let h = TimeFmt.hm(r.seconds)
             return data.profile(r.user_id)?.role == "admin" ? "\(h) × \(weightLabel)" : h
         }
-        return "Répartition au temps : " + parts.joined(separator: " + ") + ". Ton temps de retouche compte × \(weightLabel)."
+        let base = "Répartition au temps : " + parts.joined(separator: " + ") + ". Ton temps compte × \(weightLabel)."
+        return (mission.margin_split ?? true) ? base + " Ta part se prend d'abord sur ta marge : celle du monteur ne baisse que si tu la dépasses." : base
     }
 
     private func myShareCard(_ rows: [SplitRow], me: String) -> some View {
@@ -508,7 +509,7 @@ private struct MissionDetail: View {
                bold: true, color: Theme.green)
             kv(dot: nil, "Ton temps", TimeFmt.hm(secs))
             kv(dot: nil, "Ton taux horaire", rate.map { "\(Money.eur($0.rounded())) / h" } ?? "–")
-            Muted("Si tu montes seul, tu touches tout le budget. Si Gaston fait des retouches, son temps compte × \(weightLabel).", size: 12)
+            Muted((mission.margin_split ?? true) ? "Si tu montes seul, tu touches tout le budget. Si Gaston travaille aussi dessus, c'est d'abord pris sur sa marge, pas sur ta part." : "Si tu montes seul, tu touches tout le budget. Si Gaston fait des retouches, son temps compte × \(weightLabel).", size: 12)
                 .padding(.top, 10).fixedSize(horizontal: false, vertical: true)
         }
         .card()

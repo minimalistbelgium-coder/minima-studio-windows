@@ -307,7 +307,7 @@ private struct InvoicedButton: View {
             HStack(spacing: 5) {
                 Image(systemName: on ? "checkmark.circle.fill" : "doc.text")
                     .font(.system(size: 11, weight: .semibold))
-                Text(on ? "Facturée" : "À facturer").font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+                Text(on ? "Client facturé" : "Facturer le client").font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
             }
             .fixedSize()
             .foregroundStyle(on ? Theme.green : Theme.amber)

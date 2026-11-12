@@ -137,6 +137,8 @@ struct Mission: Codable, Identifiable, Hashable {
     var delivery_url: String? = nil
     /// Claude est choisi comme monteur de cette mission (défini par l'admin).
     var claude_editor: Bool? = nil
+    /// Depuis novembre 2026 : la part de l'admin se prend d'abord sur sa marge.
+    var margin_split: Bool? = nil
     /// Mois où le monteur facture la mission (« 2026-10-01 »), choisi par l'admin. Vide : mois de la première livraison.
     var bill_month: String? = nil
 
@@ -400,6 +402,15 @@ struct SessionHeartbeat: Encodable {
     let ended_at: String
     let duration_sec: Int
     let live: Bool
+}
+
+/// Répartition calculée par la base (visible_splits) pour toutes les missions visibles.
+struct VisibleSplitRow: Codable, Hashable {
+    let mission_id: String
+    let user_id: String
+    let seconds: Double?
+    let percent: Double?
+    let amount: Double?
 }
 
 struct MySplitRow: Codable, Hashable {

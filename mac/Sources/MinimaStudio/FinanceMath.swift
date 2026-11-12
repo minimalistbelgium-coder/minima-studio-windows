@@ -91,13 +91,18 @@ extension DataStore {
         var sums: [String: Double] = [:], secs: [String: Double] = [:]
         for m in list {
             let budget = m.editor_budget ?? 0
+            // Répartition de la base (règle de la marge depuis novembre 2026) quand elle existe.
+            if let srv = serverSplits[m.id], !srv.isEmpty {
+                for r in srv { sums[r.user_id, default: 0] += r.amount ?? 0; secs[r.user_id, default: 0] += r.seconds ?? 0 }
+                continue
+            }
             var time: [String: Double] = [:]
             for s in byMission[m.id] ?? [] { time[s.user_id, default: 0] += Double(s.duration_sec ?? 0) }
             time = DataStore.dropTiny(time)
             for (u, t) in time { secs[u, default: 0] += t }
             let shared = time.count > 1
             var weighted: [String: Double] = [:]
-            for (u, t) in time { weighted[u] = t * ((shared && roles[u] == "admin") ? (m.admin_weight ?? 1.5) : 1) }
+            for (u, t) in time { weighted[u] = t * ((shared && roles[u] == "admin") ? (m.admin_weight ?? 1.2) : 1) }
             let total = weighted.values.reduce(0, +)
             if total > 0 {
                 for (u, w) in weighted { sums[u, default: 0] += budget * w / total }

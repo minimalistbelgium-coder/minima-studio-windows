@@ -32,6 +32,8 @@ final class DataStore: ObservableObject {
     @Published var payments: [EditorPayment] = []
     /// Factures que les monteurs ont indiqué avoir envoyées.
     @Published var invoices: [EditorInvoice] = []
+    /// Répartition serveur par mission (règle de la marge, sessions < 2 min ignorées).
+    @Published var serverSplits: [String: [SplitRow]] = [:]
 
     /// Sessions de travail visibles (toutes pour l'admin, celles de ses missions pour un monteur).
     @Published var sessions: [WorkSession] = []
@@ -76,6 +78,12 @@ final class DataStore: ObservableObject {
             }
             sessions = (try? await supa.from("sessions").select()
                 .order("started_at", ascending: false).limit(4000).execute().value) ?? []
+            do {
+                let vs: [VisibleSplitRow] = (try? await supa.rpc("visible_splits").execute().value) ?? []
+                serverSplits = Dictionary(grouping: vs, by: \.mission_id).mapValues { rows in
+                    rows.map { SplitRow(user_id: $0.user_id, seconds: $0.seconds, weighted: nil, percent: $0.percent, amount: $0.amount) }
+                }
+            }
             await loadNotifications()
             let st: [AppSetting] = (try? await supa.from("app_settings").select().execute().value) ?? []
             deliveryLink = st.first { $0.key == "delivery_link" }?.value
@@ -306,12 +314,13 @@ final class DataStore: ObservableObject {
 
     /// Même règle que la base : l'admin compte ×1,5 seulement s'il partage la mission avec quelqu'un.
     func localSplit(_ m: Mission) -> [SplitRow] {
+        if let srv = serverSplits[m.id], !srv.isEmpty { return srv.sorted { ($0.amount ?? 0) > ($1.amount ?? 0) } }
         var byUser: [String: Double] = [:]
         for s in sessions(for: m.id) { byUser[s.user_id, default: 0] += Double(s.duration_sec ?? 0) }
         byUser = Self.dropTiny(byUser)
         let shared = byUser.count > 1
         let weighted = byUser.map { uid, secs -> (String, Double, Double) in
-            let w = (shared && profile(uid)?.role == "admin") ? (m.admin_weight ?? 1.5) : 1
+            let w = (shared && profile(uid)?.role == "admin") ? (m.admin_weight ?? 1.2) : 1
             return (uid, secs, secs * w)
         }
         let total = weighted.map { $0.2 }.reduce(0, +)

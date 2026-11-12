@@ -382,7 +382,7 @@ final class Tracker: ObservableObject {
     private func loadBaseline(for m: Mission) async {
         guard let data, let userId else { return }
         budget = m.editor_budget ?? 0
-        myWeight = isAdminUser ? (m.admin_weight ?? 1.5) : 1
+        myWeight = isAdminUser ? (m.admin_weight ?? 1.2) : 1
         let rows = await data.split(for: m.id)
         baseSeconds = rows.first { $0.user_id == userId }?.seconds ?? 0
         othersWeighted = rows.filter { $0.user_id != userId }.compactMap(\.weighted).reduce(0, +)

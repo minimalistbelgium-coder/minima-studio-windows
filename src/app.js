@@ -390,7 +390,7 @@ function lineChart({ labels, series, tips = [], sel = -1, attrs = () => '', cls 
 }
 // Barre horizontale : libellé, valeur et jauge. Le texte reste en encre neutre, seule la jauge porte la couleur.
 function barRow({ lead = '', name, sub = '', value, small: sm = '', pct, color, tip, attrs = 'tabindex="0"', i = 0 }) {
-  return `<div class="bar-row" ${attrs} data-tip="${tip}" style="--c:${color};--i:${i}"><span class="bl">${lead}<span>${esc(name)}</span>${sub ? `<span class="lbl">${esc(sub)}</span>` : ''}</span>
+  return `<div class="bar-row${/data-(jump|open)/.test(attrs) ? ' link' : ''}" ${attrs.replace(' class="link"', '')} data-tip="${tip}" style="--c:${color};--i:${i}"><span class="bl">${lead}<span>${esc(name)}</span>${sub ? `<span class="lbl">${esc(sub)}</span>` : ''}</span>
     <span class="bv mono">${esc(value)}${sm ? `<small>${esc(sm)}</small>` : ''}</span><span class="bt"><i style="width:${Math.max(0, Math.min(100, pct || 0)).toFixed(1)}%"></i></span></div>`;
 }
 
@@ -435,21 +435,21 @@ function financeCharts(mo, list) {
   const cl = Object.entries(byClient).map(([id, v]) => ({ c: client(id), ...v })).sort((a, b) => b.billed - a.billed || b.n - a.n);
   const clTot = cl.reduce((a, r) => a + r.billed, 0); const clMax = Math.max(1, ...cl.map((r) => r.billed));
   const pc = (v, t) => (t ? `${Math.round((v / t) * 100)} %` : '');
-  const clRows = cl.map((r, i) => barRow({ i, lead: `<span class="dot" style="background:${clientColor(r.c)}"></span>`, name: r.c?.name || 'Sans client', sub: `${r.n} mission${r.n > 1 ? 's' : ''}`,
+  const clRows = cl.map((r, i) => barRow({ i, lead: `<span class="dot" style="background:${clientColor(r.c)}"></span>`, name: r.c?.name || 'Sans client', sub: `${r.n} mission${r.n > 1 ? 's' : ''}`, attrs: `tabindex="0" role="button" class="link" ${jump('projects', '', { filter: 'all', client: r.c?.id || '' })}`,
     value: eur(Math.round(r.billed)), small: pc(r.billed, clTot), pct: (r.billed / clMax) * 100, color: clientColor(r.c),
     tip: tipHtml(r.c?.name || 'Sans client', [['Facturé', eur(Math.round(r.billed)), 'var(--s1)'], ['Reversé', eur(Math.round(r.payout)), 'var(--s2)'], ['Marge', eur(Math.round(r.billed - r.payout)), 'var(--s3)'], ['Part du facturé', pc(r.billed, clTot) || '–']]) })).join('');
   const share = clTot ? `<div class="share" aria-hidden="true">${cl.filter((r) => r.billed > 0).map((r) => `<i style="flex:${r.billed};--c:${clientColor(r.c)}"></i>`).join('')}</div>` : '';
   const ed = Object.entries(byEditor).map(([u, v]) => ({ p: profile(u), ...v })).sort((a, b) => b.amount - a.amount);
   const edTot = ed.reduce((a, r) => a + r.amount, 0); const edMax = Math.max(1, ...ed.map((r) => r.amount));
   const rate = (r) => (r.secs >= 600 ? `${eur(Math.round(r.amount / (r.secs / 3600)))}/h` : '');
-  const edRows = ed.map((r, i) => barRow({ i, lead: avatar(r.p, 22), name: firstName(r.p), sub: [hm(r.secs), rate(r)].filter(Boolean).join(' · '),
+  const edRows = ed.map((r, i) => barRow({ i, attrs: `tabindex="0" role="button" ${jump('finance', `payout-${r.p?.id}`)}`, lead: avatar(r.p, 22), name: firstName(r.p), sub: [hm(r.secs), rate(r)].filter(Boolean).join(' · '),
     value: eur(Math.round(r.amount)), small: pc(r.amount, edTot), pct: (r.amount / edMax) * 100, color: profColor(r.p),
     tip: tipHtml(r.p?.full_name || firstName(r.p), [['Reversé', eur(Math.round(r.amount))], ['Temps de montage', hm(r.secs)], ['Taux horaire', rate(r) || '–'], ['Missions', String(r.n)]]) })).join('');
   const period = year ? `${monthShort(from)} ${from.getFullYear()} à ${monthShort(end)} ${end.getFullYear()}` : monthLong(mo);
   const seg = `<div class="seg mini"><button class="${year ? '' : 'on'}" data-set="finRange:month">Ce mois</button><button class="${year ? 'on' : ''}" data-set="finRange:year">12 mois</button></div>`;
   return `<div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>Évolution sur 12 mois</h2><div class="lbl">Montants HTVA par mois. Choisis un mois sur la courbe pour voir son détail.</div></div>
       <div class="ch-legend"><span class="lbl">Total</span>${SER.map(([t, c, k]) => `<span><i style="--c:${c}"></i>${t}<b>${eur(Math.round(sum(k)))}</b></span>`).join('')}</div></div>${evo}</div>
-  <div class="cols even">
+  <div class="cols even" id="fin-charts">
     <div class="card"><div class="ch-head"><div><h2>Par client</h2><div class="lbl">Facturé · ${esc(period)}</div></div>${seg}</div>${share}<div class="bars">${clRows || emptyArt('Aucune mission sur cette période.')}</div></div>
     <div class="card"><div class="ch-head"><div><h2>Par monteur</h2><div class="lbl">Pour les monteurs · ${esc(period)}</div></div>${seg}</div><div class="bars">${edRows || emptyArt('Pas encore de temps enregistré.')}</div></div>
   </div>`;
@@ -558,7 +558,7 @@ function invoiceCard(u, mo, { admin = false } = {}) {
   if (!admin && st.total && kind !== 'ok' && !st.sent && S.settings.invoice_link) btns.unshift(`<a class="btn sm pri" href="${esc(S.settings.invoice_link)}" target="_blank" rel="noopener">Faire ma facture sur Smart ↗</a>`);
   if (admin && st.total && kind !== 'ok') btns.push(`<button class="btn sm pri" data-act="payeditor" data-u="${u}" data-mo="${ymd(mo)}">${kind === 'warn' ? 'Payer le complément' : 'Marquer payé'}</button>`);
   if (admin && st.pay) btns.push(`<button class="lnk-btn" data-act="unpay" data-u="${u}" data-mo="${ymd(mo)}">Annuler le paiement</button>`);
-  return `<div class="card invoice ${kind}">
+  return `<div class="card invoice ${kind}" id="${admin ? `payout-${u}` : 'my-invoice'}">
     <div class="card-head">${head}<span class="inv-pill ${kind}">${kind === 'ok' ? small(I.check) : ''}${pillTxt}</span></div>
     <div class="inv-sum"><div><div class="lbl">${bigLbl}</div><div class="big">${eur(big)}</div></div>
       <div class="inv-line">${esc(line)}${st.rows.length ? `<br><span class="lbl">${st.rows.length} mission${st.rows.length > 1 ? 's' : ''} livrée${st.rows.length > 1 ? 's' : ''}${admin ? '' : ' · détail ci-dessous'}</span>` : ''}</div></div>
@@ -615,7 +615,7 @@ function cashCard(mo) {
 function payoutsSection(mo) {
   const people = payees().filter((p) => statement(p.id, mo).total || paymentOf(p.id, mo));
   return `${cashCard(mo)}
-  <div class="section-h"><h2>Paiement des monteurs · ${esc(monthName(mo))}</h2><span class="lbl">Ce que chacun doit te facturer pour le mois</span></div>
+  <div class="section-h" id="payouts"><h2>Paiement des monteurs · ${esc(monthName(mo))}</h2><span class="lbl">Ce que chacun doit te facturer pour le mois</span></div>
   ${people.length ? `<div class="cols even inv-grid">${people.map((p) => invoiceCard(p.id, mo, { admin: true })).join('')}</div>` : `<div class="card"><div class="empty">Aucune mission à payer aux monteurs pour ${esc(monthName(mo))}.</div></div>`}`;
 }
 // Texte à coller dans une facture ou un tableur (tabulations, montants en chiffres).
@@ -676,9 +676,27 @@ function header(kicker, title, right = '') {
   return `<div class="top"><div><div class="lbl">${esc(kicker)}</div><h1>${esc(title)}</h1></div>${right}</div>`;
 }
 // Toutes les cartes ont la même structure (libellé, valeur, pied), même quand le pied est vide : hauteurs et lignes alignées.
-function stat(label, value, foot = '', color = 'var(--muted)') {
+// nav : attributs de navigation (jump(), data-open…) qui rendent la carte cliquable
+function stat(label, value, foot = '', color = 'var(--muted)', nav = '') {
   const size = value.length > 13 ? ' xlong' : value.length > 8 ? ' long' : '';
-  return `<div class="card stat"><div class="lbl" title="${esc(label)}">${esc(label)}</div><div class="big${size}">${esc(value)}</div><div class="foot-note" style="color:${color}">${foot ? esc(foot) : '&nbsp;'}</div></div>`;
+  return `<div class="card stat${nav ? ' link' : ''}" ${nav ? `role="button" tabindex="0" ${nav}` : ''}><div class="lbl" title="${esc(label)}">${esc(label)}</div><div class="big${size}">${esc(value)}</div><div class="foot-note" style="color:${color}">${foot ? esc(foot) : '&nbsp;'}</div></div>`;
+}
+// Aller sur une page, éventuellement un mois / filtre, et faire défiler jusqu'à un bloc.
+const jump = (route, anchor = '', o = {}) => `data-jump="${route}${anchor ? `#${anchor}` : ''}"${o.month ? ` data-jmonth="${ymd(o.month)}"` : ''}${o.filter ? ` data-jfilter="${o.filter}"` : ''}${o.client !== undefined ? ` data-jclient="${o.client}"` : ''}${o.toBill ? ' data-jtobill="1"' : ''}`;
+function doJump(D) {
+  closeSheet();
+  const [route, anchor] = D.jump.split('#');
+  if (D.jmonth) S.month = fromYmd(D.jmonth);
+  if (D.jfilter) { S.filter = D.jfilter; S.search = ''; }
+  if (D.jclient !== undefined) S.clientFilter = D.jclient;
+  S.finToBill = D.jtobill ? '1' : '';
+  const same = S.route === route; S.route = route; render(!same);
+  requestAnimationFrame(() => {
+    const el = anchor && (document.getElementById(anchor) || (anchor.startsWith('payout-') && document.getElementById('payouts')));
+    if (!el) { if (!same) window.scrollTo(0, 0); return; }
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  });
 }
 function missionRow(m, right) {
   const c = client(m.client_id);
@@ -724,10 +742,10 @@ function homeAdmin() {
   const todo = adminTodo();
   return `${header(fmtLong(now), `Bonjour ${firstName(S.me)}`, NEW_BTN)}
   <div class="grid">
-    ${stat(`Facturé · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(billed), `${month.length} mission${month.length > 1 ? 's' : ''}`)}
-    ${stat('Monteurs à payer', eur(Math.round(owed)), owed ? 'Mois terminés pas encore payés' : 'Tout le monde est payé', owed ? '#F5A524' : 'var(--green)')}
-    ${stat('Ta marge', eur(Math.round(margin)), billed ? `${Math.round((margin / billed) * 100)} % du facturé` : '', margin >= 0 ? 'var(--green)' : 'var(--red)')}
-    ${stat('En cours', String(open.length), late ? `${late} en retard` : 'Tout est à l’heure', late ? 'var(--red)' : 'var(--green)')}
+    ${stat(`Facturé · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(billed), `${month.length} mission${month.length > 1 ? 's' : ''}`, undefined, jump('finance', 'fin-missions', { month: startOfMonth(now) }))}
+    ${stat('Monteurs à payer', eur(Math.round(owed)), owed ? 'Mois terminés pas encore payés' : 'Tout le monde est payé', owed ? '#F5A524' : 'var(--green)', jump('finance', 'payouts', { month: owed ? (payees().flatMap((p) => unpaidMonths(p.id, 12).map((x) => x.mo)).filter(Boolean).sort((a, b) => a - b)[0] || prev) : prev }))}
+    ${stat('Ta marge', eur(Math.round(margin)), billed ? `${Math.round((margin / billed) * 100)} % du facturé` : '', margin >= 0 ? 'var(--green)' : 'var(--red)', jump('finance', 'fin-charts', { month: startOfMonth(now) }))}
+    ${stat('En cours', String(open.length), late ? `${late} en retard` : 'Tout est à l’heure', late ? 'var(--red)' : 'var(--green)', jump('projects', '', { filter: 'open', client: '' }))}
   </div>
   <div class="cols">
     <div class="wide stack">
@@ -758,7 +776,8 @@ function liveCard() {
     const m = s && mission(s.mission_id);
     const last = S.sessions.find((x) => x.user_id === p.id);
     const sub = m ? `${esc(m.title)} · en ce moment` : last ? `Dernière session ${relative(d(last.ended_at || last.started_at))}` : 'Pas encore actif';
-    return `<div class="item" ${m ? `role="button" tabindex="0" data-open="${m.id}"` : ''}>${avatar(p, 28)}<div class="grow"><div class="t">${esc(firstName(p))}</div><div class="s">${sub}</div></div>
+    const go = m || (last && mission(last.mission_id));
+    return `<div class="item" ${go ? `role="button" tabindex="0" data-open="${go.id}" title="${esc(go.title)}"` : ''}>${avatar(p, 28)}<div class="grow"><div class="t">${esc(firstName(p))}</div><div class="s">${sub}</div></div>
       <span class="mono" style="font-size:13px;color:${s ? 'var(--green)' : 'var(--muted)'}">${s ? hm(s.duration_sec) : ''}</span></div>`;
   }).join('');
   return `<div class="card flush"><div class="card-head"><h2>En direct</h2>${pill(live.length ? `${live.length} actif${live.length > 1 ? 's' : ''}` : 'Personne', live.length ? '#3DD68C' : '#8B8D94')}</div><div class="list">${rows || '<div class="empty">Aucun membre.</div>'}</div></div>`;
@@ -780,10 +799,10 @@ function hoursCard(people, title) {
   const nav = `<div class="row" style="gap:6px"><button class="ic sm" data-hweek="-1" aria-label="Semaine précédente">${I.left}</button><span class="lbl" style="min-width:118px;text-align:center">${S.hoursWeek === 0 ? 'Cette semaine' : esc(lbl)}</span><button class="ic sm" data-hweek="1" aria-label="Semaine suivante" ${S.hoursWeek >= 0 ? 'disabled' : ''}>${I.right}</button></div>`;
   const head = `<div class="card-head"><div><h2>${esc(title)}</h2><div class="lbl" style="margin-top:3px">Temps actif dans Premiere · ${hm(weekTotal)} sur la semaine</div></div>${nav}</div>`;
   const bars = `<div class="hbars">${days.map((x) => { const t = dayTotal(x); return `<div class="hb ${isToday(x) ? 'today' : ''}"><span class="hv mono">${t ? hm(t) : ''}</span><div class="hcol"><div style="height:${Math.round((t / max) * 100)}%"></div></div><span class="hd">${x.toLocaleDateString('fr-BE', { weekday: 'short' }).replace('.', '')} ${x.getDate()}</span></div>`; }).join('')}</div>`;
-  if (people.length === 1) return `<div class="card">${head}${bars}</div>`;
+  if (people.length === 1) return `<div class="card" id="hours">${head}${bars}</div>`;
   const active = people.filter((p) => days.some((x) => cell(p.id, x)));
   const table = `<div class="htab-wrap"><table class="htab"><thead><tr><th></th>${days.map((x) => `<th class="${isToday(x) ? 'today' : ''}">${x.toLocaleDateString('fr-BE', { weekday: 'short' }).replace('.', '')}<b>${x.getDate()}</b></th>`).join('')}<th>Semaine</th></tr></thead><tbody>
-    ${active.map((p) => `<tr><td><span class="row" style="gap:8px">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</span></td>${days.map((x) => { const v = cell(p.id, x); return `<td class="mono ${isToday(x) ? 'today' : ''}" style="${v ? `background:rgba(76,141,255,${(0.08 + 0.4 * Math.min(1, v / 28800)).toFixed(2)})` : ''}">${v ? hm(v) : '<span class="muted">·</span>'}</td>`; }).join('')}<td class="mono" style="font-weight:600">${hm(days.reduce((a, x) => a + cell(p.id, x), 0))}</td></tr>`).join('') || `<tr><td colspan="9" class="empty">Aucun temps enregistré cette semaine.</td></tr>`}
+    ${active.map((p) => `<tr ${p.role === 'admin' ? '' : `class="link" role="button" tabindex="0" ${jump('finance', `payout-${p.id}`, { month: startOfMonth(ws) })}`}><td><span class="row" style="gap:8px">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</span></td>${days.map((x) => { const v = cell(p.id, x); return `<td class="mono ${isToday(x) ? 'today' : ''}" style="${v ? `background:rgba(76,141,255,${(0.08 + 0.4 * Math.min(1, v / 28800)).toFixed(2)})` : ''}">${v ? hm(v) : '<span class="muted">·</span>'}</td>`; }).join('')}<td class="mono" style="font-weight:600">${hm(days.reduce((a, x) => a + cell(p.id, x), 0))}</td></tr>`).join('') || `<tr><td colspan="9" class="empty">Aucun temps enregistré cette semaine.</td></tr>`}
     ${active.length > 1 ? `<tr class="tot"><td>Total</td>${days.map((x) => `<td class="mono">${dayTotal(x) ? hm(dayTotal(x)) : ''}</td>`).join('')}<td class="mono">${hm(weekTotal)}</td></tr>` : ''}</tbody></table></div>`;
   return `<div class="card">${head}${table}</div>`;
 }
@@ -809,10 +828,10 @@ function homeEditor() {
   return `${header(fmtLong(now), `Bonjour ${firstName(S.me)}`)}
   ${invoiceNudge()}
   <div class="grid">
-    ${stat('Cette semaine', hm(weekSecs), `${hm(todaySecs)} aujourd'hui`)}
-    ${stat(`À facturer · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(statement(S.me.id, startOfMonth(now)).total), 'Missions livrées ce mois-ci')}
-    ${stat('Missions en cours', String(todo.length), waiting.length ? `${waiting.length} en attente du client` : '')}
-    ${stat('Prochaine deadline', next ? deadlineLabel(next.m) : '–', next ? next.m.title : 'Rien de prévu', next && isLate(next.m) ? 'var(--red)' : 'var(--muted)')}
+    ${stat('Cette semaine', hm(weekSecs), `${hm(todaySecs)} aujourd'hui`, undefined, jump('home', 'hours'))}
+    ${stat(`À facturer · ${now.toLocaleDateString('fr-BE', { month: 'long' })}`, eur(statement(S.me.id, startOfMonth(now)).total), 'Missions livrées ce mois-ci', undefined, jump('earnings', 'my-invoice', { month: startOfMonth(now) }))}
+    ${stat('Missions en cours', String(todo.length), waiting.length ? `${waiting.length} en attente du client` : '', undefined, jump('projects', '', { filter: 'open', client: '' }))}
+    ${stat('Prochaine deadline', next ? deadlineLabel(next.m) : '–', next ? next.m.title : 'Rien de prévu', next && isLate(next.m) ? 'var(--red)' : 'var(--muted)', next ? `data-open="${next.m.id}"` : '')}
   </div>
   <div class="cols">
     <div class="wide stack">
@@ -943,7 +962,8 @@ function financePage() {
   const billed = list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = list.reduce((a, m) => a + editorPayout(m), 0);
   const toBill = list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced);
-  const rows = list.map((m) => {
+  const only = S.finToBill && toBill.length;
+  const rows = (only ? toBill : list).map((m) => {
     const f = S.finances[m.id]; const p = f?.client_price; const pay = editorPayout(m);
     return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span>
       <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${p ? eur(p) : 'prix à renseigner'} → ${eur(Math.round(pay))}</div></div>
@@ -952,14 +972,14 @@ function financePage() {
   }).join('');
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}
   <div class="grid">
-    ${stat('Facturé aux clients', eur(billed), `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`)}
-    ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '')}
-    ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)')}
-    ${stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé')}
+    ${stat('Facturé aux clients', eur(billed), `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`, undefined, jump('finance', 'fin-missions'))}
+    ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '', undefined, jump('finance', 'payouts'))}
+    ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)', jump('finance', 'fin-charts'))}
+    ${stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
   </div>
   ${payoutsSection(mo)}
   ${financeCharts(mo, list)}
-  <div class="card flush"><div class="card-head"><h2>Missions de ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2><span class="lbl">Marge</span></div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
+  <div class="card flush" id="fin-missions"><div class="card-head"><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
 }
 function monthSeg(mo) {
   const label = cap(mo.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' }));
@@ -982,15 +1002,15 @@ function earningsPage() {
   return `${header('Ce que tu factures chaque mois', 'Mes revenus', monthSeg(mo))}
   <div class="stack" style="margin-bottom:16px">${invoiceCard(S.me.id, mo)}</div>
   <div class="grid">
-    ${stat('Facture du mois', eur(st.total), `${list.length} mission${list.length > 1 ? 's' : ''} livrée${list.length > 1 ? 's' : ''}`)}
-    ${ahead.length ? stat('Pas encore livrées', `≈ ${eur(Math.round(aheadSum))}`, `${ahead.length} mission${ahead.length > 1 ? 's' : ''} en cours`) : stat('Paiement', st.pay ? 'Reçu' : st.total ? 'En attente' : '–', st.pay ? `le ${paidDay(st.pay)}` : '', st.pay ? 'var(--green)' : 'var(--muted)')}
-    ${stat('Temps de montage', hm(secs))}
-    ${stat('Taux horaire moyen', secs >= 600 ? `${eur(Math.round(total / (secs / 3600)))}/h` : '–')}
+    ${stat('Facture du mois', eur(st.total), `${list.length} mission${list.length > 1 ? 's' : ''} livrée${list.length > 1 ? 's' : ''}`, undefined, jump('earnings', 'my-invoice'))}
+    ${ahead.length ? stat('Pas encore livrées', `≈ ${eur(Math.round(aheadSum))}`, `${ahead.length} mission${ahead.length > 1 ? 's' : ''} en cours`, undefined, jump('earnings', 'my-invoice')) : stat('Paiement', st.pay ? 'Reçu' : st.total ? 'En attente' : '–', st.pay ? `le ${paidDay(st.pay)}` : '', st.pay ? 'var(--green)' : 'var(--muted)')}
+    ${stat('Temps de montage', hm(secs), '', undefined, jump('earnings', 'earn-chart'))}
+    ${stat('Taux horaire moyen', secs >= 600 ? `${eur(Math.round(total / (secs / 3600)))}/h` : '–', '', undefined, jump('earnings', 'earn-projects'))}
   </div>
-  <div class="card" style="margin-bottom:16px"><div class="ch-head"><div><h2>${cum ? 'Valeur cumulée de ton travail' : 'Valeur de ton travail par jour'}</h2><div class="lbl">Indicatif, réparti selon tes jours de montage : ce n'est pas le montant de la facture</div></div>
+  <div class="card" id="earn-chart" style="margin-bottom:16px"><div class="ch-head"><div><h2>${cum ? 'Valeur cumulée de ton travail' : 'Valeur de ton travail par jour'}</h2><div class="lbl">Indicatif, réparti selon tes jours de montage : ce n'est pas le montant de la facture</div></div>
       <div class="seg mini"><button class="${cum ? '' : 'on'}" data-set="earnMode:day">Par jour</button><button class="${cum ? 'on' : ''}" data-set="earnMode:cum">Cumulé</button></div></div>
     ${g.html || emptyArt('Aucun temps de montage enregistré ce mois-ci.')}</div>
-  <div class="card"><div class="ch-head"><div><h2>Gains par projet</h2><div class="lbl">Ta part sur les missions de ta facture ${esc(deMois(mo))}</div></div></div><div class="bars">${bars || emptyArt('Aucune mission livrée ce mois-ci.')}</div></div>
+  <div class="card" id="earn-projects"><div class="ch-head"><div><h2>Gains par projet</h2><div class="lbl">Ta part sur les missions de ta facture ${esc(deMois(mo))}</div></div></div><div class="bars">${bars || emptyArt('Aucune mission livrée ce mois-ci.')}</div></div>
   <p class="lbl" style="margin-top:14px">Une mission compte dans la facture du mois où tu la livres. Son budget est réparti selon le temps de montage de chacun, donc le montant peut encore bouger tant que le mois n'est pas fini.</p>`;
 }
 
@@ -1613,12 +1633,13 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-set],[data-thread]');
+  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-jump],[data-set],[data-thread]');
   if (!t) return;
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
   try {
-    if (D.go) { closeSheet(); if (D.gomonth) S.month = fromYmd(D.gomonth); const same = S.route === D.go; S.route = D.go; render(!same); if (!same) window.scrollTo(0, 0); }
+    if (D.jump) doJump(D);
+    else if (D.go) { closeSheet(); S.finToBill = ''; if (D.gomonth) S.month = fromYmd(D.gomonth); const same = S.route === D.go; S.route = D.go; render(!same); if (!same) window.scrollTo(0, 0); }
     else if (D.notif) { if (D.open) openMission(D.open); markRead(D.open || null, D.notif); }
     else if (D.open) { openMission(D.open); markRead(D.open); }
     else if (D.hweek) { S.hoursWeek = Math.min(0, S.hoursWeek + Number(D.hweek)); render(); }
@@ -1648,7 +1669,7 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (dialog.close) dialog.close(); else closeSheet(); }
-  else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[role=button]')) { e.preventDefault(); e.target.click(); }
+  else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[role=button],tr[role=button]')) { e.preventDefault(); e.target.click(); }
 });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'proj-search') { S.search = e.target.value; document.getElementById('proj-list').innerHTML = projectRows(); }

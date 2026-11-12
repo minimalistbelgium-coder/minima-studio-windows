@@ -603,3 +603,16 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .cl-check input{accent-color:var(--blue);margin:0}
 .cl-check .dot{width:9px;height:9px}
 .cl-check:has(input:checked){border-color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,transparent)}
+
+/* Encarts cliquables */
+.stat.link,.bar-row.link,tr.link{cursor:pointer}
+.stat.link{position:relative;transition:transform .15s ease,background .15s ease,border-color .15s ease}
+.stat.link::after{content:'›';position:absolute;top:12px;right:14px;font-size:18px;line-height:1;color:var(--muted);opacity:.45;transition:opacity .15s,transform .15s}
+@media (hover:hover){.stat.link:hover{background:var(--card2);border-color:var(--line2)}.stat.link:hover::after{opacity:1;transform:translateX(2px)}
+.bar-row.link:hover{background:var(--hover)}tr.link:hover td{background-color:var(--hover)}}
+.stat.link:active{transform:scale(.985)}
+.stat.link:focus-visible,.bar-row.link:focus-visible,tr.link:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.bar-row.link{border-radius:10px}
+.flash{animation:flash 1.3s ease}
+@keyframes flash{0%,40%{box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 55%,transparent)}100%{box-shadow:0 0 0 3px transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}

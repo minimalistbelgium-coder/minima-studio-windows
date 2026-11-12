@@ -443,6 +443,8 @@ struct TrackerCard: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var data: DataStore
     @EnvironmentObject var tracker: Tracker
+    @EnvironmentObject var presenter: Presenter
+    @State private var hover = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -477,6 +479,13 @@ struct TrackerCard: View {
         }
         .padding(12)
         .glassCard(radius: 14)
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(Theme.blue.opacity(hover && tracker.mission != nil ? 0.45 : 0), lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onHover { hover = $0 }
+        .onTapGesture { if let m = tracker.mission { presenter.open(.existing(m.id)) } }
+        .help(tracker.mission.map { "Ouvrir la fiche « \($0.title) »" } ?? "")
+        .accessibilityAddTraits(tracker.mission != nil ? .isButton : [])
     }
 }
 

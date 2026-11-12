@@ -91,6 +91,9 @@ private struct MissionDetail: View {
                         NextStepCard(mission: mission)
                     }
 
+                    if app.isTeam && mission.status != "requested" && (app.isAdmin || data.memberIds(of: mission.id).contains(me)) {
+                        MissionChronoCard(mission: mission)
+                    }
                     if app.isTeam && mission.status != "requested" { MissionTimeStrip(mission: mission) }
 
                     StepProgress(mission: mission, notes: stepNotes(rows)).card()

@@ -559,3 +559,69 @@ struct FlowRows: Layout {
         }
     }
 }
+
+
+/// Chrono dans la fiche mission : le temps qui tourne, et le bouton pour démarrer ou arrêter.
+struct MissionChronoCard: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var tracker: Tracker
+    let mission: Mission
+
+    private var here: Bool { tracker.mission?.id == mission.id }
+
+    var body: some View {
+        let me = app.profile?.id ?? ""
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 7) {
+                    if here { StatusDot(status: tracker.status) } else { Circle().fill(Theme.muted.opacity(0.5)).frame(width: 8, height: 8) }
+                    Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+                if here {
+                    LiveClock(tracker: tracker, size: 26)
+                } else {
+                    Text(LiveClock.format(data.seconds(mission: mission.id, user: me)))
+                        .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(Theme.muted)
+                }
+            }
+            Spacer(minLength: 8)
+            if here, let mx = tracker.maxAmount {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(Money.eur(mx)).font(.system(size: 14, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.green)
+                    TimelineView(.periodic(from: .now, by: 5)) { ctx in
+                        if let r = tracker.hourlyRate(at: ctx.date) {
+                            Text("\(Money.eur(r.rounded())) / h").font(.system(size: 11)).monospacedDigit().foregroundStyle(Theme.muted)
+                        }
+                    }
+                }
+            }
+            if here && tracker.manual {
+                Button { Task { @MainActor in await tracker.stopManual() } } label: { Label("Arrêter", systemImage: "stop.fill") }
+                    .buttonStyle(SecondaryButton(danger: true))
+            } else if !here || !(tracker.status == .running) {
+                Button { Task { @MainActor in await tracker.startManual(mission) } } label: { Label("Démarrer", systemImage: "play.fill") }
+                    .buttonStyle(PrimaryButton())
+                    .help(tracker.mission != nil && !here ? "Le chrono tourne sur « \(tracker.mission!.title) » : il passera sur cette mission" : "Compte le temps sur cette mission même hors de Premiere")
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(radius: 14)
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(here && tracker.status == .running ? Theme.green.opacity(0.4) : .clear))
+    }
+
+    private var title: String {
+        guard here else {
+            if let other = tracker.mission { return "Chrono sur « \(other.title) » · ton temps ici" }
+            return "Chrono · ton temps sur cette mission"
+        }
+        switch tracker.status {
+        case .running: return tracker.manual ? "Chrono en cours" : "Chrono en cours · suivi Premiere"
+        case .paused(let why): return "En pause · \(why)"
+        case .askAway: return "Tu as quitté Premiere"
+        default: return "Chrono"
+        }
+    }
+}

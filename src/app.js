@@ -15,7 +15,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 const S = {
   session: null, me: null, route: null, loading: true,
   clients: [], missions: [], profiles: [], members: [], finances: {}, sessions: [], notifs: [], invites: [],
-  versions: {}, settings: {}, comments: {}, ai: [], payments: [], invoices: [], splits: {},
+  versions: {}, settings: {}, comments: {}, thread: {}, ai: [], payments: [], invoices: [], splits: {},
   filter: 'open', clientFilter: '', search: '', hoursWeek: 0, month: startOfMonth(new Date()), teamTab: 'members', finRange: 'month', earnMode: 'day',
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
@@ -1172,12 +1172,25 @@ async function loadComments(id) {
   if (S.sheet?.type === 'mission' && S.sheet.id === id && S.sheet.mode === 'view' && !typing(sheetRoot)) keepFields(sheetRoot, () => renderSheet(true));
 }
 function commentsCard(m) {
-  const list = S.comments[m.id];
+  const all = S.comments[m.id];
   const who = (c) => (c.author === S.me.id ? 'Toi' : profile(c.author) ? firstName(profile(c.author)) : (isClient() ? 'Minimalist Belgium' : client(m.client_id)?.name || 'Client'));
   const tag = (c) => (c.kind === 'approve' ? pill('Validé', '#3DD68C') : c.kind === 'changes' ? pill('Retours', '#F5A524') : '');
-  return `<div class="card"><h2 style="margin-bottom:6px">Échanges</h2>
-    ${list == null ? '<div class="empty">Chargement…</div>' : list.map((c) => `<div class="msg ${c.author === S.me.id ? 'me' : ''}"><div class="row" style="gap:8px"><b style="font-size:13px">${esc(who(c))}</b>${tag(c)}<span class="lbl" style="font-size:11.5px">${relative(d(c.created_at))}</span></div><div class="msg-b">${esc(c.body)}</div></div>`).join('') || '<div class="empty">Aucun message pour l\'instant.</div>'}
-    <form data-comment="${m.id}" style="display:flex;gap:8px;margin-top:12px"><input class="in" name="body" placeholder="Écrire un message…" aria-label="Message" style="min-height:42px" autocomplete="off"><button class="btn" type="submit" style="min-height:42px">Envoyer</button></form></div>`;
+  // Deux fils : « Avec le client » (client + équipe) et « Équipe » (monteurs + admin, le client ne le voit pas).
+  const team = !isClient();
+  const aud = team ? (S.thread[m.id] || 'all') : 'all';
+  const list = all == null ? null : all.filter((c) => (c.audience || 'all') === aud);
+  const count = (a) => (all || []).filter((c) => (c.audience || 'all') === a).length;
+  const names = memberIds(m.id).filter((u) => u !== S.me.id).map((u) => firstName(profile(u))).filter(Boolean);
+  const meName = isAdmin() ? 'toi' : 'toi';
+  if (!isAdmin()) names.push('Gaston');
+  const joinFr = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} et ${xs[xs.length - 1]}`);
+  const seenBy = aud === 'team' ? `Visible par ${joinFr([meName, ...names])}. Le client ne le voit pas.` : `Visible par ${joinFr([meName, ...names, 'le client'])}.`;
+  const canDel = (c) => isAdmin() || c.author === S.me.id;
+  return `<div class="card"><div class="card-head" style="margin-bottom:8px"><h2>Échanges</h2>
+      ${team ? `<div class="seg mini" role="tablist" aria-label="Fil de discussion"><button role="tab" aria-selected="${aud === 'all'}" class="${aud === 'all' ? 'on' : ''}" data-thread="${m.id}:all">Avec le client${count('all') ? ` · ${count('all')}` : ''}</button><button role="tab" aria-selected="${aud === 'team'}" class="${aud === 'team' ? 'on' : ''}" data-thread="${m.id}:team">Équipe${count('team') ? ` · ${count('team')}` : ''}</button></div>` : ''}</div>
+    ${team ? `<p class="lbl" style="margin:0 0 8px">${esc(seenBy)}</p>` : ''}
+    ${list == null ? '<div class="empty">Chargement…</div>' : list.map((c) => `<div class="msg ${c.author === S.me.id ? 'me' : ''}"><div class="row" style="gap:8px"><b style="font-size:13px">${esc(who(c))}</b>${tag(c)}<span class="lbl" style="font-size:11.5px">${relative(d(c.created_at))}</span>${canDel(c) ? `<button class="x sm msg-del" data-act="delcomment" data-id="${c.id}" data-m="${m.id}" aria-label="Supprimer ce message" title="Supprimer ce message">×</button>` : ''}</div><div class="msg-b">${esc(c.body)}</div></div>`).join('') || `<div class="empty">${aud === 'team' ? 'Aucun message d\'équipe pour l\'instant.' : 'Aucun message pour l\'instant.'}</div>`}
+    <form data-comment="${m.id}" data-aud="${aud}" style="display:flex;gap:8px;margin-top:12px"><input class="in" name="body" placeholder="${aud === 'team' ? 'Message à l\'équipe…' : 'Écrire un message…'}" aria-label="Message" style="min-height:42px" autocomplete="off"><button class="btn" type="submit" style="min-height:42px">Envoyer</button></form></div>`;
 }
 function versionsList(m, skipLast) {
   const all = S.versions[m.id] || []; const list = (skipLast ? all.slice(0, -1) : all).slice().reverse();
@@ -1535,6 +1548,11 @@ const ACTIONS = {
     fail(await sb.from('editor_invoices').delete().eq('user_id', S.me.id).eq('month', t.dataset.mo));
     await refresh(); toast('Facture repassée en « à envoyer »');
   },
+  async delcomment(t) {
+    if (!(await dialog({ title: 'Supprimer ce message ?', body: 'Il disparaîtra pour tout le monde. C\'est définitif.', ok: 'Supprimer', danger: true }))) return;
+    fail(await sb.from('mission_comments').delete().eq('id', t.dataset.id));
+    await loadComments(t.dataset.m); renderSheet(true); toast('Message supprimé');
+  },
   allsessions(t) { S.allSes = t.dataset.id; renderSheet(true); },
   async delsession(t) {
     const x = S.sessions.find((s) => s.id === t.dataset.id); if (!x) return;
@@ -1584,7 +1602,7 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-set]');
+  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-set],[data-thread]');
   if (!t) return;
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
@@ -1597,6 +1615,7 @@ document.addEventListener('click', async (e) => {
     else if (D.act && ACTIONS[D.act]) { e.preventDefault(); await ACTIONS[D.act](t); }
     else if (D.filter) { S.filter = D.filter; S.clientFilter = ''; render(); }
     else if (D.client !== undefined && t.classList.contains('chip')) { S.clientFilter = D.client; render(); }
+    else if (D.thread) { const [mid, aud] = D.thread.split(':'); S.thread[mid] = aud; keepFields(sheetRoot, () => renderSheet(true)); }
     else if (D.month) { S.month = new Date(S.month.getFullYear(), S.month.getMonth() + Number(D.month), 1); render(); }
     else if (D.pick) { t.classList.toggle('on'); t.setAttribute('aria-pressed', t.classList.contains('on')); }
     else if (D.color) { t.parentElement.querySelectorAll('.on').forEach((x) => x.classList.remove('on')); t.classList.add('on'); t.closest('form').elements.color.value = D.color; }
@@ -1679,7 +1698,7 @@ document.addEventListener('submit', async (e) => {
       await loadMe(); await refresh(); toast('Nom enregistré');
     } else if (f.dataset.comment) {
       const body = f.body.value.trim(); if (!body) { if (btn) btn.disabled = false; return; }
-      fail(await sb.rpc('add_comment', { m: f.dataset.comment, body }));
+      fail(await sb.rpc('add_comment', { m: f.dataset.comment, body, audience: f.dataset.aud || 'all' }));
       f.body.value = ''; await loadComments(f.dataset.comment); renderSheet(true); sheetRoot.querySelector('[data-comment] input')?.focus();
     } else if (f.id === 'feedback-form') {
       const approve = e.submitter?.value === '1';
@@ -1782,7 +1801,8 @@ function goLive() {
   const bump = debounce(sync, 600);
   const ch = sb.channel('ms-live').on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${S.me.id}` }, bump)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'mission_versions' }, bump)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mission_comments' }, (p) => { const id = p.new?.mission_id; if (id && S.comments[id] && p.new.author !== S.me.id) loadComments(id); });
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mission_comments' }, (p) => { const id = p.new?.mission_id; if (id && S.comments[id] && p.new.author !== S.me.id) loadComments(id); })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'mission_comments' }, () => { Object.keys(S.comments).forEach((id) => loadComments(id)); });
   if (!isClient()) ch.on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, bump).on('postgres_changes', { event: '*', schema: 'public', table: 'mission_members' }, bump)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'editor_payments' }, bump)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'editor_invoices' }, bump);

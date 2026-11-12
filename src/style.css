@@ -593,3 +593,6 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .stmt-r.pending:hover{opacity:.8}
 .pending-f{color:var(--muted);font-size:13.5px}
 .ok-btn{border-color:color-mix(in srgb,var(--green) 45%,transparent);color:var(--green)}
+.msg-del{margin-left:auto;opacity:0;transition:opacity .15s}
+.msg:hover .msg-del,.msg-del:focus-visible{opacity:1}
+@media (hover:none){.msg-del{opacity:.7}}

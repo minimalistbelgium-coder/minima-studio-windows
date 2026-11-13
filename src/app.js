@@ -813,9 +813,44 @@ function teamFold() {
   const week = S.sessions.filter((x) => d(x.started_at) >= ws).reduce((a, x) => a + (x.duration_sec || 0), 0);
   const sum = now.length ? `<span style="color:var(--green)">● ${now.join(' · ')}</span>` : 'Personne en montage en ce moment';
   return `<section class="fold ${open ? 'open' : ''}">
-    <button class="fold-head" data-act="toggleteam" aria-expanded="${open}"><span class="av-stack">${ppl.slice(0, 4).map((p) => avatar(p, 26)).join('')}</span>
-      <span class="grow"><b>Équipe</b><span class="lbl">${sum} · ${hm(week)} cette semaine</span></span><span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button>
+    <div class="fold-head"><button class="fold-main" data-act="editors" data-i="0" aria-label="Voir les profils des monteurs"><span class="av-stack">${editorsList().slice(0, 4).map((p) => avatar(p, 26)).join('')}</span>
+      <span class="grow"><b>Équipe</b><span class="lbl">${sum} · ${hm(week)} cette semaine</span></span></button><button class="fold-toggle" data-act="toggleteam" aria-expanded="${open}" aria-label="${open ? 'Replier' : 'Déplier'} le détail des heures"><span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button></div>
     ${open ? `<div class="fold-body"><div class="cols"><div class="wide stack">${hoursCard(ppl, 'Heures par jour')}</div><div class="narrow stack">${liveCard()}${claudeCard()}</div></div></div>` : ''}</section>`;
+}
+// --- Profils des monteurs en popup (accueil admin) : on passe de l'un à l'autre par balayage ou flèches.
+const editorsList = () => S.profiles.filter((p) => p.role === 'editor' && p.active).sort((a, b) => firstName(a).localeCompare(firstName(b)));
+function openEditors(i = 0) { const n = editorsList().length; if (!n) return toast('Aucun monteur actif'); S.edIdx = ((i % n) + n) % n; S.sheet = { type: 'editors' }; renderSheet(); }
+function stepEditor(dir) {
+  const n = editorsList().length; if (n < 2 || S.sheet?.type !== 'editors') return;
+  S.edIdx = (S.edIdx + dir + n) % n; S.edDir = dir; keepFields(sheetRoot, () => renderSheet(true));
+}
+function editorProfile(p) {
+  const now = new Date(); const mo = startOfMonth(now);
+  const owed = unpaidMonths(p.id); const owedSum = owed.reduce((a, x) => a + x.due, 0);
+  const cur = statement(p.id, mo);
+  const ws = startOfWeek(now); const week = S.sessions.filter((x) => x.user_id === p.id && d(x.started_at) >= ws).reduce((a, x) => a + (x.duration_sec || 0), 0);
+  const live = liveSessions().find((x) => x.user_id === p.id); const lm = live && mission(live.mission_id);
+  const missions = S.missions.filter((m) => memberIds(m.id).includes(p.id) && isOpen(m) && m.status !== 'requested')
+    .sort((a, b) => (d(a.deadline)?.getTime() || 9e15) - (d(b.deadline)?.getTime() || 9e15));
+  const rows = missions.map((m) => { const c = client(m.client_id);
+    return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(c)}"></span>
+      <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(c?.name || 'Sans client')} · <span style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(m.deadline ? deadlineLabel(m) : 'Pas de date')}</span></div></div>${pillFor(m)}</div>`; }).join('');
+  return `<div class="ed-card ${S.edDir > 0 ? 'from-right' : S.edDir < 0 ? 'from-left' : ''}">
+    <div class="ed-id">${avatar(p, 56)}<div class="grow"><h3>${esc(p.full_name || firstName(p))}</h3><div class="lbl">${esc(p.email || '')}</div>
+      ${lm ? `<div class="ed-live">● En montage sur ${esc(lm.title)}</div>` : ''}</div></div>
+    <div class="ed-stats">
+      <div class="ed-stat ${owedSum ? 'warn' : ''}"><span class="lbl">Tu lui dois</span><b class="mono">${eur(Math.round(owedSum * 100) / 100)}</b><span class="lbl">${owed.length ? (() => { const sm = (x) => `${x.mo.toLocaleDateString('fr-BE', { month: 'short' })} ${eur(Math.round(x.due))}`; return owed.length <= 3 ? owed.map(sm).join(' · ') : `${owed.slice(0, 2).map(sm).join(' · ')} · +${owed.length - 2} mois`; })() : 'Rien en retard'}</span></div>
+      <div class="ed-stat"><span class="lbl">${esc(cap(monthName(mo)))} à date</span><b class="mono">${eur(cur.total)}</b><span class="lbl">${cur.rows.length ? `${cur.rows.length} mission${cur.rows.length > 1 ? 's' : ''} livrée${cur.rows.length > 1 ? 's' : ''}` : 'Rien de livré'}${cur.future ? ` · ≈ ${eur(Math.round(cur.future))} en cours` : ''}</span></div>
+      <div class="ed-stat"><span class="lbl">Cette semaine</span><b class="mono">${hm(week)}</b><span class="lbl">${missions.length} montage${missions.length > 1 ? 's' : ''} en cours</span></div>
+    </div>
+    <div class="card flush"><div class="card-head"><h2>Montages en cours</h2><span class="lbl">${missions.length}</span></div><div class="list">${rows || '<div class="empty">Aucun montage en cours.</div>'}</div></div>
+    <div class="row" style="gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn" ${jump('finance', `payout-${p.id}`, { month: owed[0]?.mo || mo })}>Voir son relevé</button><button class="btn" data-member="${p.id}">Fiche équipe</button></div>
+  </div>`;
+}
+function editorsSheet(keep) {
+  const list = editorsList(); const i = Math.min(S.edIdx || 0, list.length - 1); const p = list[i]; if (!p) return closeSheet();
+  const nav = list.length > 1 ? `<div class="ed-nav"><button class="x sm" data-act="edprev" aria-label="Monteur précédent">‹</button><div class="ed-dots">${list.map((q, k) => `<button class="${k === i ? 'on' : ''}" data-act="edgo" data-i="${k}" aria-label="${esc(firstName(q))}"></button>`).join('')}</div><button class="x sm" data-act="ednext" aria-label="Monteur suivant">›</button></div>` : '';
+  return sheetWrap('Équipe', firstName(p), nav, `<div class="ed-swipe">${editorProfile(p)}</div>`, keep, true);
 }
 function upcomingCard(days = 7) {
   const from = new Date(); from.setHours(0, 0, 0, 0); const to = addDays(from, days);
@@ -1260,6 +1295,29 @@ function sheetWrap(kicker, title, sub, body, keep, narrow) {
   if (keep) sheetRoot.querySelector('.sheet').scrollTop = y;
   placeThumbs(false);
 }
+// Profils des monteurs : balayer à gauche ou à droite pour passer au suivant (doigt suivi en direct).
+const hSwipe = { on: false };
+(() => {
+  let x0 = 0; let y0 = 0; let t0 = 0; let el = null; let dx = 0; let decided = false;
+  sheetRoot.addEventListener('touchstart', (e) => {
+    el = S.sheet?.type === 'editors' && e.touches.length === 1 ? e.target.closest('.ed-swipe') : null; if (!el) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); dx = 0; decided = false; hSwipe.on = false;
+  }, { passive: true });
+  sheetRoot.addEventListener('touchmove', (e) => {
+    if (!el) return;
+    const mx = e.touches[0].clientX - x0; const my = e.touches[0].clientY - y0;
+    if (!decided) { if (Math.abs(mx) < 8 && Math.abs(my) < 8) return; decided = true; hSwipe.on = Math.abs(mx) > Math.abs(my) * 1.2; if (!hSwipe.on) { el = null; return; } }
+    e.preventDefault(); dx = mx;
+    el.style.transition = 'none'; el.style.transform = `translateX(${dx}px)`; el.style.opacity = String(Math.max(0.4, 1 - Math.abs(dx) / 500));
+  }, { passive: false });
+  sheetRoot.addEventListener('touchend', () => {
+    if (!el) { hSwipe.on = false; return; }
+    const target = el; el = null; const was = hSwipe.on; hSwipe.on = false; if (!was) return;
+    const fast = Math.abs(dx) > 30 && Math.abs(dx) / Math.max(1, Date.now() - t0) > 0.5;
+    if (Math.abs(dx) > 70 || fast) stepEditor(dx < 0 ? 1 : -1);
+    else { target.style.transition = 'transform .25s cubic-bezier(.2,.9,.3,1.2), opacity .25s'; target.style.transform = ''; target.style.opacity = ''; }
+  });
+})();
 // Mobile : glisser la fiche vers le bas pour la fermer.
 (() => {
   let y0 = 0; let dy = 0; let t0 = 0; let box = null; let on = false;
@@ -1270,7 +1328,7 @@ function sheetWrap(kicker, title, sub, body, keep, narrow) {
     y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
   }, { passive: true });
   sheetRoot.addEventListener('touchmove', (e) => {
-    if (!box || !on) return;
+    if (!box || !on || hSwipe.on) return;
     dy = e.touches[0].clientY - y0;
     const sc = box.querySelector('.sheet');
     if (dy <= 0 || (sc && sc.scrollTop > 0 && !e.target.closest('.grab,.sheet-head'))) { if (dy <= 0) { box.style.transform = ''; } return; }
@@ -1305,6 +1363,7 @@ function renderSheet(keep = false) {
     return sheetWrap(c?.name || 'Sans client', m.title, sub, body, keep);
   }
   if (s.type === 'new') return sheetWrap('Minima Studio', 'Nouvelle mission', '', missionForm(s.preset || null, 'new'), keep, true);
+  if (s.type === 'editors') { const r = editorsSheet(keep); S.edDir = 0; return r; }
   if (s.type === 'member') return sheetWrap('Équipe', profile(s.id)?.full_name || profile(s.id)?.email || '', '', memberForm(profile(s.id)), keep, true);
   if (s.type === 'client') return sheetWrap('Clients', s.id ? client(s.id)?.name || '' : 'Nouveau client', '', clientForm(s.id ? client(s.id) : null), keep, true);
   if (s.type === 'account') return sheetWrap(isAdmin() ? 'Admin' : isClient() ? myClientLabel() || 'Client' : 'Monteur', 'Mon compte', '', accountBody(), keep, true);
@@ -1613,6 +1672,10 @@ async function setStatus(m, s) {
   await offerNotifyClient(m, s);
 }
 const ACTIONS = {
+  editors(t) { openEditors(Number(t.dataset.i || 0)); },
+  edprev() { stepEditor(-1); },
+  ednext() { stepEditor(1); },
+  edgo(t) { const k = Number(t.dataset.i); if (k !== S.edIdx) { S.edDir = k > S.edIdx ? 1 : -1; S.edIdx = k; keepFields(sheetRoot, () => renderSheet(true)); } },
   toggleteam() { store.set('ms-team-open', store.get('ms-team-open') === '1' ? '0' : '1'); render(); },
   newmission: (t) => { const preset = t.dataset.day ? { deadline: new Date(`${t.dataset.day}T18:00`).toISOString() } : null; openSheet({ type: 'new', preset }); },
   newclient: () => openSheet({ type: 'client', id: null }),
@@ -1793,6 +1856,7 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (dialog.close) dialog.close(); else closeSheet(); }
+  else if (S.sheet?.type === 'editors' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !typing(sheetRoot)) stepEditor(e.key === 'ArrowRight' ? 1 : -1);
   else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[role=button],tr[role=button]')) { e.preventDefault(); e.target.click(); }
 });
 document.addEventListener('input', (e) => {

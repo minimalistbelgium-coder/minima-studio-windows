@@ -661,3 +661,33 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .tabs-bar button.on .tb-c{background:var(--blue);color:#fff;border-color:transparent}
 .sheet-tabs{margin:2px 0 4px}
 .sub-h{padding:14px 20px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line)}
+
+/* Bloc Équipe : partie principale (ouvre les profils) + bouton de dépliage */
+.fold-head{padding:0;overflow:hidden}
+.fold-main{display:flex;align-items:center;gap:14px;flex:1;min-width:0;padding:16px 20px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.fold-toggle{display:grid;place-items:center;width:56px;align-self:stretch;border:0;border-left:1px solid var(--line);background:none;color:var(--muted);cursor:pointer}
+.fold-toggle:hover,.fold-main:hover{background:var(--card2)}
+.fold-head:hover{background:var(--card)}
+.fold-main:focus-visible,.fold-toggle:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+
+/* Profils des monteurs (popup) */
+.ed-nav{display:flex;align-items:center;gap:10px;margin-top:8px}
+.ed-dots{display:flex;gap:6px}
+.ed-dots button{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:var(--line2);cursor:pointer;transition:width .2s,background .2s}
+.ed-dots button.on{width:20px;border-radius:4px;background:var(--blue)}
+.ed-swipe{touch-action:pan-y}
+.ed-card{display:flex;flex-direction:column;gap:14px}
+.ed-card.from-right{animation:edR .24s ease}
+.ed-card.from-left{animation:edL .24s ease}
+@keyframes edR{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes edL{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+.ed-id{display:flex;align-items:center;gap:14px}
+.ed-id h3{margin:0;font-size:18px}
+.ed-live{margin-top:6px;color:var(--green);font-size:13px;font-weight:600}
+.ed-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ed-stat{display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:16px;background:var(--card);border:1px solid var(--line);min-width:0}
+.ed-stat b{font-size:22px}
+.ed-stat.warn b{color:#F5A524}
+.ed-stat .lbl{overflow-wrap:anywhere}
+@media (max-width:640px){.ed-stats{grid-template-columns:1fr 1fr}.ed-stats .ed-stat:first-child{grid-column:1/-1}}
+@media (prefers-reduced-motion:reduce){.ed-card.from-right,.ed-card.from-left{animation:none}}

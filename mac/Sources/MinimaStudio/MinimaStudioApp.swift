@@ -47,6 +47,18 @@ struct MinimaStudioApp: App {
                 Button("Agrandir la fenêtre") { MiniWindow.shared.hide(app: app) }
             }
         }
+
+        // Chrono dans la barre des menus, à côté de l'heure
+        MenuBarExtra {
+            MenuBarMenu()
+                .environmentObject(app)
+                .environmentObject(data)
+                .environmentObject(tracker)
+                .environmentObject(presenter)
+        } label: {
+            MenuBarLabel().environmentObject(tracker)
+        }
+        .menuBarExtraStyle(.menu)
     }
 }
 

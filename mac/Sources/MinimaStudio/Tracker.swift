@@ -8,16 +8,14 @@ import Supabase
 ///
 /// Règles :
 /// - Le chrono tourne quand Premiere est au premier plan avec un projet lié à une mission.
-/// - Inactivité : sans clavier ni souris pendant 5 min, le chrono s'arrête et ces 5 min sont retirées.
-/// - Premiere quitté pour une autre app : les 2 premières minutes comptent (ref, Finder, mail…).
-///   Au-delà, le chrono se met en pause et l'app demande « Tu travailles toujours dessus ? ».
-///   Oui : le temps passé ailleurs est compté et le chrono continue. Non : il est retiré.
-///   Sans réponse après 15 min, la session est close.
+/// - Inactivité : sans clavier ni souris pendant 3 min, le chrono s'arrête et ces 3 min sont retirées.
+/// - Premiere quitté pour une autre app : pause immédiate, rien n'est compté tant que Premiere n'est pas revenu
+///   au premier plan. Sans retour après 15 min, la session est close.
 /// - Le projet est reconnu par son nom de fichier, où qu'il soit enregistré (Mac ou disque externe).
 /// - Chrono manuel possible sur n'importe quelle mission (bouton Démarrer).
 @MainActor
 final class Tracker: ObservableObject {
-    static let idleLimit: Double = 300
+    static let idleLimit: Double = 180
     static let focusGrace: Double = 120
     static let awayTimeout: Double = 900
     static let tickInterval: Double = 5
@@ -262,7 +260,7 @@ final class Tracker: ObservableObject {
         // Inactivité
         if idle >= Self.idleLimit {
             if sessionId != nil {
-                await endSession(deduct: max(countedIdle, countedAway), reason: "Inactif depuis 5 min")
+                await endSession(deduct: max(countedIdle, countedAway), reason: "Inactif depuis 3 min")
                 if manual { manual = false; manualMission = nil }
             }
             if case .paused = status {} else { status = .paused("Inactif") }
@@ -270,25 +268,23 @@ final class Tracker: ObservableObject {
             return
         }
 
-        // Hors de Premiere (mode auto uniquement)
+        // Hors de Premiere (mode auto uniquement) : pause immédiate, rien n'est compté.
+        // La session reste ouverte 15 min pour reprendre sans couture, puis elle est close.
         if !manual && !premiereFront {
-            if awayStart == nil { awayStart = now.addingTimeInterval(-dt) }
+            if awayStart == nil { awayStart = now }
             let away = now.timeIntervalSince(awayStart ?? now)
-            if away > Self.awayTimeout {
-                awayStart = nil
-                await endSession(deduct: countedAway, reason: "Hors de Premiere")
-                return
-            }
-            if away > Self.focusGrace {
-                if status != .askAway && sessionId != nil {
-                    status = .askAway
-                    notifyAway(target)
-                    await heartbeat(live: false)
+            if sessionId != nil {
+                if away > Self.awayTimeout {
+                    awayStart = nil
+                    await endSession(deduct: 0, reason: "Hors de Premiere")
+                    return
                 }
-                return
-            }
-        } else if premiereFront && awayStart != nil {
-            // Retour dans Premiere sans avoir répondu : on reprend, le temps dehors au-delà de 2 min n'est pas compté.
+                status = .paused("Hors de Premiere")
+                if now.timeIntervalSince(lastBeat) >= Self.heartbeatInterval { await heartbeat(live: true) }
+            } else if case .paused = status {} else { status = .waiting }
+            mission = target
+            return
+        } else if awayStart != nil {
             awayStart = nil
             countedAway = 0
             if manual && manualMission?.id == target.id { manual = false; manualMission = nil }

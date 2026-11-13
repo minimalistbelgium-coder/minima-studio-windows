@@ -43,7 +43,8 @@ La page Mises à jour donne aussi un lien fixe vers le dernier .dmg, à envoyer 
 
 - Il tourne quand Premiere est au premier plan avec un projet lié à une mission. Le projet est reconnu par son nom de fichier, où qu'il soit (Mac ou disque externe).
 - Projet inconnu : l'app propose de l'associer à une mission. Le lien vaut pour toute l'équipe.
-- 5 min sans clavier ni souris : pause, et ces 5 min sont retirées.
+- 3 min sans clavier ni souris : pause, et ces 3 min sont retirées.
+- Premiere n'est plus au premier plan : pause immédiate.
 - Sortie de Premiere : les 2 premières minutes comptent. Au-delà, pause et question « Tu travailles toujours dessus ? ». Oui : le temps est compté. Non : il est retiré. Sans réponse en 15 min, la session se termine.
 - Mise en veille ou verrouillage du Mac : la session se termine.
 - Bouton « Démarrer le chrono » dans une mission pour compter du temps hors Premiere.

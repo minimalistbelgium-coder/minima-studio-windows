@@ -2,7 +2,18 @@
 //! et ce module lit l'état de Premiere Pro et l'activité clavier/souris pour le chrono.
 
 use serde::Serialize;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+
+/// Réaffiche la fenêtre principale (icône de la zone de notification, second lancement).
+fn show_main(app: &tauri::AppHandle) {
+    if let Some(m) = app.get_webview_window("main") {
+        let _ = m.show();
+        let _ = m.unminimize();
+        let _ = m.set_focus();
+    }
+}
 
 #[derive(Serialize, Default)]
 pub struct PremiereState {
@@ -178,6 +189,38 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .invoke_handler(tauri::generate_handler![premiere_state, show_mini, hide_mini])
+        // Fermer la fenêtre ne quitte pas : l'app reste en fond pour que le chrono Premiere continue.
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .setup(|app| {
+            let open = MenuItem::with_id(app, "open", "Ouvrir Minima Studio", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quitter (le chrono s'arrête)", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let mut tray = TrayIconBuilder::with_id("main")
+                .tooltip("Minima Studio : le chrono Premiere reste actif")
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open" => show_main(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } = event {
+                        show_main(tray.app_handle());
+                    }
+                });
+            if let Some(icon) = app.default_window_icon() {
+                tray = tray.icon(icon.clone());
+            }
+            tray.build(app)?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("erreur au lancement de Minima Studio");
 }

@@ -1553,7 +1553,7 @@ function teamDetail(m) {
         ${dep ? `<a class="lnk" href="${esc(dep)}" target="_blank" rel="noopener">Déposer mon montage ↗</a>` : ''}</div></div>`;
   const briefH = `    ${m.brief ? `<div class="card"><h2 style="margin-bottom:10px">Brief</h2><div class="brief">${esc(m.brief)}</div></div>` : ''}`;
   const sessionsH = `    <div class="card"><div class="card-head"><h2>${isAdmin() ? 'Sessions' : 'Mes sessions'}</h2><span class="lbl mono">${hm(ses.reduce((a, s) => a + (s.duration_sec || 0), 0))}</span></div>
-      ${(S.allSes === m.id ? ses : ses.slice(0, 10)).map((s) => `<div class="kv"><span class="row">${avatar(profile(s.user_id), 22)}${esc(s.user_id === S.me.id ? 'Toi' : firstName(profile(s.user_id)))}</span><span class="lbl">${fmtDay(d(s.started_at))} ${fmtTime(d(s.started_at))}</span><span class="row" style="gap:4px"><span class="mono" style="${(s.duration_sec || 0) < MIN_SPLIT_SECS ? 'color:var(--muted)' : ''}">${(s.duration_sec || 0) < 60 ? `${s.duration_sec || 0} s` : hm(s.duration_sec)}</span>${isAdmin() ? `<button class="x sm" data-act="delsession" data-id="${s.id}" aria-label="Supprimer cette session" title="Supprimer cette session">×</button>` : ''}</span></div>`).join('') || '<div class="empty">Aucune session.</div>'}
+      ${(S.allSes === m.id ? ses : ses.slice(0, 10)).map((s) => `<div class="kv"><span class="row">${avatar(profile(s.user_id), 22)}${esc(s.user_id === S.me.id ? 'Toi' : firstName(profile(s.user_id)))}</span><span class="lbl">${fmtDay(d(s.started_at))} ${fmtTime(d(s.started_at))}${s.source === 'panel' ? ' · panneau Premiere' : s.source === 'manual' ? ' · manuel' : ''}</span><span class="row" style="gap:4px"><span class="mono" style="${(s.duration_sec || 0) < MIN_SPLIT_SECS ? 'color:var(--muted)' : ''}">${(s.duration_sec || 0) < 60 ? `${s.duration_sec || 0} s` : hm(s.duration_sec)}</span>${isAdmin() ? `<button class="x sm" data-act="delsession" data-id="${s.id}" aria-label="Supprimer cette session" title="Supprimer cette session">×</button>` : ''}</span></div>`).join('') || '<div class="empty">Aucune session.</div>'}
       ${ses.length > 10 && S.allSes !== m.id ? `<button class="lnk-btn" style="margin:8px 0 0" data-act="allsessions" data-id="${m.id}">Voir les ${ses.length - 10} autres sessions</button>` : ''}
       ${isAdmin() ? '<p class="hint" style="margin-top:10px">Une session de moins de 2 minutes (mission ouverte par erreur) ne compte pas dans la répartition. Tu peux aussi supprimer une session avec la croix.</p>' : ''}</div>`;
   const statusH = `    <div class="card">${statusMenu}${m.status !== 'requested' ? `<div class="lbl" style="margin-top:14px">Facturée par le monteur en</div><div style="margin-top:6px">${billMonth(m) ? esc(cap(monthName(billMonth(m)))) : '<span class="lbl">au mois de sa livraison</span>'}${isAdmin() && m.bill_month ? ' <span class="lbl">(choisi à la main)</span>' : ''}</div>` : ''}<div class="lbl" style="margin-top:14px">Équipe</div><div class="row" style="margin-top:8px;flex-wrap:wrap">${[...memberIds(m.id).map(profile).filter(Boolean).map((p) => `<span class="row" style="gap:6px">${avatar(p, 22)}${esc(firstName(p))}</span>`), ...(m.claude_editor ? [`<span class="row" style="gap:6px">${claudeAvatar(22)}Claude</span>`] : [])].join('') || '<span class="lbl">Personne pour l\'instant</span>'}</div></div>`;
@@ -1629,7 +1629,23 @@ function accountBody() {
   return `<form class="card" id="account-form"><div class="row" style="gap:12px">${avatar(S.me, 48)}<div><b>${esc(S.me.full_name || firstName(S.me))}</b><div class="lbl">${esc(S.me.email)}</div></div></div>
     <label class="f" for="ac-name">Nom affiché</label><div class="row"><input class="in" id="ac-name" name="name" maxlength="60" value="${esc(S.me.full_name || '')}" placeholder="Prénom Nom"><button class="btn" type="submit">Enregistrer</button></div></form>
   ${pushable ? `<div class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>Notifications</b><div class="lbl" style="margin-top:4px">${S.pushOn && Notification.permission === 'granted' ? 'Activées sur cet appareil.' : Notification.permission === 'denied' ? 'Bloquées dans les réglages de ton navigateur.' : 'Reçois les nouvelles sur cet appareil.'}</div></div>${S.pushOn && Notification.permission === 'granted' ? pill('Actives', '#3DD68C') : Notification.permission === 'denied' ? '' : '<button class="btn pri" data-act="push">Activer</button>'}</div></div>` : ''}
+  ${isAdmin() || isEditor() ? premiereCard() : ''}
   <button class="btn full danger" data-act="logout" style="margin-top:14px">${small(I.out)}Se déconnecter</button>`;
+}
+// Panneau Premiere : compte le temps même quand l'app est fermée (Premiere 25.6+).
+function premiereCard() {
+  const code = S.panelCode;
+  const seen = S.panelSeen ? `Dernier signal du panneau : ${esc(dshort(d(S.panelSeen)))} à ${esc(d(S.panelSeen).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }))}` : 'Le panneau ne s\'est pas encore connecté.';
+  return `<div class="card" style="margin-top:14px"><b>Panneau Premiere</b>
+    <div class="lbl" style="margin-top:4px">Un petit panneau qui démarre avec Premiere et enregistre ton temps de montage, même si Minima Studio est fermé. Quand l'app est ouverte, c'est elle qui compte : pas de double temps.</div>
+    <ol class="steps-ol">
+      <li><a href="https://studio.minimalistbelgium.com/premiere/minima-studio.ccx" target="_blank" rel="noopener" download>Télécharge le panneau</a> puis double-clique dessus et accepte l'installation (Creative Cloud).</li>
+      <li>Dans Premiere (25.6 ou plus récent) : <b>Fenêtre › Plugins UXP › Minima Studio</b>. Range le panneau où tu veux, il restera à sa place.</li>
+      <li>Colle ton code de connexion dans le panneau.</li>
+    </ol>
+    ${code ? `<div class="code-box"><span class="mono">${esc(code)}</span><button class="btn sm" data-act="copycode">Copier</button></div><div class="lbl" style="margin-top:6px">Ce code ne s'affiche qu'une fois. Garde-le pour toi.</div>`
+      : `<button class="btn" data-act="panelcode" style="margin-top:6px">Générer mon code</button>`}
+    <div class="lbl" style="margin-top:10px">${seen}</div></div>`;
 }
 
 // ---------- connexion ----------
@@ -1672,6 +1688,11 @@ async function setStatus(m, s) {
   await offerNotifyClient(m, s);
 }
 const ACTIONS = {
+  async panelcode() {
+    const { data, error } = await sb.rpc('create_premiere_code'); if (error) return toast('Impossible de créer le code');
+    S.panelCode = data; renderSheet(true);
+  },
+  async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
   edprev() { stepEditor(-1); },
   ednext() { stepEditor(1); },
@@ -1679,7 +1700,11 @@ const ACTIONS = {
   toggleteam() { store.set('ms-team-open', store.get('ms-team-open') === '1' ? '0' : '1'); render(); },
   newmission: (t) => { const preset = t.dataset.day ? { deadline: new Date(`${t.dataset.day}T18:00`).toISOString() } : null; openSheet({ type: 'new', preset }); },
   newclient: () => openSheet({ type: 'client', id: null }),
-  account: () => openSheet({ type: 'account' }),
+  account: async () => {
+    S.panelCode = null; S.panelSeen = null;
+    if (isAdmin() || isEditor()) { const r = await sb.from('premiere_tokens').select('last_seen').eq('user_id', S.me.id); S.panelSeen = (r.data || []).map((x) => x.last_seen).filter(Boolean).sort().pop() || null; }
+    openSheet({ type: 'account' });
+  },
   theme: () => toggleTheme(),
   edit: (t) => openMission(t.dataset.id, 'edit'),
   view: (t) => openMission(t.dataset.id),

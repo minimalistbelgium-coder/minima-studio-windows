@@ -53,6 +53,14 @@
   .clock.idle { color: #A9ACB4; }
   .sub { font-size: 11px; color: #A9ACB4; margin-top: 1px; }
 
+  .money { display: flex; flex-direction: row; margin-top: 11px; padding-top: 10px;
+           border-top: 1px solid rgba(255, 255, 255, 0.10); }
+  .mcol { flex: 1; }
+  .mcol .k { font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; color: #8F929A; }
+  .mv { font-size: 17px; font-weight: 700; color: #FFFFFF; margin-top: 2px; }
+  .mv.good { color: #5BE3A2; }
+  .mv.mid { color: #F7B955; }
+  .mv.low { color: #FF8A8A; }
   .stats { display: flex; flex-direction: row; margin-top: 8px; }
   .stat { flex: 1; padding: 9px 10px; border-radius: 13px; margin-right: 6px; }
   .stat.last { margin-right: 0; }
@@ -101,6 +109,10 @@
       <div class="label">AUJOURD'HUI SUR CETTE MISSION</div>
       <div id="clock" class="clock idle">0:00:00</div>
       <div id="sub" class="sub"></div>
+      <div id="money" class="money hidden">
+        <div class="mcol"><div class="k">TAUX HORAIRE</div><div id="rate" class="mv">–</div></div>
+        <div class="mcol"><div class="k">TA PART ESTIMÉE</div><div id="share" class="mv">–</div></div>
+      </div>
     </div>
 
     <div id="stats" class="stats hidden">

@@ -120,6 +120,7 @@ const WEB = 'https://studio.minimalistbelgium.com/';
 const $ = (id) => document.getElementById(id);
 const clock = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const x = s % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
 const hm = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h ? h + 'h' + String(m).padStart(2, '0') : m + ' min'; };
+const eur = (n) => Math.round(n).toLocaleString('fr-BE').replace(/\u202f|\u00a0/g, ' ') + ' €';
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const show = (id, on) => { const el = $(id); if (el) el.className = el.className.replace(/\s*hidden/g, '') + (on ? '' : ' hidden'); };
 const STATUS = {
@@ -172,6 +173,17 @@ function render() {
     $('clock').textContent = clock((r.today || 0) + p);
     $('sTotal').textContent = hm((r.total || 0) + p);
     $('sWeek').textContent = hm((r.week || 0) + p);
+    // Taux horaire en direct, même calcul que l'app : ta part du budget monteur selon le temps de chacun.
+    const mySecs = (r.total || 0) + p;
+    const budget = Number(r.budget) || 0;
+    const mine = mySecs * (Number(r.my_weight) || 1);
+    const others = Number(r.others_w) || 0;
+    const part = budget > 0 && mine + others > 0 ? budget * mine / (mine + others) : null;
+    const rate = part != null && mySecs >= 300 ? part / (mySecs / 3600) : null;
+    show('money', budget > 0);
+    $('share').textContent = part != null ? eur(part) : eur(budget);
+    $('rate').textContent = rate != null ? eur(rate) + ' / h' : 'après 5 min';
+    $('rate').className = 'mv' + (rate != null ? ' good' : '');
     const due = dueText(r.deadline); $('sDue').textContent = due[0]; $('sDue').className = 'v ' + due[1];
   }
   const hero = $('hero'); const clk = $('clock');

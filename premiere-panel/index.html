@@ -3,59 +3,90 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root {
-    --bg: #0A0B0E; --card: #15161A; --card2: #1C1D22; --line: #26272D;
-    --text: #EDEEF0; --muted: #8F929A; --faint: #5B5E66;
-    --blue: #4C8DFF; --green: #3DD68C; --amber: #F5A524; --red: #FF6B6B;
+  /* Look « verre » de Minima Studio. UXP ne gère ni le flou d'arrière-plan ni les ombres :
+     l'effet est obtenu avec des dégradés, des fonds translucides et des liserés lumineux. */
+  html { background-color: #0A0B0E; height: 100%; }
+  body {
+    margin: 0; padding: 12px; min-height: 100%; box-sizing: border-box;
+    color: #EDEEF0; font-family: -apple-system, "SF Pro Text", "Segoe UI", sans-serif; font-size: 12px;
+    background-color: #0A0B0E;
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(76, 141, 255, 0.26), rgba(76, 141, 255, 0) 55%),
+      radial-gradient(circle at 100% 100%, rgba(167, 139, 250, 0.20), rgba(167, 139, 250, 0) 55%),
+      radial-gradient(circle at 100% 0%, rgba(45, 212, 191, 0.10), rgba(45, 212, 191, 0) 45%);
   }
-  body { margin: 0; padding: 12px; background-color: #0A0B0E; color: #EDEEF0;
-         font-family: -apple-system, "SF Pro Text", "Segoe UI", sans-serif; font-size: 12px; }
   .hidden { display: none; }
   .row { display: flex; flex-direction: row; align-items: center; }
   .grow { flex: 1; }
 
+  .glass {
+    background-color: rgba(255, 255, 255, 0.045);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.015) 60%);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-top-color: rgba(255, 255, 255, 0.22);
+    border-radius: 16px;
+  }
+
   .top { display: flex; flex-direction: row; align-items: center; margin-bottom: 10px; }
   .logo { width: 18px; height: 16px; margin-right: 8px; }
-  .brand { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #EDEEF0; }
-  .pill { display: flex; flex-direction: row; align-items: center; padding: 3px 8px; border-radius: 10px;
-          background-color: #1C1D22; border: 1px solid #26272D; font-size: 10.5px; font-weight: 600; color: #C9CBD1; }
-  .dot { width: 7px; height: 7px; border-radius: 4px; margin-right: 6px; background-color: #5B5E66; }
+  .brand { font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px; color: #EDEEF0; }
+  .pill { display: flex; flex-direction: row; align-items: center; padding: 4px 9px; border-radius: 11px; font-size: 10.5px; font-weight: 600; color: #EDEEF0; }
+  .dot { width: 7px; height: 7px; border-radius: 4px; margin-right: 6px; background-color: #8F929A; }
   .dot.on { background-color: #3DD68C; }
   .dot.warn { background-color: #F5A524; }
   .dot.app { background-color: #4C8DFF; }
   .dot.off { background-color: #FF6B6B; }
 
-  .card { background-color: #15161A; border: 1px solid #26272D; border-radius: 12px; padding: 12px 14px; }
-  .card.on { border-color: #1F5E43; }
-  .label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #8F929A; }
-  .mission { font-size: 14px; font-weight: 700; color: #EDEEF0; margin-top: 4px; }
-  .client { font-size: 11.5px; color: #8F929A; margin-top: 2px; }
-  .clock { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 34px; font-weight: 700;
-           letter-spacing: 1px; color: #EDEEF0; margin-top: 10px; }
-  .clock.on { color: #3DD68C; }
+  .hero { padding: 13px 14px 14px; }
+  .hero.on { border-color: rgba(61, 214, 140, 0.35); border-top-color: rgba(61, 214, 140, 0.6);
+             background-image: linear-gradient(180deg, rgba(61, 214, 140, 0.16), rgba(61, 214, 140, 0.02) 65%); }
+  .hero.app { border-color: rgba(76, 141, 255, 0.35); border-top-color: rgba(76, 141, 255, 0.6);
+              background-image: linear-gradient(180deg, rgba(76, 141, 255, 0.16), rgba(76, 141, 255, 0.02) 65%); }
+  .mission { font-size: 14px; font-weight: 700; color: #FFFFFF; }
+  .meta { display: flex; flex-direction: row; align-items: center; margin-top: 5px; }
+  .client { font-size: 11.5px; color: #A9ACB4; margin-right: 8px; }
+  .chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 9px; }
+  .label { font-size: 9.5px; font-weight: 700; letter-spacing: 1.1px; color: #8F929A; margin-top: 12px; }
+  .clock { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 36px; font-weight: 700; letter-spacing: 1px; color: #EDEEF0; margin-top: 2px; }
+  .clock.on { color: #5BE3A2; }
   .clock.app { color: #8DB6FF; }
-  .clock.idle { color: #8F929A; }
-  .sub { font-size: 11px; color: #8F929A; margin-top: 2px; }
-  .hint { font-size: 11.5px; color: #8F929A; margin-top: 10px; line-height: 16px; }
+  .clock.idle { color: #A9ACB4; }
+  .sub { font-size: 11px; color: #A9ACB4; margin-top: 1px; }
 
-  input, select { width: 100%; margin-top: 8px; padding: 7px 9px; font-size: 12px; color: #EDEEF0;
-                  background-color: #1C1D22; border: 1px solid #26272D; border-radius: 8px; }
-  .btn { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background-color: #4C8DFF; color: #06101F;
-         font-size: 12px; font-weight: 700; text-align: center; cursor: pointer; }
-  .link { margin-top: 12px; color: #5B5E66; font-size: 10.5px; cursor: pointer; }
-  .err { color: #FF6B6B; font-size: 11px; margin-top: 6px; }
+  .stats { display: flex; flex-direction: row; margin-top: 8px; }
+  .stat { flex: 1; padding: 9px 10px; border-radius: 13px; margin-right: 6px; }
+  .stat.last { margin-right: 0; }
+  .stat .k { font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; color: #8F929A; }
+  .stat .v { font-size: 14px; font-weight: 700; color: #EDEEF0; margin-top: 3px; }
+  .stat .v.red { color: #FF8A8A; }
+  .stat .v.amber { color: #F7B955; }
+
+  .hint { font-size: 11px; color: #A9ACB4; margin-top: 9px; line-height: 16px; }
+
+  input, select { width: 100%; margin-top: 8px; padding: 8px 10px; font-size: 12px; color: #EDEEF0;
+                  background-color: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; }
+  .btn { margin-top: 9px; padding: 9px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; text-align: center; cursor: pointer;
+         color: #FFFFFF; background-color: #4C8DFF;
+         background-image: linear-gradient(180deg, #6FA4FF, #3F7EF0);
+         border: 1px solid rgba(255, 255, 255, 0.18); border-top-color: rgba(255, 255, 255, 0.4); }
+  .btn.ghost { color: #EDEEF0; background-color: rgba(255, 255, 255, 0.06);
+               background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)); }
+  .links { display: flex; flex-direction: row; margin-top: 10px; }
+  .link { color: #6E727B; font-size: 10.5px; cursor: pointer; margin-right: 12px; }
+  .err { color: #FF8A8A; font-size: 11px; margin-top: 6px; }
+  .card { padding: 13px 14px; }
 </style>
 </head>
 <body>
   <div class="top">
     <img class="logo" src="icons/logo.png">
     <div class="brand grow">MINIMA STUDIO</div>
-    <div id="pill" class="pill hidden"><div id="dot" class="dot"></div><div id="state">Connexion…</div></div>
+    <div id="pill" class="pill glass hidden"><div id="dot" class="dot"></div><div id="state">Connexion…</div></div>
   </div>
 
   <div id="login" class="hidden">
-    <div class="card">
-      <div class="label">CONNEXION</div>
+    <div class="glass card">
+      <div class="mission">Connecte le panneau</div>
       <div class="hint">Colle ton code personnel. Tu le trouves dans Minima Studio, menu de ton compte, « Panneau Premiere ».</div>
       <input id="code" placeholder="XXXX-XXXX-XXXX" maxlength="14">
       <div id="save" class="btn">Connecter</div>
@@ -64,19 +95,30 @@
   </div>
 
   <div id="main" class="hidden">
-    <div id="card" class="card">
-      <div class="label">AUJOURD'HUI SUR CETTE MISSION</div>
+    <div id="hero" class="glass hero hidden">
       <div id="mission" class="mission"></div>
-      <div id="client" class="client"></div>
+      <div class="meta"><div id="client" class="client"></div><div id="chip" class="chip"></div></div>
+      <div class="label">AUJOURD'HUI SUR CETTE MISSION</div>
       <div id="clock" class="clock idle">0:00:00</div>
       <div id="sub" class="sub"></div>
     </div>
+
+    <div id="stats" class="stats hidden">
+      <div class="stat glass"><div class="k">MISSION</div><div id="sTotal" class="v">–</div></div>
+      <div class="stat glass"><div class="k">SEMAINE</div><div id="sWeek" class="v">–</div></div>
+      <div class="stat glass last"><div class="k">ÉCHÉANCE</div><div id="sDue" class="v">–</div></div>
+    </div>
+
     <div id="hint" class="hint"></div>
     <div id="linkBox" class="hidden">
       <select id="missions"></select>
       <div id="link" class="btn">Lier ce projet à la mission</div>
     </div>
-    <div id="logout" class="link">Changer de compte</div>
+    <div id="openApp" class="btn ghost">Ouvrir dans Minima Studio</div>
+    <div class="links">
+      <div id="openWeb" class="link">Version web</div>
+      <div id="logout" class="link">Changer de compte</div>
+    </div>
   </div>
   <script src="main.js"></script>
 </body>

@@ -116,21 +116,39 @@ async function beat(forKey) {
 }
 
 // ---------- interface ----------
+const WEB = 'https://studio.minimalistbelgium.com/';
 const $ = (id) => document.getElementById(id);
 const clock = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const x = s % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
+const hm = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h ? h + 'h' + String(m).padStart(2, '0') : m + ' min'; };
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const show = (id, on) => { const el = $(id); if (el) el.className = el.className.replace(/\s*hidden/g, '') + (on ? '' : ' hidden'); };
+const STATUS = {
+  assigned: ['Assignée', '#8B8D94'], editing: ['En montage', '#4C8DFF'], v1_delivered: ['V1 livrée', '#3DD68C'],
+  revisions: ['Retouches', '#F5A524'], fix_delivered: ['Corrections livrées', '#C084FC'], validated: ['Validée', '#3DD68C'], paid: ['Payée', '#3DD68C'],
+};
+const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + a + ')'; };
+
+function dueText(iso) {
+  if (!iso) return ['Aucune', ''];
+  const d = new Date(iso); const t = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(d) - day(t)) / 86400000);
+  const hh = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  if (diff < 0) return ['Dépassée ' + (-diff) + ' j', 'red'];
+  if (diff === 0) return [(d < t ? 'Dépassée ' : "Auj. ") + hh, d < t ? 'red' : 'amber'];
+  if (diff === 1) return ['Demain ' + hh, 'amber'];
+  return ['Dans ' + diff + ' j', ''];
+}
 
 function setPill(cls, text) { $('dot').className = 'dot ' + cls; $('state').textContent = text; }
 
-// Temps affiché : dernier total du serveur + travail constaté depuis, et la minute en cours tant qu'on bosse.
-function liveSeconds() {
+// Ce qui a été constaté mais pas encore enregistré par le serveur, plus la minute en cours tant qu'on bosse.
+function pending() {
   const r = st.last || {};
-  let s = r.today || 0;
-  if (r.status === 'counting' || r.status === 'idle') {
-    if (st.creditKey === st.key || !st.creditKey) s += st.credit;
-    if (isActive()) s += (nowMs() - st.lastActivity) / 1000;
-  }
+  if (r.status !== 'counting' && r.status !== 'idle') return 0;
+  let s = 0;
+  if (st.creditKey === st.key || !st.creditKey) s += st.credit;
+  if (isActive()) s += (nowMs() - st.lastActivity) / 1000;
   return s;
 }
 
@@ -140,29 +158,38 @@ function render() {
   show('login', !logged); show('main', logged); show('pill', logged);
   if (!logged) return;
   const r = st.last || {};
-  show('linkBox', false);
-  $('mission').textContent = r.mission || '';
-  $('client').textContent = r.client || '';
   const hasMission = !!r.mission;
-  show('card', hasMission);
-  const clk = $('clock'); const card = $('card');
-  clk.textContent = clock(liveSeconds());
+  show('linkBox', false); show('hero', hasMission); show('stats', hasMission);
+  show('openApp', true);
+  $('openApp').textContent = hasMission ? 'Ouvrir la mission dans Minima Studio' : 'Ouvrir Minima Studio';
+  if (hasMission) {
+    const p = pending();
+    $('mission').textContent = r.mission;
+    $('client').textContent = r.client || '';
+    const stl = STATUS[r.mstatus];
+    const chip = $('chip');
+    if (stl) { chip.textContent = stl[0]; chip.style.color = stl[1]; chip.style.backgroundColor = hexA(stl[1], 0.16); chip.className = 'chip'; } else chip.className = 'chip hidden';
+    $('clock').textContent = clock((r.today || 0) + p);
+    $('sTotal').textContent = hm((r.total || 0) + p);
+    $('sWeek').textContent = hm((r.week || 0) + p);
+    const due = dueText(r.deadline); $('sDue').textContent = due[0]; $('sDue').className = 'v ' + due[1];
+  }
+  const hero = $('hero'); const clk = $('clock');
   if (!ppro) { setPill('warn', 'Premiere trop ancien'); $('hint').textContent = 'Il faut Premiere 25.6 ou plus récent.'; return; }
-  const who = r.who ? r.who : '';
   switch (r.status) {
     case 'counting':
     case 'idle': {
       const on = isActive();
       setPill(on ? 'on' : 'warn', on ? 'En cours' : 'En pause');
-      clk.className = 'clock ' + (on ? 'on' : 'idle'); card.className = 'card' + (on ? ' on' : '');
-      $('sub').textContent = on ? 'Le temps est enregistré dans Minima Studio.' : 'Reprend dès que tu travailles dans Premiere.';
+      clk.className = 'clock ' + (on ? 'on' : 'idle'); hero.className = 'glass hero' + (on ? ' on' : '');
+      $('sub').textContent = on ? 'Enregistré dans Minima Studio' : 'Reprend dès que tu travailles dans Premiere';
       $('hint').textContent = on ? '' : "Seul le temps passé à monter est compté : une minute sans action dans Premiere et le chrono s'arrête.";
       break;
     }
     case 'app':
-      setPill('app', "Suivi par l'app"); clk.className = 'clock app'; card.className = 'card';
-      $('sub').textContent = "L'app Minima Studio chronomètre ce montage.";
-      $('hint').textContent = 'Le panneau prend le relais si tu fermes l’app.';
+      setPill('app', "Suivi par l'app"); clk.className = 'clock app'; hero.className = 'glass hero app';
+      $('sub').textContent = "C'est l'app Minima Studio qui chronomètre";
+      $('hint').textContent = "Le panneau prend le relais si tu fermes l'app.";
       break;
     case 'no_project':
       setPill('', 'Aucun projet'); $('hint').textContent = 'Ouvre le projet Premiere de ta mission.'; break;
@@ -182,7 +209,23 @@ function render() {
     case 'offline': setPill('off', 'Hors ligne'); $('hint').textContent = 'Le temps constaté est gardé et sera envoyé au retour du réseau.'; break;
     default: setPill('', 'Connexion…'); $('hint').textContent = '';
   }
-  if (who && r.status !== 'offline') $('logout').textContent = 'Connecté : ' + who + ' · changer de compte';
+  $('logout').textContent = r.who && r.status !== 'offline' ? r.who + ' · changer de compte' : 'Changer de compte';
+}
+
+async function openExternal(url) {
+  const shell = require('uxp').shell;
+  const res = await shell.openExternal(url, 'Ouvrir Minima Studio');
+  if (typeof res === 'string' && res) throw new Error(res);
+}
+
+async function openApp() {
+  const id = (st.last || {}).mission_id;
+  try {
+    await openExternal('minimastudio://open' + (id ? '?mission=' + id : ''));
+  } catch (e) {
+    // App pas installée ou trop ancienne : on ouvre la version web.
+    try { await openExternal(WEB + (id ? '?m=' + id : '')); } catch (e2) { /* rien */ }
+  }
 }
 
 function wire() {
@@ -199,6 +242,8 @@ function wire() {
     try { await call({ action: 'link', token: st.token, mission: mid, key: st.key }); } catch (e) { /* réessai au prochain battement */ }
     touch(); beat();
   });
+  $('openApp').addEventListener('click', openApp);
+  $('openWeb').addEventListener('click', () => { const id = (st.last || {}).mission_id; openExternal(WEB + (id ? '?m=' + id : '')).catch(() => {}); });
   $('logout').addEventListener('click', () => { st.token = null; store.set('ms-token', null); st.last = null; render(); });
 }
 

@@ -182,6 +182,8 @@ pub fn run() {
                 let _ = m.set_focus();
             }
         }))
+        // Liens minimastudio://open?mission=… (bouton « Ouvrir Minima Studio » du panneau Premiere)
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -219,6 +221,20 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
+            {
+                use tauri::Emitter;
+                use tauri_plugin_deep_link::DeepLinkExt;
+                // Installations faites avant la 1.4.4 : le lien minimastudio:// est enregistré au premier lancement.
+                #[cfg(windows)]
+                let _ = app.deep_link().register_all();
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    show_main(&handle);
+                    for url in event.urls() {
+                        let _ = handle.emit("ms-open-url", url.to_string());
+                    }
+                });
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -28,8 +28,24 @@ const st = {
   budget: 0, myShare: null, showDiag: false, version: '',
 };
 
+// Liens minimastudio://open?mission=… (bouton du panneau Premiere) : ouvre la fiche de la mission.
+function openFromUrl(u) {
+  let id = null;
+  try { id = new URL(u).searchParams.get('mission'); } catch (e) { return; }
+  if (!id) return;
+  let tries = 0;
+  const go = () => {
+    const S = window.MS.S;
+    if ((S.missions || []).some((m) => m.id === id)) window.MS.openMission(id);
+    else if (++tries < 20) setTimeout(go, 500);
+  };
+  go();
+}
+
 function start() {
   const MS = window.MS;
+  try { T.event.listen('ms-open-url', (e) => openFromUrl(e.payload)); } catch (e) { /* rien */ }
+  invoke('plugin:deep-link|get_current').then((urls) => (urls || []).forEach(openFromUrl)).catch(() => {});
   document.body.classList.add('desktop');
   // Liens externes : navigateur par défaut
   document.addEventListener('click', (e) => {

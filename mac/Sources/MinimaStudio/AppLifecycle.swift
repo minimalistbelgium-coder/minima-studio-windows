@@ -9,7 +9,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var dataStore: DataStore?
     static weak var presenter: Presenter?
 
+    // MARK: liens minimastudio://
+    // On prend la main sur les liens avant SwiftUI : sinon chaque lien ouvre une nouvelle fenêtre.
+
+    /// Liens arrivés avant que la fenêtre soit prête (app lancée par le lien).
+    static var pendingURLs: [URL] = []
+
+    func applicationWillFinishLaunching(_ notification: Notification) { installURLHandler() }
+
+    private func installURLHandler() {
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleGetURL(_:reply:)),
+                                                     forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+    }
+
+    @objc func handleGetURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+        guard let s = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: s) else { return }
+        Task { @MainActor in AppDelegate.route(url) }
+    }
+
+    /// minimastudio://open?mission=… : montre la fenêtre existante et ouvre la fiche. Le reste : connexion.
+    @MainActor static func route(_ url: URL) {
+        guard url.host == "open" else {
+            Task { _ = try? await supa.auth.session(from: url) }
+            return
+        }
+        guard let app = appState, let presenter else { pendingURLs.append(url); return }
+        if MiniWindow.shared.isVisible { MiniWindow.shared.hide(app: app) }
+        app.showMainWindow()
+        let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "mission" }?.value
+        if let id, !id.isEmpty { presenter.open(.existing(id)) }
+    }
+
+    @MainActor static func flushPendingURLs() {
+        let list = pendingURLs; pendingURLs = []
+        list.forEach(route)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        installURLHandler()
         ThemeMode.apply(ThemeMode.stored)
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         SystemNotifier.requestPermission()

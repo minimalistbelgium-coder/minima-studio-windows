@@ -384,19 +384,6 @@ final class DataStore: ObservableObject {
         return (rows, total, payments.first { $0.user_id == user && $0.month.hasPrefix(String(key.prefix(7))) })
     }
 
-    /// Mois terminés (12 derniers) pas encore entièrement payés à ce monteur.
-    func unpaidMonths(user: String, back: Int = 12) -> [(month: Date, due: Double)] {
-        let cal = Calendar.current
-        let now = cal.dateInterval(of: .month, for: Date())?.start ?? Date()
-        return (1...back).compactMap { i in
-            guard let mo = cal.date(byAdding: .month, value: -i, to: now) else { return nil }
-            let st = statement(user: user, month: mo)
-            guard st.total > 0 else { return nil }
-            let due = st.total - (st.payment?.amount ?? 0)
-            return due > 0.5 ? (mo, due) : nil
-        }
-    }
-
     // MARK: historique comptable
     func historyOf(_ month: Date) -> [FinanceHistory] {
         let cal = Calendar.current

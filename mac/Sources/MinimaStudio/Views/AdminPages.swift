@@ -26,7 +26,7 @@ struct TodayView: View {
             }
 
             let owed = data.payees.flatMap { data.unpaidMonths(user: $0.id) }
-            let owedSum = owed.map(\.due).reduce(0, +)
+            let owedSum = owed.map(\.amount).reduce(0, +)
             StatGrid {
                 StatCard(label: "Facturé aux clients · \(monthName)", value: Money.eur(billed),
                          foot: trend(billed, billedPrev), footColor: billed >= billedPrev ? Theme.green : Theme.amber,
@@ -619,7 +619,7 @@ struct EditorProfileBody: View {
         let cal = Calendar.current
         let mo = cal.dateInterval(of: .month, for: Date())?.start ?? Date()
         let owed = data.unpaidMonths(user: profile.id)
-        let owedSum = owed.map(\.due).reduce(0, +)
+        let owedSum = owed.map(\.amount).reduce(0, +)
         let cur = data.statement(user: profile.id, month: mo)
         let ahead = data.pendingRows(user: profile.id).map(\.amount).reduce(0, +)
         let ws = cal.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
@@ -641,7 +641,7 @@ struct EditorProfileBody: View {
             }
             StatGrid {
                 StatCard(label: "Tu lui dois", value: Money.eur((owedSum * 100).rounded() / 100),
-                         foot: owed.isEmpty ? "Rien en retard" : owed.prefix(3).map { "\($0.month.formatted(.dateTime.month(.abbreviated).locale(fr))) \(Money.eur($0.due.rounded()))" }.joined(separator: " · ") + (owed.count > 3 ? " · +\(owed.count - 3) mois" : ""),
+                         foot: owed.isEmpty ? "Rien en retard" : owed.prefix(3).map { "\($0.month.formatted(.dateTime.month(.abbreviated).locale(fr))) \(Money.eur($0.amount.rounded()))" }.joined(separator: " · ") + (owed.count > 3 ? " · +\(owed.count - 3) mois" : ""),
                          footColor: owedSum > 0 ? Theme.amber : Theme.green,
                          action: { presenter.go(.finances, financeTab: .payouts, month: owed.map(\.month).min() ?? mo) })
                 StatCard(label: "\(BillMonth.label(mo)) à date", value: Money.eur(cur.total),

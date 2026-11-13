@@ -29,18 +29,8 @@ struct MinimaStudioApp: App {
                     AppDelegate.appState = app
                     AppDelegate.dataStore = data
                     AppDelegate.presenter = presenter
+                    AppDelegate.flushPendingURLs()
                 })
-                .onOpenURL { url in
-                    // minimastudio://open?mission=… : bouton « Ouvrir Minima Studio » du panneau Premiere
-                    if url.host == "open" {
-                        app.showMainWindow()
-                        let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                            .queryItems?.first { $0.name == "mission" }?.value
-                        if let id, !id.isEmpty { presenter.open(.existing(id)) }
-                        return
-                    }
-                    Task { _ = try? await supa.auth.session(from: url) }
-                }
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)

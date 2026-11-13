@@ -1,0 +1,562 @@
+Building for debugging...
+[0/26] Write sources
+[0/26] Copying PrivacyInfo.xcprivacy
+[2/26] Write sources
+[8/26] /Users/runner/work/minima-studio-windows/minima-studio-windows/mac/.build/arm64-apple-macosx/debug/MinimaStudioPackageTests.derived/runner.swift
+[10/26] Write sources
+[12/26] Write MinimaStudio-entitlement.plist
+[14/26] Write sources
+[20/26] Write swift-version-7974D3F7F03D5E95.txt
+[22/99] Emitting module Crypto
+[23/123] Emitting module HTTPTypes
+[24/123] Compiling Crypto AES-GCM.swift
+[25/123] Compiling Crypto AES-GCM_boring.swift
+[26/123] Compiling Crypto ChaChaPoly_boring.swift
+[27/123] Compiling Crypto ChaChaPoly.swift
+[28/123] Compiling Crypto Cipher.swift
+[29/123] Compiling Crypto Nonces.swift
+[30/123] Compiling Crypto ASN1.swift
+[31/126] Emitting module IssueReporting
+[39/126] Compiling HTTPTypes HTTPRequest+URL.swift
+[40/133] Compiling Crypto Insecure_HashFunctions.swift
+[41/133] Compiling Crypto MLKEM_boring.swift
+[42/133] Compiling Crypto MLKEM_wrapper.swift
+[43/133] Compiling Crypto XWing_boring.swift
+[44/133] Compiling Crypto KEM-Errors.swift
+[45/133] Compiling Crypto KEM.swift
+[46/133] Compiling Crypto MLKEM.swift
+[47/133] Compiling Crypto XWing.swift
+[48/133] Compiling Crypto ECDH_boring.swift
+[49/133] Compiling Crypto DH.swift
+[50/133] Compiling Crypto ECDH.swift
+[51/133] Compiling Crypto ANSIx963.swift
+[52/133] Compiling Crypto HKDF.swift
+[53/133] Compiling Crypto AESWrap.swift
+[54/133] Compiling Crypto AESWrap_boring.swift
+[55/133] Compiling Crypto Ed25519_boring.swift
+[56/133] Compiling Crypto NISTCurvesKeys_boring.swift
+[57/133] Compiling Crypto X25519Keys_boring.swift
+[58/133] Compiling Crypto Curve25519.swift
+[59/133] Compiling Crypto Ed25519Keys.swift
+[60/133] Compiling Crypto NISTCurvesKeys.swift
+[61/133] Compiling Crypto X25519Keys.swift
+[62/133] Compiling Crypto SymmetricKeys.swift
+[63/133] Compiling Crypto HMAC.swift
+[64/156] Compiling Crypto CryptoKitErrors.swift
+[65/156] Compiling Crypto Digest_boring.swift
+[66/156] Compiling Crypto Digest.swift
+[67/156] Compiling Crypto Digests.swift
+[68/156] Compiling Crypto HashFunctions.swift
+[69/156] Compiling Crypto HashFunctions_SHA2.swift
+[70/156] Compiling Crypto HashFunctions_SHA3.swift
+[71/156] Compiling Crypto Digest_xkcp.swift
+[72/156] Compiling Crypto HPKE-AEAD.swift
+[73/156] Compiling Crypto HPKE-Ciphersuite.swift
+[74/156] Compiling Crypto HPKE-KDF.swift
+[75/156] Compiling Crypto HPKE-KexKeyDerivation.swift
+[76/156] Compiling Crypto HPKE-LabeledExtract.swift
+[77/156] Compiling Crypto HPKE-Utils.swift
+[78/156] Compiling Crypto DHKEM.swift
+[79/156] Compiling Crypto HPKE-KEM-Curve25519.swift
+[80/156] Compiling Crypto HPKE-NIST-EC-KEMs.swift
+[81/156] Compiling Crypto HPKE-KEM.swift
+[82/156] Compiling Crypto HPKE-Errors.swift
+[83/156] Compiling Crypto HPKE.swift
+[84/156] Compiling Crypto HPKE-Context.swift
+[85/156] Compiling Crypto HPKE-KeySchedule.swift
+[86/156] Compiling Crypto HPKE-Modes.swift
+[87/156] Compiling Crypto Insecure.swift
+[96/156] Compiling HTTPTypes HTTPRequest.swift
+[97/156] Compiling HTTPTypes HTTPResponse.swift
+[98/156] Compiling Crypto ASN1Identifier.swift
+[99/156] Compiling Crypto ASN1Integer.swift
+[100/156] Compiling Crypto ASN1Null.swift
+[101/156] Compiling Crypto ASN1OctetString.swift
+[102/156] Compiling Crypto ASN1Strings.swift
+[103/156] Compiling IssueReporting IssueSeverity.swift
+[104/156] Compiling IssueReporting ReportIssue.swift
+[105/156] Compiling IssueReporting _Test.swift
+[106/156] Compiling IssueReporting TestContext.swift
+[107/156] Compiling IssueReporting Unimplemented.swift
+[108/156] Compiling IssueReporting WithExpectedIssue.swift
+[109/156] Compiling IssueReporting WithIssueContext.swift
+[110/156] Compiling Crypto SubjectPublicKeyInfo.swift
+[111/156] Compiling Crypto CryptoError_boring.swift
+[122/165] Compiling ConcurrencyExtras Locking.swift
+[123/165] Compiling ConcurrencyExtras UncheckedBox.swift
+[124/165] Compiling ConcurrencyExtras LockIsolated.swift
+[125/165] Compiling ConcurrencyExtras MainSerialExecutor.swift
+[126/168] Compiling ConcurrencyExtras ActorIsolated.swift
+[127/168] Compiling ConcurrencyExtras AnyHashableSendable.swift
+[128/168] Compiling ConcurrencyExtras AsyncStream.swift
+[129/168] Compiling ConcurrencyExtras AsyncThrowingStream.swift
+[130/168] Emitting module ConcurrencyExtras
+[131/168] Compiling Crypto MACFunctions.swift
+[132/168] Compiling Crypto MessageAuthenticationCode.swift
+[133/168] Compiling Crypto AES.swift
+[134/168] Compiling Crypto ECDSASignature_boring.swift
+[135/168] Compiling Crypto ECDSA_boring.swift
+[136/168] Compiling Crypto EdDSA_boring.swift
+[137/168] Compiling Crypto MLDSA_boring.swift
+[138/168] Compiling Crypto MLDSA_wrapper.swift
+[139/168] Compiling Crypto ECDSA.swift
+[140/168] Compiling Crypto Ed25519.swift
+[141/168] Compiling Crypto MLDSA.swift
+[142/168] Compiling Crypto Signature.swift
+[143/168] Compiling Crypto CryptoKitErrors_boring.swift
+[144/168] Compiling Crypto Optional+withUnsafeBytes_boring.swift
+[145/168] Compiling Crypto RNG_boring.swift
+[146/168] Compiling Crypto SafeCompare_boring.swift
+[147/168] Compiling Crypto Zeroization_boring.swift
+[148/168] Compiling Crypto _CryptoModuleAnchor.swift
+[149/168] Compiling Crypto PrettyBytes.swift
+[150/168] Compiling Crypto SafeCompare.swift
+[151/168] Compiling Crypto SecureBytes.swift
+[152/168] Compiling Crypto Zeroization.swift
+[153/168] Compiling Crypto resource_bundle_accessor.swift
+[154/168] Compiling ConcurrencyExtras Result.swift
+[155/168] Compiling ConcurrencyExtras Task.swift
+[156/168] Compiling ConcurrencyExtras UncheckedSendable.swift
+[164/178] Compiling XCTestDynamicOverlay Exports.swift
+[165/179] Compiling XCTestDynamicOverlay Fail.swift
+[166/179] Emitting module XCTestDynamicOverlay
+[167/179] Compiling XCTestDynamicOverlay Deprecations.swift
+[168/179] Emitting module Clocks
+[169/179] Compiling Clocks _AsyncTimerSequence.swift
+[170/179] Compiling Clocks SwiftUI.swift
+[171/179] Compiling Clocks TestClock.swift
+[172/179] Compiling Clocks AnyClock.swift
+[173/179] Compiling Clocks ImmediateClock.swift
+[174/179] Compiling Clocks Lock.swift
+[175/181] Compiling Clocks Timer.swift
+[176/181] Compiling Clocks UnimplementedClock.swift
+[177/198] Compiling Helpers APIKeyFormat.swift
+[178/198] Compiling Helpers AnyJSON+Codable.swift
+[179/198] Compiling Helpers AnyJSON.swift
+[180/198] Compiling Helpers Base64URL.swift
+[181/198] Compiling Helpers Codable.swift
+[182/198] Compiling Helpers DateFormatter.swift
+[183/198] Compiling Helpers EventEmitter.swift
+[184/198] Compiling Helpers FoundationExtensions.swift
+[185/198] Emitting module Helpers
+[186/198] Compiling Helpers HTTPClient.swift
+[187/198] Compiling Helpers HTTPFields.swift
+[188/198] Compiling Helpers HTTPRequest.swift
+[189/198] Compiling Helpers HTTPResponse.swift
+[190/198] Compiling Helpers LoggerInterceptor.swift
+[191/198] Compiling Helpers RetryRequestInterceptor.swift
+[192/198] Compiling Helpers JWT.swift
+[193/198] Compiling Helpers OSLogSupabaseLogger.swift
+[194/205] Compiling Helpers SupabaseLogger.swift
+[195/205] Compiling Helpers PostgRESTFilterValue.swift
+[196/205] Compiling Helpers HTTPError.swift
+[197/205] Compiling Helpers PostgrestError.swift
+[198/205] Compiling Helpers Task+withTimeout.swift
+[199/205] Compiling Helpers TaskLocalHelpers.swift
+[200/205] Compiling Helpers Version.swift
+[201/242] Emitting module PostgREST
+[202/245] Compiling PostgREST PostgrestClient.swift
+[203/245] Compiling PostgREST PostgrestFilterBuilder.swift
+[204/245] Compiling PostgREST PostgrestFilterValue.swift
+[205/245] Compiling PostgREST Defaults.swift
+[206/245] Compiling PostgREST Deprecated.swift
+[207/245] Compiling PostgREST Exports.swift
+[208/245] Compiling PostgREST PostgrestBuilder.swift
+[209/245] Compiling PostgREST PostgrestQueryBuilder.swift
+[210/245] Compiling PostgREST PostgrestTransformBuilder.swift
+[211/245] Compiling PostgREST Types.swift
+[217/248] Emitting module Storage
+[223/253] Compiling Functions Exports.swift
+[224/253] Emitting module Functions
+[225/253] Compiling Functions FunctionsClient.swift
+[226/254] Compiling Functions Types.swift
+[227/278] Compiling Auth Exports.swift
+[228/278] Compiling Auth APIClient.swift
+[229/278] Compiling Auth CodeVerifierStorage.swift
+[230/278] Compiling Auth Constants.swift
+[231/278] Compiling Auth Dependencies.swift
+[232/278] Emitting module RealtimeV2
+[233/278] Compiling Auth AuthAdmin.swift
+[234/278] Compiling Auth AuthAdminOAuth.swift
+[235/278] Compiling Auth AuthClient.swift
+[236/278] Compiling Auth AuthClientConfiguration.swift
+[237/278] Compiling Auth AuthError.swift
+[238/278] Compiling Auth AuthMFA.swift
+[239/278] Compiling Auth AuthOAuthServer.swift
+[240/278] Compiling Auth AuthStateChangeListener.swift
+[241/278] Compiling Auth Defaults.swift
+[245/286] Compiling Auth EventEmitter.swift
+[246/286] Compiling Auth FixedWidthInteger+Random.swift
+[247/286] Compiling RealtimeV2 RealtimeLifecycleManager.swift
+[248/286] Compiling RealtimeV2 RealtimeMessageV2.swift
+[249/286] Compiling RealtimeV2 RealtimePostgresFilter.swift
+[250/286] Compiling RealtimeV2 RealtimePostgresFilterValue.swift
+[251/286] Compiling RealtimeV2 RealtimeSerializer.swift
+[252/286] Compiling RealtimeV2 Types.swift
+[253/297] Compiling Auth Deprecated.swift
+[261/297] Emitting module Auth
+[280/297] Compiling Auth SessionStorage.swift
+[281/297] Compiling Auth URLOpener.swift
+[284/306] Compiling Auth AuthLocalStorage.swift
+[285/306] Compiling Auth KeychainLocalStorage.swift
+[286/306] Compiling Auth WinCredLocalStorage.swift
+[287/306] Compiling Auth Types.swift
+[288/306] Compiling Auth AuthAdmin+Passkey.swift
+[289/306] Compiling Auth AuthClient+Passkey.swift
+[290/306] Compiling Auth AuthMFA+WebAuthn.swift
+[291/306] Compiling Auth WebAuthnAuthenticator.swift
+[292/306] Compiling Auth WebAuthnTypes.swift
+[293/306] Compiling Realtime Defaults.swift
+[294/306] Compiling Realtime Delegated.swift
+[295/306] Compiling Realtime Deprecated.swift
+[296/306] Compiling Realtime HeartbeatTimer.swift
+[297/310] Emitting module Realtime
+[298/310] Compiling Realtime PhoenixTransport.swift
+[299/310] Compiling Realtime Presence.swift
+[300/310] Compiling Realtime Push.swift
+[301/310] Compiling Realtime RealtimeChannel.swift
+[302/310] Compiling Realtime RealtimeClient.swift
+[303/310] Compiling Realtime RealtimeMessage.swift
+[304/310] Compiling Realtime TimeoutTimer.swift
+[305/310] Compiling Realtime Exports.swift
+[306/315] Compiling Supabase Constants.swift
+[307/315] Compiling Supabase Deprecated.swift
+[308/315] Compiling Supabase Exports.swift
+[309/315] Compiling Supabase SupabaseClient.swift
+[310/315] Emitting module Supabase
+[311/317] Compiling Supabase Tracing.swift
+[312/317] Compiling Supabase Types.swift
+[313/338] Compiling MinimaStudio AppLifecycle.swift
+[314/338] Compiling MinimaStudio AppState.swift
+[315/338] Compiling MinimaStudio DataStore.swift
+[316/338] Compiling MinimaStudio FinanceMath.swift
+[317/338] Compiling MinimaStudio MenuBar.swift
+[318/338] Compiling MinimaStudio MiniWindow.swift
+[319/338] Compiling MinimaStudio MinimaStudioApp.swift
+[320/338] Compiling MinimaStudio Models.swift
+[321/338] Compiling MinimaStudio SystemNotifier.swift
+[322/338] Compiling MinimaStudio Theme.swift
+[323/348] Emitting module MinimaStudio
+[324/348] Compiling MinimaStudio TitleBarZoom.swift
+[325/348] Compiling MinimaStudio Tracker.swift
+[326/348] Compiling MinimaStudio Updater.swift
+[327/348] Compiling MinimaStudio AdminPages.swift
+[328/348] Compiling MinimaStudio AgendaView.swift
+[329/348] Compiling MinimaStudio AuthViews.swift
+[330/348] Compiling MinimaStudio Components.swift
+[331/348] Compiling MinimaStudio DailyHours.swift
+[332/348] Compiling MinimaStudio DesignKit.swift
+[333/348] Compiling MinimaStudio DiagnosticView.swift
+[334/348] Compiling MinimaStudio EditorBilling.swift
+[335/348] Compiling MinimaStudio FinanceCharts.swift
+[336/348] Compiling MinimaStudio Glass.swift
+[337/348] Compiling MinimaStudio MissionExtras.swift
+[338/348] Compiling MinimaStudio MissionSheet.swift
+[339/348] Compiling MinimaStudio MoneyAndTime.swift
+[340/348] Compiling MinimaStudio NotificationsView.swift
+[341/348] Compiling MinimaStudio RoleViews.swift
+[342/348] Compiling MinimaStudio ShellView.swift
+[343/348] Compiling MinimaStudio TeamView.swift
+[343/348] Write Objects.LinkFileList
+[344/348] Linking MinimaStudio
+[345/348] Applying MinimaStudio
+[347/350] Emitting module SnapshotTests
+[348/350] Compiling SnapshotTests SnapshotTests.swift
+[349/352] Emitting module MinimaStudioPackageTests
+[350/352] Compiling MinimaStudioPackageTests runner.swift
+[350/352] Write Objects.LinkFileList
+[351/352] Linking MinimaStudioPackageTests
+Build complete! (151.74s)
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:28.883 xctest[10452:32939] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:28.891 xctest[10452:32939] CoreData: XPC: sendMessage: failed #1
+Test Suite 'All tests' started at 2026-11-13 17:41:29.472.
+Test Suite 'MinimaStudioPackageTests.xctest' started at 2026-11-13 17:41:29.473.
+Test Suite 'SnapshotTests' started at 2026-11-13 17:41:29.473.
+Test Case '-[SnapshotTests.SnapshotTests testSnapshots]' started.
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:32.108 xctest[10452:32939] CoreData: XPC: sendMessage: failed #2
+2026-11-13 17:41:32.108 xctest[10452:32939] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:35.284 xctest[10452:32939] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:38.433 xctest[10452:32939] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:41.554 xctest[10452:32939] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:44.641 xctest[10452:32939] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:47.788 xctest[10452:32939] CoreData: XPC: sendMessage: failed #7
+2026-11-13 17:41:50.805 xctest[10452:32939] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0xc08edc870>";
+    skipModelCheck = 1;
+}
+2026-11-13 17:41:50.811 xctest[10452:32939] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0xc08edc870>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:50.839 xctest[10452:32939] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:50.841 xctest[10452:32939] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:53.938 xctest[10452:32939] CoreData: XPC: sendMessage: failed #2
+2026-11-13 17:41:53.938 xctest[10452:32939] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:41:56.946 xctest[10452:32939] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:00.231 xctest[10452:32939] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:03.426 xctest[10452:32939] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:06.445 xctest[10452:32939] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:09.555 xctest[10452:32939] CoreData: XPC: sendMessage: failed #7
+2026-11-13 17:42:12.721 xctest[10452:32939] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0xc06a0da80>";
+    skipModelCheck = 1;
+}
+2026-11-13 17:42:12.721 xctest[10452:32939] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0xc06a0da80>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:12.851 xctest[10452:32939] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:12.859 xctest[10452:32939] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:15.962 xctest[10452:32939] CoreData: XPC: sendMessage: failed #2
+2026-11-13 17:42:15.962 xctest[10452:32939] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:19.108 xctest[10452:32939] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:22.320 xctest[10452:32939] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:25.431 xctest[10452:32939] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:28.492 xctest[10452:32939] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:31.560 xctest[10452:32939] CoreData: XPC: sendMessage: failed #7
+2026-11-13 17:42:34.628 xctest[10452:32939] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0xc0487c890>";
+    skipModelCheck = 1;
+}
+2026-11-13 17:42:34.628 xctest[10452:32939] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0xc0487c890>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:34.691 xctest[10452:32939] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:34.693 xctest[10452:32939] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:37.806 xctest[10452:32939] CoreData: XPC: sendMessage: failed #2
+2026-11-13 17:42:37.806 xctest[10452:32939] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:40.831 xctest[10452:32939] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:43.964 xctest[10452:32939] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:46.974 xctest[10452:32939] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:50.030 xctest[10452:32939] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:53.204 xctest[10452:32939] CoreData: XPC: sendMessage: failed #7
+2026-11-13 17:42:56.255 xctest[10452:32939] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0xc030ad720>";
+    skipModelCheck = 1;
+}
+2026-11-13 17:42:56.255 xctest[10452:32939] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0xc030ad720>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+2026-11-13 17:42:56.429 xctest[10452:32939] Error obtaining permanent ID: Error Domain=NSCocoaErrorDomain Code=134020 "The model configuration used to open the store is incompatible with the one that was used to create the store."
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:57.250 xctest[10452:32969] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:42:57.252 xctest[10452:32969] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:00.366 xctest[10452:32969] CoreData: XPC: sendMessage: failed #2
+2026-11-13 17:43:00.366 xctest[10452:32969] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:03.389 xctest[10452:32969] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:06.514 xctest[10452:32969] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:09.578 xctest[10452:32969] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:12.596 xctest[10452:32969] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:15.750 xctest[10452:32969] CoreData: XPC: sendMessage: failed #7
+2026-11-13 17:43:18.841 xctest[10452:32969] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0xc0136f790>";
+    skipModelCheck = 1;
+}
+2026-11-13 17:43:18.841 xctest[10452:32969] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0xc0136f790>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:18.858 xctest[10452:32969] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:18.859 xctest[10452:32969] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:21.965 xctest[10452:32969] CoreData: XPC: sendMessage: failed #2
+2026-11-13 17:43:21.965 xctest[10452:32969] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:25.073 xctest[10452:32969] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:28.215 xctest[10452:32969] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:31.337 xctest[10452:32969] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:34.476 xctest[10452:32969] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-13 17:43:37.521 xctest[10452:32969] CoreData: XPC: sendMessage: failed #7
+2026-11-13 17:43:40.523 xctest[10452:32969] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0xbff195d00>";
+    skipModelCheck = 1;
+}
+2026-11-13 17:43:40.523 xctest[10452:32969] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0xbff195d00>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+Test Case '-[SnapshotTests.SnapshotTests testSnapshots]' passed (222.655 seconds).
+Test Suite 'SnapshotTests' passed at 2026-11-13 17:45:12.130.
+	 Executed 1 test, with 0 failures (0 unexpected) in 222.655 (222.657) seconds
+Test Suite 'MinimaStudioPackageTests.xctest' passed at 2026-11-13 17:45:12.130.
+	 Executed 1 test, with 0 failures (0 unexpected) in 222.655 (222.658) seconds
+Test Suite 'All tests' passed at 2026-11-13 17:45:12.130.
+	 Executed 1 test, with 0 failures (0 unexpected) in 222.655 (222.658) seconds
+evolution barres largeur 544 sombre: sans survol 1152x896, avec survol 1152x896, tailles identiques, pixels differents dans x 72...915, y 176...727
+evolution courbes largeur 544 sombre: sans survol 1152x896, avec survol 1152x896, tailles identiques, pixels differents dans x 72...915, y 176...727
+evolution barres largeur 760 sombre: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution barres largeur 760 clair: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution courbes largeur 760 sombre: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution courbes largeur 760 clair: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution barres largeur 1100 sombre: sans survol 2264x896, avec survol 2264x896, tailles identiques, pixels differents dans x 72...1675, y 176...727
+evolution courbes largeur 1100 sombre: sans survol 2264x896, avec survol 2264x896, tailles identiques, pixels differents dans x 72...1675, y 176...727
+repartition largeur 260: sans survol 584x642, avec survol 584x642, tailles identiques, pixels differents dans x 56...527, y 140...558
+repartition largeur 366: sans survol 796x642, avec survol 796x642, tailles identiques, pixels differents dans x 56...739, y 140...558
+repartition largeur 760: sans survol 1584x642, avec survol 1584x642, tailles identiques, pixels differents dans x 56...1527, y 140...558
+gains jour largeur 420: sans survol 904x848, avec survol 904x848, tailles identiques, pixels differents dans x 72...841, y 180...653
+gains cumul largeur 420: sans survol 904x848, avec survol 904x848, tailles identiques, pixels differents dans x 72...841, y 180...653
+gains jour largeur 544: sans survol 1152x844, avec survol 1152x844, tailles identiques, pixels differents dans x 72...1089, y 176...649
+gains cumul largeur 544: sans survol 1152x844, avec survol 1152x844, tailles identiques, pixels differents dans x 72...1089, y 176...649
+gains jour largeur 1100: sans survol 2264x816, avec survol 2264x816, tailles identiques, pixels differents dans x 72...2201, y 176...649
+gains cumul largeur 1100: sans survol 2264x816, avec survol 2264x816, tailles identiques, pixels differents dans x 72...2201, y 176...649
+captures: 159 fichiers
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+TESTS=0

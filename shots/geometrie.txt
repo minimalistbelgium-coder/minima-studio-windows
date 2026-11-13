@@ -1,0 +1,18 @@
+evolution barres largeur 544 sombre: sans survol 1152x896, avec survol 1152x896, tailles identiques, pixels differents dans x 72...915, y 176...727
+evolution courbes largeur 544 sombre: sans survol 1152x896, avec survol 1152x896, tailles identiques, pixels differents dans x 72...915, y 176...727
+evolution barres largeur 760 sombre: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution barres largeur 760 clair: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution courbes largeur 760 sombre: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution courbes largeur 760 clair: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1239, y 176...727
+evolution barres largeur 1100 sombre: sans survol 2264x896, avec survol 2264x896, tailles identiques, pixels differents dans x 72...1675, y 176...727
+evolution courbes largeur 1100 sombre: sans survol 2264x896, avec survol 2264x896, tailles identiques, pixels differents dans x 72...1675, y 176...727
+repartition largeur 260: sans survol 584x642, avec survol 584x642, tailles identiques, pixels differents dans x 56...527, y 140...558
+repartition largeur 366: sans survol 796x642, avec survol 796x642, tailles identiques, pixels differents dans x 56...739, y 140...558
+repartition largeur 760: sans survol 1584x642, avec survol 1584x642, tailles identiques, pixels differents dans x 56...1527, y 140...558
+gains jour largeur 420: sans survol 904x848, avec survol 904x848, tailles identiques, pixels differents dans x 72...841, y 180...653
+gains cumul largeur 420: sans survol 904x848, avec survol 904x848, tailles identiques, pixels differents dans x 72...841, y 180...653
+gains jour largeur 544: sans survol 1152x844, avec survol 1152x844, tailles identiques, pixels differents dans x 72...1089, y 176...649
+gains cumul largeur 544: sans survol 1152x844, avec survol 1152x844, tailles identiques, pixels differents dans x 72...1089, y 176...649
+gains jour largeur 1100: sans survol 2264x816, avec survol 2264x816, tailles identiques, pixels differents dans x 72...2201, y 176...649
+gains cumul largeur 1100: sans survol 2264x816, avec survol 2264x816, tailles identiques, pixels differents dans x 72...2201, y 176...649
+captures: 159 fichiers

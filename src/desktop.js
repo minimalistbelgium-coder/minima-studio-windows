@@ -5,8 +5,7 @@ const T = window.__TAURI__;
 function whenReady(fn) { if (window.MS) fn(); else window.addEventListener('ms-ready', fn, { once: true }); }
 
 const REPO = 'minimalistbelgium-coder/minima-studio-windows';
-const IDLE_LIMIT = 300;     // 5 min sans clavier ni souris : pause
-const FOCUS_GRACE = 120;    // 2 min hors de Premiere encore comptées
+const IDLE_LIMIT = 180;     // 3 min sans clavier ni souris : pause, et ces 3 min sont retirées
 const AWAY_TIMEOUT = 900;   // 15 min sans réponse : session close
 const TICK = 5;             // secondes entre deux lectures
 const BEAT = 30;            // secondes entre deux enregistrements
@@ -127,27 +126,23 @@ async function tick() {
 
   // Inactivité
   if (p.idle_secs >= IDLE_LIMIT) {
-    if (st.sessionId) { await endSession(Math.max(st.countedIdle, st.countedAway), 'Inactif depuis 5 min'); if (st.manual) { st.manual = false; st.manualMission = null; } }
+    if (st.sessionId) { await endSession(Math.max(st.countedIdle, st.countedAway), 'Inactif depuis 3 min'); if (st.manual) { st.manual = false; st.manualMission = null; } }
     st.status = 'paused'; st.pauseReason = 'Inactif'; st.mission = target;
     return renderCard();
   }
 
-  // Hors de Premiere (mode auto)
+  // Hors de Premiere (mode auto) : pause immédiate, rien n'est compté.
+  // La session reste ouverte 15 min pour reprendre sans couture, puis elle est close.
   if (!st.manual && !st.premiereFront) {
-    if (st.awayStart) {
-      const away = (t - st.awayStart) / 1000;
-      if (away >= AWAY_TIMEOUT) { await endSession(st.countedAway, 'Hors de Premiere'); st.awayStart = null; return renderCard(); }
-      if (away >= FOCUS_GRACE && st.sessionId && st.status !== 'askAway') {
-        st.status = 'askAway';
-        notify('Minima Studio', "Premiere n'est plus au premier plan. Tu travailles toujours dessus ?");
-      }
-    } else if (st.sessionId) st.awayStart = t;
-    if (st.status === 'askAway') return renderCard();
-  } else if (st.premiereFront && st.awayStart) {
-    const away = (t - st.awayStart) / 1000;
-    if (away > FOCUS_GRACE && st.sessionId) st.sessionSeconds = Math.max(0, st.sessionSeconds - (away - FOCUS_GRACE));
-    st.awayStart = null; if (st.status === 'askAway') st.status = 'running';
-  }
+    if (!st.awayStart) st.awayStart = t;
+    if (st.sessionId) {
+      if ((t - st.awayStart) / 1000 >= AWAY_TIMEOUT) { await endSession(0, 'Hors de Premiere'); st.awayStart = null; return renderCard(); }
+      st.status = 'paused'; st.pauseReason = 'Hors de Premiere';
+      if (t - st.lastBeat >= BEAT * 1000) await heartbeat(true);
+    } else if (st.status !== 'paused') st.status = 'waiting';
+    st.mission = target;
+    return renderCard();
+  } else if (st.awayStart) st.awayStart = null;
 
   if (!st.sessionId) {
     if (!(st.manual || st.premiereFront)) { st.status = st.status === 'paused' ? 'paused' : 'waiting'; st.mission = target; return renderCard(); }
@@ -156,7 +151,7 @@ async function tick() {
   st.mission = target;
   st.status = 'running';
   st.sessionSeconds += dt;
-  st.countedIdle = p.idle_secs > 60 ? st.countedIdle + dt : 0;
+  st.countedIdle = p.idle_secs > dt + 1 ? st.countedIdle + dt : 0;
   st.countedAway = (!st.manual && !st.premiereFront) ? st.countedAway + dt : 0;
   if (t - st.lastBeat >= BEAT * 1000) await heartbeat(true);
   renderCard();

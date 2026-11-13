@@ -13,6 +13,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ThemeMode.apply(ThemeMode.stored)
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         SystemNotifier.requestPermission()
+        // Ouverture au démarrage du Mac activée d'office une première fois (le monteur peut la couper dans Mon compte).
+        let d = UserDefaults.standard
+        if !d.bool(forKey: "launchAtLoginDefaultSet") {
+            try? LaunchAtLogin.set(true)
+            d.set(true, forKey: "launchAtLoginDefaultSet")
+        }
+    }
+
+    /// Mis à vrai juste avant une relance voulue (mise à jour, autorisation) : on quitte sans demander.
+    static var forceQuit = false
+
+    /// ⌘Q : on propose de garder l'app en fond pour que le chrono Premiere continue.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if Self.forceQuit { return .terminateNow }
+        // Extinction, redémarrage ou fermeture de session du Mac : on ne bloque jamais.
+        if let ev = NSAppleEventManager.shared().currentAppleEvent,
+           ev.attributeDescriptor(forKeyword: kAEQuitReason) != nil { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "Garder Minima Studio en fond ?"
+        alert.informativeText = "Si tu quittes, ton temps de montage dans Premiere ne sera plus compté par l'app. En fond, la fenêtre disparaît mais le chrono continue."
+        alert.addButton(withTitle: "Garder en fond")
+        alert.addButton(withTitle: "Quitter quand même")
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertSecondButtonReturn { return .terminateNow }
+        for w in NSApp.windows where w.isVisible { w.orderOut(nil) }
+        return .terminateCancel
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

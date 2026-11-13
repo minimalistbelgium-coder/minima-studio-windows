@@ -479,6 +479,7 @@ final class Tracker: ObservableObject {
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
         task.arguments = ["-c", "sleep 1; open \"\(path)\""]
         try? task.run()
+        AppDelegate.forceQuit = true
         NSApp.terminate(nil)
     }
 

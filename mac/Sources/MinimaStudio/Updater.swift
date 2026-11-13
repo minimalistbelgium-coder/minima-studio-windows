@@ -87,7 +87,8 @@ final class Updater: ObservableObject {
             p.executableURL = URL(fileURLWithPath: "/bin/bash")
             p.arguments = [script.path]
             try p.run()
-            NSApp.terminate(nil)
+            AppDelegate.forceQuit = true
+        NSApp.terminate(nil)
         } catch {
             installing = false
             progressText = nil

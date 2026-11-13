@@ -1183,12 +1183,12 @@ function pushCard() {
   if (Notification.permission === 'denied') return '<div class="card" style="margin-bottom:16px"><b>Notifications bloquées</b><div class="lbl" style="margin-top:6px">Autorise-les dans les réglages de ton navigateur ou de ton iPhone pour Minima Studio.</div></div>';
   return '<div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>Recevoir les notifications</b><div class="lbl" style="margin-top:4px">Nouvelle demande, V1 livrée, retours… directement sur ton téléphone.</div></div><button class="btn pri" data-act="push">Activer</button></div>';
 }
-const KIND_COLOR = { request: '#F472B6', comment: '#4C8DFF', client: '#3DD68C', deadline: '#F5A524', rushes: '#2DD4BF', brief: '#A78BFA', status: '#8B8D94', member: '#A78BFA' };
+const KIND_COLOR = { request: '#F472B6', comment: '#4C8DFF', client: '#3DD68C', deadline: '#F5A524', rushes: '#2DD4BF', brief: '#A78BFA', status: '#8B8D94', member: '#A78BFA', payment: '#3DD68C' };
 function notifsPage() {
   const groups = {}; const t0 = new Date(); t0.setHours(0, 0, 0, 0);
   S.notifs.forEach((n) => { const x = d(n.created_at); const k = x >= t0 ? "Aujourd'hui" : x >= addDays(t0, -1) ? 'Hier' : x >= addDays(t0, -7) ? 'Cette semaine' : 'Plus tôt'; (groups[k] ||= []).push(n); });
   const body = Object.entries(groups).map(([k, l]) => `<div class="day-h">${k}</div>${l.map((n) => `
-    <div class="item ${n.read_at ? '' : 'unread'}" role="button" tabindex="0" data-notif="${n.id}" data-nkind="${n.kind}" ${n.mission_id && mission(n.mission_id) ? `data-open="${n.mission_id}"` : ''}><span class="dot" style="background:${KIND_COLOR[n.kind] || '#8B8D94'};opacity:${n.read_at ? 0.35 : 1}"></span>
+    <div class="item ${n.read_at ? '' : 'unread'}" role="button" tabindex="0" data-notif="${n.id}" data-nkind="${n.kind}" ${n.kind === 'payment' && n.status ? `data-pmonth="${esc(n.status)}"` : ''} ${n.mission_id && mission(n.mission_id) ? `data-open="${n.mission_id}"` : ''}><span class="dot" style="background:${KIND_COLOR[n.kind] || '#8B8D94'};opacity:${n.read_at ? 0.35 : 1}"></span>
       <div class="grow"><div class="t" style="white-space:normal">${esc(n.title)}</div><div class="s" style="white-space:normal">${esc(n.body || '')}${n.body ? ' · ' : ''}${relative(d(n.created_at))}</div></div></div>`).join('')}`).join('');
   return `${header(unread() ? `${unread()} non lue${unread() > 1 ? 's' : ''}` : 'Tout est lu', 'Activité', unread() ? '<button class="btn" data-act="readall">Tout marquer lu</button>' : '')}${pushCard()}
   <div class="card flush"><div class="list">${body || '<div class="empty">Rien de neuf.</div>'}</div></div>`;
@@ -1674,7 +1674,7 @@ const ACTIONS = {
     if (v === null) return; const amount = Number(String(v).replace(',', '.'));
     if (!(amount > 0)) return toast('Indique un montant supérieur à 0');
     fail(await sb.from('editor_payments').upsert({ user_id: t.dataset.u, month: ymd(mo), amount, paid_at: st.pay?.paid_at || new Date().toISOString() }, { onConflict: 'user_id,month' }));
-    await refresh(); toast(`${firstName(p)} est marqué payé pour ${mo.toLocaleDateString('fr-BE', { month: 'long' })}`);
+    await refresh(); toast(`${firstName(p)} est marqué payé pour ${mo.toLocaleDateString('fr-BE', { month: 'long' })} et a reçu une notification`);
   },
   async unpay(t) {
     const mo = fromYmd(t.dataset.mo); const p = profile(t.dataset.u);
@@ -1755,7 +1755,8 @@ document.addEventListener('click', async (e) => {
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
   try {
-    if (D.jump) doJump(D);
+    if (D.notif && D.pmonth) { markRead(null, D.notif); doJump({ jump: 'earnings#my-invoice', jmonth: D.pmonth }); }
+    else if (D.jump) doJump(D);
     else if (D.go) {
       const hadSheet = !!S.sheet; closeSheet(); S.finToBill = ''; if (D.gomonth) S.month = fromYmd(D.gomonth);
       const same = S.route === D.go; S.route = D.go; render(!same);

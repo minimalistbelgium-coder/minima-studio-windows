@@ -226,6 +226,8 @@ async function loadAll() {
   S.finances = {}; (r[8]?.data || []).forEach((f) => { S.finances[f.mission_id] = f; });
   S.invites = r[9]?.data || [];
   if (isAdmin()) { const ca = await sb.from('client_access').select('*'); S.access = ca.error ? [] : ca.data || []; } else S.access = [];
+  // Historique comptable (factures et sous-traitance d'avant l'app), réservé à l'admin
+  if (isAdmin()) { const h = await sb.from('finance_history').select('*').order('doc_date'); S.history = h.error ? [] : h.data || []; } else S.history = [];
   // Montages faits par Claude (table absente ou vide : on ignore sans erreur)
   const ai = await sb.from('ai_work').select('*').order('ended_at', { ascending: false });
   S.ai = ai.error ? [] : ai.data || [];
@@ -425,6 +427,15 @@ function barRow({ lead = '', name, sub = '', value, small: sm = '', pct, color, 
 }
 
 // --- Finances : séries mensuelles et répartitions
+// Mois couverts par la compta importée : on y prend les factures et la sous-traitance réelles plutôt que les missions de l'app.
+const histUntil = () => (S.settings.history_until ? fromYmd(S.settings.history_until) : null);
+const isHistMonth = (mo) => { const u = histUntil(); return !!u && mo <= u && (S.history || []).some((h) => sameMonth(fromYmd(String(h.month).slice(0, 10)), mo)); };
+const histOf = (mo) => (S.history || []).filter((h) => sameMonth(fromYmd(String(h.month).slice(0, 10)), mo));
+function histTotals(mo) {
+  const l = histOf(mo); const v = l.filter((h) => h.kind === 'vente'); const e = l.filter((h) => h.kind === 'monteur');
+  const sum = (x) => x.reduce((a, h) => a + Number(h.amount), 0);
+  return { billed: sum(v), payout: sum(e), n: v.filter((h) => Number(h.amount) > 0).length, ventes: v, monteurs: e, unpaid: v.filter((h) => !h.paid) };
+}
 function financeMonths(end, n = 12) {
   const out = Array.from({ length: n }, (_, i) => ({ mo: new Date(end.getFullYear(), end.getMonth() - (n - 1 - i), 1), billed: 0, payout: 0, margin: 0, n: 0 }));
   const idx = {}; out.forEach((o) => { idx[`${o.mo.getFullYear()}-${o.mo.getMonth()}`] = o; });
@@ -433,7 +444,7 @@ function financeMonths(end, n = 12) {
     const x = workMonth(m); const o = x && idx[`${x.getFullYear()}-${x.getMonth()}`]; if (!o) return;
     o.billed += S.finances[m.id]?.client_price || 0; o.payout += editorPayout(m); o.n += 1;
   });
-  out.forEach((o) => { o.margin = o.billed - o.payout; });
+  out.forEach((o) => { if (isHistMonth(o.mo)) { const h = histTotals(o.mo); o.billed = h.billed; o.payout = h.payout; o.n = h.n; o.hist = true; } o.margin = o.billed - o.payout; });
   return out;
 }
 function financeBreakdown(list) {
@@ -455,7 +466,7 @@ function financeCharts(mo, list, part = 'all') {
   const evo = months.some((o) => o.n) ? lineChart({
     labels: months.map((o) => monthShort(o.mo)), sel: selI, cls: 'months', label: 'Facturé, reversé aux monteurs et marge sur 12 mois',
     series: SER.map(([, color, k], i) => ({ color, values: months.map((o) => Math.round(o[k])), area: i === 0 })),
-    tips: months.map((o) => tipHtml(monthLong(o.mo), [...SER.map(([t, c, k]) => [t, eur(Math.round(o[k])), c]), ['Missions', String(o.n)]])),
+    tips: months.map((o) => tipHtml(monthLong(o.mo), [...SER.map(([t, c, k]) => [t, eur(Math.round(o[k])), c]), [o.hist ? 'Factures (compta)' : 'Missions', String(o.n)]])),
     attrs: (i) => `role="button" tabindex="0" data-month="${i - selI}" aria-label="${esc(`${monthLong(months[i].mo)} : facturé ${eur(Math.round(months[i].billed))}, reversé ${eur(Math.round(months[i].payout))}, marge ${eur(Math.round(months[i].margin))}`)}"`,
   }) : emptyArt('Pas encore de mission sur cette période.');
   const year = S.finRange === 'year';
@@ -722,7 +733,7 @@ function doJump(D) {
   if (D.jfilter) { S.filter = D.jfilter; S.search = ''; }
   if (D.jclient !== undefined) S.clientFilter = D.jclient;
   S.finToBill = D.jtobill ? '1' : '';
-  if (route === 'finance') S.finTab = !anchor ? S.finTab : anchor === 'fin-missions' ? 'missions' : anchor.startsWith('payout') ? 'payouts' : anchor === 'fin-charts' ? 'charts' : 'overview';
+  if (route === 'finance') S.finTab = !anchor ? S.finTab : anchor === 'fin-missions' || anchor === 'fin-compta' ? 'missions' : anchor.startsWith('payout') ? 'payouts' : anchor === 'fin-charts' ? 'charts' : 'overview';
   const same = S.route === route; S.route = route; render(!same);
   requestAnimationFrame(() => {
     const el = anchor && (document.getElementById(anchor) || (anchor.startsWith('payout-') && document.getElementById('payouts')));
@@ -1008,8 +1019,9 @@ function agendaPage() {
 function financePage() {
   const mo = S.month;
   const list = S.missions.filter((m) => m.status !== 'requested' && sameMonth(workMonth(m), mo));
-  const billed = list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
-  const payout = list.reduce((a, m) => a + editorPayout(m), 0);
+  const hist = isHistMonth(mo) ? histTotals(mo) : null;
+  const billed = hist ? hist.billed : list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
+  const payout = hist ? hist.payout : list.reduce((a, m) => a + editorPayout(m), 0);
   const toBill = list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced);
   const only = S.finToBill && toBill.length;
   const rows = (only ? toBill : list).map((m) => {
@@ -1024,15 +1036,24 @@ function financePage() {
   const tabs = `<div class="tabs-bar" role="tablist">${TABS.map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="finTab:${k}">${esc(l)}${n}</button>`).join('')}</div>`;
   let body = '';
   if (tab === 'overview') body = `<div class="grid">
-    ${stat('Facturé aux clients', eur(billed), `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`, undefined, jump('finance', 'fin-missions'))}
+    ${stat('Facturé aux clients', eur(Math.round(billed)), hist ? `${hist.n} facture${hist.n > 1 ? 's' : ''} · compta · HTVA` : `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`, undefined, jump('finance', 'fin-missions'))}
     ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '', undefined, jump('finance', 'payouts'))}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)', jump('finance', 'fin-charts'))}
-    ${stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
-  </div>${cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
-  else if (tab === 'missions') body = `<div class="card flush" id="fin-missions"><div class="card-head"><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
+    ${hist ? stat('Pas encore payé', eur(Math.round(hist.unpaid.reduce((a, h) => a + Number(h.amount), 0))), hist.unpaid.length ? `${hist.unpaid.length} facture${hist.unpaid.length > 1 ? 's' : ''} en attente` : 'Tout est encaissé', hist.unpaid.length ? '#F5A524' : 'var(--green)', jump('finance', 'fin-compta')) : stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
+  </div>${hist ? '' : cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
+  else if (tab === 'missions') body = (hist ? histCard(mo, hist) : '') + `<div class="card flush" id="fin-missions"><div class="card-head"><div><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${hist ? '<div class="lbl" style="margin-top:3px">Suivies dans l\'app, pas comptées dans les totaux de ce mois (la compta fait foi).</div>' : ''}</div>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
   else if (tab === 'payouts') body = payoutsSection(mo);
   else body = financeCharts(mo, list, 'split');
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
+}
+// Factures et sous-traitance du mois, reprises de la compta (mois d'avant l'app)
+function histCard(mo, h) {
+  const row = (x) => `<div class="item"><span class="dot" style="background:${x.kind === 'monteur' ? 'var(--s2)' : 'var(--s1)'}"></span>
+    <div class="grow"><div class="t">${esc(x.label || x.party)}</div><div class="s">${esc(x.party)} · ${/^\d/.test(x.ref) ? `facture n°${esc(x.ref)}` : x.ref.startsWith('NC') ? 'note de crédit' : 'dépense compta'} · ${esc(dshort(fromYmd(String(x.doc_date).slice(0, 10))))}</div></div>
+    ${x.kind === 'vente' ? (x.paid ? '' : pill('Pas payée', '#F5A524')) : ''}<div class="mono" style="flex-shrink:0;font-weight:600;min-width:82px;text-align:right;${x.kind === 'monteur' ? 'color:var(--muted)' : ''}">${x.kind === 'monteur' ? `−${eur(Number(x.amount))}` : eur(Number(x.amount))}</div></div>`;
+  return `<div class="card flush" id="fin-compta" style="margin-bottom:16px"><div class="card-head"><div><h2>Factures · ${esc(monthLong(mo))}</h2><div class="lbl" style="margin-top:3px">Reprises de ta compta (montants HTVA). Ce sont elles qui comptent dans les totaux de ce mois.</div></div></div>
+    <div class="list">${h.ventes.map(row).join('')}</div>
+    ${h.monteurs.length ? `<div class="sub-h">Sous-traitance montage</div><div class="list">${h.monteurs.map(row).join('')}</div>` : ''}</div>`;
 }
 function monthSeg(mo) {
   const label = cap(mo.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' }));

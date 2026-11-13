@@ -660,3 +660,4 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .tb-c{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--card3);color:var(--text2);font-size:11px;font-weight:600;vertical-align:1px;border:1px solid var(--line)}
 .tabs-bar button.on .tb-c{background:var(--blue);color:#fff;border-color:transparent}
 .sheet-tabs{margin:2px 0 4px}
+.sub-h{padding:14px 20px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line)}

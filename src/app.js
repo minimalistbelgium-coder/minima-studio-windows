@@ -1639,7 +1639,7 @@ function premiereCard() {
   return `<div class="card" style="margin-top:14px"><b>Panneau Premiere</b>
     <div class="lbl" style="margin-top:4px">Un petit panneau qui démarre avec Premiere et enregistre ton temps de montage, même si Minima Studio est fermé. Quand l'app est ouverte, c'est elle qui compte : pas de double temps.</div>
     <ol class="steps-ol">
-      <li><a href="https://studio.minimalistbelgium.com/premiere/minima-studio.ccx" target="_blank" rel="noopener" download>Télécharge le panneau</a> puis double-clique dessus et accepte l'installation (Creative Cloud).</li>
+      <li><a href="https://raw.githubusercontent.com/minimalistbelgium-coder/minima-studio-windows/main/premiere-panel/dist/minima-studio.ccx" target="_blank" rel="noopener" download>Télécharge le panneau</a> puis double-clique dessus et accepte l'installation (Creative Cloud).</li>
       <li>Dans Premiere (25.6 ou plus récent) : <b>Fenêtre › Plugins UXP › Minima Studio</b>. Range le panneau où tu veux, il restera à sa place.</li>
       <li>Colle ton code de connexion dans le panneau.</li>
     </ol>

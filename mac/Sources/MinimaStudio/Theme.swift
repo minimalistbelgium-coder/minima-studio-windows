@@ -278,9 +278,24 @@ struct StatCard: View {
     let value: String
     var foot: String? = nil
     var footColor: Color = Theme.muted
+    /// Tuile cliquable : mène à la page ou au bloc correspondant.
+    var action: (() -> Void)? = nil
     @State private var hover = false
 
     var body: some View {
+        if let action {
+            Button(action: action) { tile.overlay(alignment: .topTrailing) {
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.muted.opacity(hover ? 1 : 0.5)).padding(16)
+            } }
+            .buttonStyle(.plain)
+            .help("Voir le détail")
+        } else {
+            tile
+        }
+    }
+
+    private var tile: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(label).font(.system(size: 12.5)).foregroundStyle(Theme.muted)
                 .lineLimit(1).minimumScaleFactor(0.8)
@@ -297,6 +312,19 @@ struct StatCard: View {
         .scaleEffect(hover ? 1.012 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: hover)
         .onHover { hover = $0 }
+    }
+}
+
+/// Tuile qui fait défiler la page jusqu'à un bloc (lit le défileur de la page dans son environnement).
+struct ScrollTile: View {
+    let label: String
+    let value: String
+    var foot: String? = nil
+    var footColor: Color = Theme.muted
+    let target: String
+    @Environment(\.pageScroller) private var scroller
+    var body: some View {
+        StatCard(label: label, value: value, foot: foot, footColor: footColor, action: { scroller.to(target) })
     }
 }
 
@@ -349,14 +377,35 @@ struct Page<Content: View>: View {
 
     var body: some View {
         let pad: CGFloat = compact ? 20 : 36
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) { content() }
-                .layoutWidth(Swift.min(area - scrollerWidth, 1320) - 2 * pad)
-                .padding(.horizontal, pad).padding(.top, compact ? 26 : 34).padding(.bottom, 48)
-                .frame(maxWidth: 1320, alignment: .leading)
-                .frame(maxWidth: .infinity)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) { content() }
+                    .layoutWidth(Swift.min(area - scrollerWidth, 1320) - 2 * pad)
+                    .padding(.horizontal, pad).padding(.top, compact ? 26 : 34).padding(.bottom, 48)
+                    .frame(maxWidth: 1320, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+                    .id(PageScroller.top)
+            }
+            .environment(\.pageScroller, PageScroller(proxy: proxy))
         }
         .foregroundStyle(Theme.text)
+    }
+}
+
+/// Fait défiler la page jusqu'à un bloc marqué `.id(...)` (tuiles cliquables).
+struct PageScroller {
+    static let top = "page-top"
+    var proxy: ScrollViewProxy?
+    func to(_ id: String) {
+        guard let proxy else { return }
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) { proxy.scrollTo(id, anchor: .top) }
+    }
+}
+private struct PageScrollerKey: EnvironmentKey { static let defaultValue = PageScroller(proxy: nil) }
+extension EnvironmentValues {
+    var pageScroller: PageScroller {
+        get { self[PageScrollerKey.self] }
+        set { self[PageScrollerKey.self] = newValue }
     }
 }
 

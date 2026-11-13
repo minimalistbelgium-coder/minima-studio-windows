@@ -62,6 +62,8 @@ private struct MissionDetail: View {
     @State private var thread = "all"
     @State private var commentToDelete: MissionComment?
     @State private var newComment = ""
+    /// Onglet de la fiche : infos, messages, time.
+    @State private var tab = "infos"
     /// Largeur de la fiche (transmise par PanelHost).
     @Environment(\.layoutWidth) private var sheetWidth
 
@@ -97,13 +99,35 @@ private struct MissionDetail: View {
                     if app.isTeam && mission.status != "requested" && (app.isAdmin || data.memberIds(of: mission.id).contains(me)) {
                         MissionChronoCard(mission: mission)
                     }
-                    if app.isTeam && mission.status != "requested" { MissionTimeStrip(mission: mission) }
+                    // Fiche en onglets : Infos · Messages · Temps (le chrono reste au-dessus).
+                    ChipPicker(selection: $tab, options: app.isTeam ? [
+                        .init(value: "infos", label: "Infos"),
+                        .init(value: "messages", label: "Messages", count: comments.isEmpty ? nil : comments.count),
+                        .init(value: "time", label: app.isAdmin ? "Temps et répartition" : "Temps et gains"),
+                    ] : [
+                        .init(value: "infos", label: "Infos"),
+                        .init(value: "messages", label: "Messages", count: comments.isEmpty ? nil : comments.count),
+                    ])
 
-                    StepProgress(mission: mission, notes: stepNotes(rows)).card()
-
-                    Columns(minLeft: 380, rightWidth: 300) {
+                    switch tab {
+                    case "messages":
+                        if mission.client_id != nil || app.isTeam { commentsCard } else { EmptyHint(text: "Pas de messages sur cette mission.") }
+                    case "time":
+                        if app.isTeam && mission.status != "requested" { MissionTimeStrip(mission: mission) }
+                        Columns(minLeft: 380, rightWidth: 300) {
+                            sessionsCard
+                        } right: {
+                            if app.isAdmin {
+                                splitCard(rows)
+                            } else {
+                                myShareCard(rows, me: me)
+                                teamCard(me: me)
+                            }
+                        }
+                    default:
+                        StepProgress(mission: mission, notes: stepNotes(rows)).card()
                         WidthReader { w in
-                            // Rushes et dépôt côte à côte, ou l'un sous l'autre si la colonne est étroite.
+                            // Rushes et dépôt côte à côte, ou l'un sous l'autre si la fiche est étroite.
                             let layout = w >= 520
                                 ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
                                 : AnyLayout(VStackLayout(spacing: 12))
@@ -112,16 +136,7 @@ private struct MissionDetail: View {
                         if app.isTeam { versionCard }
                         if app.isTeam { VersionsHistory(mission: mission) }
                         briefCard
-                        if mission.client_id != nil || app.isTeam { commentsCard }
-                        sessionsCard
                         if app.isTeam { premiereLine }
-                    } right: {
-                        if app.isAdmin {
-                            splitCard(rows)
-                        } else {
-                            myShareCard(rows, me: me)
-                            teamCard(me: me)
-                        }
                     }
                 }
                 .layoutWidth(sheetWidth - 52)
@@ -158,6 +173,7 @@ private struct MissionDetail: View {
             }
             .padding(.horizontal, 22).padding(.vertical, 14)
         }
+        .onAppear { if let t = presenter.missionTab { tab = t; presenter.missionTab = nil } }
         .task(id: mission.id) {
             guard !SnapshotMode.on else { return }
             split = await data.split(for: mission.id)

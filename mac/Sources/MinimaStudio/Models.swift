@@ -493,6 +493,21 @@ struct MissionComment: Codable, Identifiable, Hashable {
 
 struct AppSetting: Codable, Hashable { let key: String; let value: String? }
 
+/// Facture ou sous-traitance reprise de la compta (mois d'avant l'app). `kind` : « vente » ou « monteur ».
+struct FinanceHistory: Codable, Identifiable, Hashable {
+    let ref: String
+    let doc_date: String
+    let month: String
+    let party: String
+    let label: String?
+    let amount: Double
+    let paid: Bool
+    let kind: String
+    var id: String { ref }
+    var monthDate: Date? { BillMonth.parse(month) }
+    var docDate: Date? { BillMonth.parse(doc_date) }
+}
+
 /// Une version livrée (V1, V2…) : chaque nouveau lien est gardé dans l'historique.
 struct MissionVersion: Codable, Identifiable, Hashable {
     let id: String

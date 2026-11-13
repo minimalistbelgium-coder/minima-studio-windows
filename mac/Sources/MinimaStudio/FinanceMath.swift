@@ -61,6 +61,10 @@ extension DataStore {
         return (0..<count).reversed().compactMap { back in
             guard let d = cal.date(byAdding: .month, value: -back, to: last) else { return nil }
             let label = d.formatted(.dateTime.month(.abbreviated).locale(fr)).replacingOccurrences(of: ".", with: "")
+            if isHistoryMonth(d) {
+                let h = historyTotals(d)
+                return MonthFinance(month: d, label: label, billed: h.billed, cost: h.cost, missions: h.count)
+            }
             return MonthFinance(month: d, label: label, billed: billed[d] ?? 0, cost: cost[d] ?? 0, missions: n[d] ?? 0)
         }
     }

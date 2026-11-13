@@ -22,7 +22,10 @@ struct FinancesView: View {
     @EnvironmentObject var data: DataStore
     @State private var month: Date
     @State private var wideScope = false
+    @State private var tab: FinanceTab = .overview
+    @State private var onlyToInvoice = false
     @EnvironmentObject var presenter: Presenter
+    @Environment(\.pageScroller) private var scroller
 
     init(month: Date? = nil) { _month = State(initialValue: monthStart(month ?? Date())) }
 
@@ -35,12 +38,14 @@ struct FinancesView: View {
 
     var body: some View {
         let inMonth = data.missions(inMonthOf: month).filter { $0.status != "requested" }
-        let revenue = inMonth.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
-        let cost = inMonth.compactMap(\.editor_budget).reduce(0, +)
+        let hist = data.isHistoryMonth(month) ? data.historyTotals(month) : nil
+        let revenue = hist?.billed ?? inMonth.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
+        let cost = hist?.cost ?? inMonth.compactMap(\.editor_budget).reduce(0, +)
         let margin = revenue - cost
         let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true }
         let trend = data.monthlyFinance(endingAt: chartEnd)
         let scoped = wideScope ? data.missions(inMonths: trend.map(\.month)) : inMonth
+        let shown = onlyToInvoice && !toInvoice.isEmpty ? toInvoice : inMonth
 
         Page {
             PageHeader(kicker: "Visible uniquement par toi", title: "Finances") {
@@ -51,72 +56,108 @@ struct FinancesView: View {
                 }
             }
 
-            StatGrid {
-                StatCard(label: "Facturé aux clients", value: Money.eur(revenue), foot: "\(inMonth.count) mission\(inMonth.count > 1 ? "s" : "") ce mois")
-                StatCard(label: "Pour les monteurs", value: Money.eur(cost), foot: revenue > 0 ? "\(Int((cost / revenue * 100).rounded())) % du CA" : "Budgets montage")
-                StatCard(label: "Marge", value: Money.eur(margin),
-                         foot: revenue > 0 ? "\(Int((margin / revenue * 100).rounded())) % du CA" : "Renseigne les prix clients",
-                         footColor: margin >= 0 ? Theme.green : Theme.red)
-                StatCard(label: "À facturer", value: "\(toInvoice.count)", foot: "Missions validées non facturées")
-            }
+            ChipPicker(selection: $tab, options: [
+                .init(value: FinanceTab.overview, label: "Résumé"),
+                .init(value: FinanceTab.missions, label: "Missions", count: toInvoice.isEmpty ? nil : toInvoice.count),
+                .init(value: FinanceTab.payouts, label: "Monteurs"),
+                .init(value: FinanceTab.charts, label: "Graphiques"),
+            ])
 
-            EditorPayoutsSection(month: month)
-
-            FinanceTrendCard(points: trend, month: $month)
-
-            HStack(spacing: 12) {
-                Text("Répartition").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
-                Spacer(minLength: 8)
-                ChipPicker(selection: $wideScope, options: [
-                    .init(value: false, label: monthKey(month)),
-                    .init(value: true, label: "12 mois"),
-                ])
-            }
-            EqualGrid(minWidth: 360, spacing: 16) {
-                SliceBarsCard(title: "Par client", subtitle: "Facturé aux clients", slices: data.clientSlices(scoped),
-                              empty: "Aucun prix client renseigné sur cette période.")
-                SliceBarsCard(title: "Par monteur", subtitle: "Budget montage réparti selon le temps passé",
-                              slices: data.editorSlices(scoped), empty: "Aucun budget montage sur cette période.", showTime: true)
-            }
-
-            SectionTitle(text: "Détail par client · \(monthKey(month))", trailing: "Facturé · Équipe · Marge")
-            VStack(spacing: 0) {
-                let byClient = Dictionary(grouping: inMonth) { $0.client_id ?? "" }
-                let keys = byClient.keys.sorted { (data.client($0)?.name ?? "") < (data.client($1)?.name ?? "") }
-                if keys.isEmpty { EmptyHint(text: "Aucune mission ce mois-ci.") }
-                ForEach(Array(keys.enumerated()), id: \.element) { i, k in
-                    if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
-                    let ms = byClient[k] ?? []
-                    let r = ms.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
-                    let c = ms.compactMap(\.editor_budget).reduce(0, +)
-                    HStack(spacing: 12) {
-                        ClientDot(color: data.client(k)?.color, size: 9)
-                        Text(data.client(k)?.name ?? "Sans client").font(.system(size: 13.5, weight: .medium)).lineLimit(1)
-                        Text("\(ms.count)").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
-                        Spacer(minLength: 8)
-                        moneyCol(r)
-                        moneyCol(c)
-                        moneyCol(r - c, color: r - c >= 0 ? Theme.green : Theme.red, bold: true)
+            switch tab {
+            case .overview:
+                StatGrid {
+                    StatCard(label: "Facturé aux clients", value: Money.eur(revenue.rounded()),
+                             foot: hist.map { "\($0.count) facture\($0.count > 1 ? "s" : "") · compta" } ?? "\(inMonth.count) mission\(inMonth.count > 1 ? "s" : "") ce mois",
+                             action: { tab = .missions })
+                    StatCard(label: "Pour les monteurs", value: Money.eur(cost.rounded()), foot: revenue > 0 ? "\(Int((cost / revenue * 100).rounded())) % du CA" : "Budgets montage",
+                             action: { tab = .payouts })
+                    StatCard(label: "Marge", value: Money.eur(margin.rounded()),
+                             foot: revenue > 0 ? "\(Int((margin / revenue * 100).rounded())) % du CA" : "Renseigne les prix clients",
+                             footColor: margin >= 0 ? Theme.green : Theme.red, action: { tab = .charts })
+                    if let hist {
+                        let due = hist.unpaid.map(\.amount).reduce(0, +)
+                        StatCard(label: "Pas encore payé", value: Money.eur(due.rounded()),
+                                 foot: hist.unpaid.isEmpty ? "Tout est encaissé" : "\(hist.unpaid.count) facture\(hist.unpaid.count > 1 ? "s" : "") en attente",
+                                 footColor: hist.unpaid.isEmpty ? Theme.green : Theme.amber, action: { tab = .missions })
+                    } else {
+                        StatCard(label: "À facturer", value: "\(toInvoice.count)", foot: "Missions validées non facturées",
+                                 action: { onlyToInvoice = !toInvoice.isEmpty; tab = .missions })
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 11)
                 }
-            }
-            .card(padding: 0)
+                if hist == nil { CashCard(month: month) }
+                FinanceTrendCard(points: trend, month: $month)
+            case .missions:
+                if hist != nil { HistoryCard(month: month) }
+                HStack(spacing: 10) {
+                    SectionTitle(text: hist != nil ? "Missions suivies dans l'app (pas dans les totaux)" : (onlyToInvoice && !toInvoice.isEmpty ? "À facturer" : "Missions du mois"), trailing: "Prix client · Équipe · Marge · Facture envoyée ?")
+                    if !toInvoice.isEmpty {
+                        Button(onlyToInvoice ? "Tout afficher" : "Seulement à facturer (\(toInvoice.count))") { onlyToInvoice.toggle() }
+                            .buttonStyle(SecondaryButton())
+                    }
+                }
+                WidthReader { w in
+                    // Colonnes alignées quand la page est large, deux lignes par mission quand elle est étroite.
+                    let wide = w >= 780
+                    VStack(spacing: 0) {
+                        if shown.isEmpty { EmptyHint(text: "Aucune mission ce mois-ci.") }
+                        ForEach(Array(shown.enumerated()), id: \.element.id) { i, m in
+                            if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
+                            missionRow(m, wide: wide)
+                        }
+                    }
+                    .card(padding: 0)
+                }
 
-            SectionTitle(text: "Missions du mois", trailing: "Prix client · Équipe · Marge · Facture envoyée ?")
-            WidthReader { w in
-                // Colonnes alignées quand la page est large, deux lignes par mission quand elle est étroite.
-                let wide = w >= 780
+                SectionTitle(text: "Détail par client · \(monthKey(month))", trailing: "Facturé · Équipe · Marge")
                 VStack(spacing: 0) {
-                    if inMonth.isEmpty { EmptyHint(text: "Aucune mission ce mois-ci.") }
-                    ForEach(Array(inMonth.enumerated()), id: \.element.id) { i, m in
+                    let byClient = Dictionary(grouping: inMonth) { $0.client_id ?? "" }
+                    let keys = byClient.keys.sorted { (data.client($0)?.name ?? "") < (data.client($1)?.name ?? "") }
+                    if keys.isEmpty { EmptyHint(text: "Aucune mission ce mois-ci.") }
+                    ForEach(Array(keys.enumerated()), id: \.element) { i, k in
                         if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
-                        missionRow(m, wide: wide)
+                        let ms = byClient[k] ?? []
+                        let r = ms.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
+                        let c = ms.compactMap(\.editor_budget).reduce(0, +)
+                        HStack(spacing: 12) {
+                            ClientDot(color: data.client(k)?.color, size: 9)
+                            Text(data.client(k)?.name ?? "Sans client").font(.system(size: 13.5, weight: .medium)).lineLimit(1)
+                            Text("\(ms.count)").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).fixedSize()
+                            Spacer(minLength: 8)
+                            moneyCol(r)
+                            moneyCol(c)
+                            moneyCol(r - c, color: r - c >= 0 ? Theme.green : Theme.red, bold: true)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 11)
                     }
                 }
                 .card(padding: 0)
+            case .payouts:
+                EditorPayoutsSection(month: month, showCash: false)
+            case .charts:
+                HStack(spacing: 12) {
+                    Text("Répartition").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+                    Spacer(minLength: 8)
+                    ChipPicker(selection: $wideScope, options: [
+                        .init(value: false, label: monthKey(month)),
+                        .init(value: true, label: "12 mois"),
+                    ])
+                }
+                EqualGrid(minWidth: 360, spacing: 16) {
+                    SliceBarsCard(title: "Par client", subtitle: "Facturé aux clients", slices: data.clientSlices(scoped),
+                                  empty: "Aucun prix client renseigné sur cette période.")
+                    SliceBarsCard(title: "Par monteur", subtitle: "Budget montage réparti selon le temps passé",
+                                  slices: data.editorSlices(scoped), empty: "Aucun budget montage sur cette période.", showTime: true)
+                }
             }
         }
+        .onAppear(perform: applyNav)
+        .onChange(of: presenter.navTick) { _ in applyNav() }
+    }
+
+    /// Réglages demandés par une tuile de l'accueil (onglet, mois).
+    private func applyNav() {
+        if let t = presenter.navFinanceTab { tab = t; presenter.navFinanceTab = nil }
+        if let m = presenter.navMonth { month = monthStart(m); presenter.navMonth = nil }
     }
 
     @ViewBuilder
@@ -198,6 +239,54 @@ struct FinancesView: View {
                 try await supa.from("mission_finance").upsert(InvoicedUpdate(mission_id: m.id, client_price: price, invoiced: v)).execute()
                 await data.reload()
             } catch { app.showToast("Erreur : \(error.localizedDescription)") }
+        }
+    }
+}
+
+/// Factures et sous-traitance d'un mois repris de la compta (mois d'avant l'app).
+struct HistoryCard: View {
+    @EnvironmentObject var data: DataStore
+    let month: Date
+
+    var body: some View {
+        let l = data.historyOf(month)
+        let ventes = l.filter { $0.kind == "vente" }
+        let monteurs = l.filter { $0.kind == "monteur" }
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Factures · \(monthKey(month))").font(.system(size: 15, weight: .semibold))
+                Muted("Reprises de ta compta (HTVA). Ce sont elles qui comptent dans les totaux de ce mois.", size: 12.5)
+            }
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 10)
+            ForEach(ventes) { row($0) }
+            if !monteurs.isEmpty {
+                Text("SOUS-TRAITANCE MONTAGE").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
+                ForEach(monteurs) { row($0) }
+            }
+        }
+        .padding(.bottom, 6)
+        .card(padding: 0)
+    }
+
+    private func row(_ h: FinanceHistory) -> some View {
+        let isCost = h.kind == "monteur"
+        let date = h.docDate.map { $0.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "fr_BE"))) } ?? ""
+        let what = h.ref.first?.isNumber == true ? "facture n°\(h.ref)" : (h.ref.hasPrefix("NC") ? "note de crédit" : "dépense compta")
+        return VStack(spacing: 0) {
+            Rectangle().fill(Theme.line).frame(height: 1)
+            HStack(spacing: 10) {
+                Circle().fill(isCost ? Theme.amber : Theme.blue).frame(width: 8, height: 8)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(h.label ?? h.party).font(.system(size: 13.5)).lineLimit(1)
+                    Muted("\(h.party) · \(what) · \(date)", size: 12).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if !isCost && !h.paid { Tag(text: "Pas payée", color: Theme.amber) }
+                Text((isCost ? "−" : "") + Money.eur(h.amount)).font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(isCost ? Theme.muted : Theme.text).lineLimit(1).fixedSize()
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
         }
     }
 }

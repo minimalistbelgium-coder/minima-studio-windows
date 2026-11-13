@@ -35,6 +35,11 @@ final class DataStore: ObservableObject {
     /// Répartition serveur par mission (règle de la marge, sessions < 2 min ignorées).
     @Published var serverSplits: [String: [SplitRow]] = [:]
 
+    /// Historique comptable (factures et sous-traitance d'avant l'app), admin seulement.
+    @Published var history: [FinanceHistory] = []
+    /// Dernier mois couvert par la compta importée.
+    @Published var historyUntil: Date?
+
     /// Sessions de travail visibles (toutes pour l'admin, celles de ses missions pour un monteur).
     @Published var sessions: [WorkSession] = []
 
@@ -88,6 +93,10 @@ final class DataStore: ObservableObject {
             let st: [AppSetting] = (try? await supa.from("app_settings").select().execute().value) ?? []
             deliveryLink = st.first { $0.key == "delivery_link" }?.value
             invoiceLink = st.first { $0.key == "invoice_link" }?.value
+            historyUntil = st.first { $0.key == "history_until" }?.value.flatMap(BillMonth.parse)
+            if admin {
+                history = (try? await supa.from("finance_history").select().order("doc_date").execute().value) ?? []
+            }
             versions = (try? await supa.from("mission_versions").select()
                 .order("created_at", ascending: true).execute().value) ?? []
             aiWork = (try? await supa.from("ai_work").select()
@@ -373,6 +382,36 @@ final class DataStore: ObservableObject {
         let total = rows.map(\.amount).reduce(0, +)
         let key = BillMonth.key(month)
         return (rows, total, payments.first { $0.user_id == user && $0.month.hasPrefix(String(key.prefix(7))) })
+    }
+
+    /// Mois terminés (12 derniers) pas encore entièrement payés à ce monteur.
+    func unpaidMonths(user: String, back: Int = 12) -> [(month: Date, due: Double)] {
+        let cal = Calendar.current
+        let now = cal.dateInterval(of: .month, for: Date())?.start ?? Date()
+        return (1...back).compactMap { i in
+            guard let mo = cal.date(byAdding: .month, value: -i, to: now) else { return nil }
+            let st = statement(user: user, month: mo)
+            guard st.total > 0 else { return nil }
+            let due = st.total - (st.payment?.amount ?? 0)
+            return due > 0.5 ? (mo, due) : nil
+        }
+    }
+
+    // MARK: historique comptable
+    func historyOf(_ month: Date) -> [FinanceHistory] {
+        let cal = Calendar.current
+        return history.filter { h in h.monthDate.map { cal.isDate($0, equalTo: month, toGranularity: .month) } ?? false }
+    }
+    /// Mois couvert par la compta : on y prend les vraies factures plutôt que les missions de l'app.
+    func isHistoryMonth(_ month: Date) -> Bool {
+        guard let u = historyUntil else { return false }
+        return month <= u && !historyOf(month).isEmpty
+    }
+    func historyTotals(_ month: Date) -> (billed: Double, cost: Double, count: Int, unpaid: [FinanceHistory]) {
+        let l = historyOf(month)
+        let v = l.filter { $0.kind == "vente" }
+        return (v.map(\.amount).reduce(0, +), l.filter { $0.kind == "monteur" }.map(\.amount).reduce(0, +),
+                v.filter { $0.amount > 0 }.count, v.filter { !$0.paid })
     }
 
     /// Monteurs à qui l'admin peut devoir de l'argent.

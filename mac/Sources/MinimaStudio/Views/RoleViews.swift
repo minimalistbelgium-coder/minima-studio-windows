@@ -39,11 +39,13 @@ struct MyDashboardView: View {
             SessionHero()
 
             StatGrid {
-                StatCard(label: "Ce mois-ci", value: Money.eur(earned.rounded()), foot: "Chiffre d'affaires", footColor: Theme.green)
-                StatCard(label: "Temps ce mois-ci", value: TimeFmt.hm(secs))
+                StatCard(label: "Ce mois-ci", value: Money.eur(earned.rounded()), foot: "Chiffre d'affaires", footColor: Theme.green,
+                         action: { presenter.go(.myFinances) })
+                StatCard(label: "Temps ce mois-ci", value: TimeFmt.hm(secs), action: { presenter.go(.myFinances) })
                 StatCard(label: "Taux horaire", value: secs >= 600 ? "\(Money.eur((earned / (secs / 3600)).rounded())) / h" : "–",
-                         foot: "Ce que tu gagnes par heure de montage")
-                StatCard(label: "À venir", value: Money.eur(toCome.rounded()), foot: "\(open.count) mission\(open.count > 1 ? "s" : "") en cours")
+                         foot: "Ce que tu gagnes par heure de montage", action: { presenter.go(.myFinances) })
+                StatCard(label: "À venir", value: Money.eur(toCome.rounded()), foot: "\(open.count) mission\(open.count > 1 ? "s" : "") en cours",
+                         action: { presenter.go(.myMissions) })
             }
 
             Columns(minLeft: 460, rightWidth: 300) {
@@ -237,22 +239,25 @@ struct MyFinancesView: View {
                 }
             }
 
-            if let me = app.profile?.id { EditorStatementCard(user: me, month: month, showRows: false) }
+            if let me = app.profile?.id { EditorStatementCard(user: me, month: month, showRows: false).id("my-invoice") }
 
             StatGrid {
-                StatCard(label: "À facturer à Minimalist", value: Money.eur((total * 100).rounded() / 100),
-                         foot: "\(Money.eur(validated.rounded())) déjà validés", footColor: Theme.green)
-                StatCard(label: "Missions", value: "\(rows.count)")
-                StatCard(label: "Heures travaillées", value: TimeFmt.hm(secs))
-                StatCard(label: "Rentabilité moyenne", value: avg.map { "\(Money.eur($0.rounded())) / h" } ?? "–",
-                         foot: "Montant facturé ÷ heures travaillées")
+                ScrollTile(label: "À facturer à Minimalist", value: Money.eur((total * 100).rounded() / 100),
+                           foot: "\(Money.eur(validated.rounded())) déjà validés", footColor: Theme.green, target: "my-invoice")
+                ScrollTile(label: "Missions", value: "\(rows.count)", target: "my-detail")
+                ScrollTile(label: "Heures travaillées", value: TimeFmt.hm(secs), target: "my-chart")
+                ScrollTile(label: "Rentabilité moyenne", value: avg.map { "\(Money.eur($0.rounded())) / h" } ?? "–",
+                           foot: "Montant facturé ÷ heures travaillées", target: "my-projects")
             }
 
             DailyEarningsCard(title: "Gains par jour · \(label)", days: data.dailyEarnings(user: app.profile?.id ?? "", from: month, to: monthEnd))
+                .id("my-chart")
             SliceBarsCard(title: "Gains par projet", subtitle: "Ta part sur chaque mission du mois",
                           slices: data.projectEarnings(user: app.profile?.id ?? "", missions: rows.map(\.mission)),
                           empty: "Aucune mission sur ce mois.", showTime: true)
+                .id("my-projects")
 
+            Color.clear.frame(height: 0).id("my-detail")
             WidthReader { w in
                 // Une seule décision pour l'en-tête et les lignes : tableau complet ou lignes compactes.
                 let wide = w >= 720

@@ -91,7 +91,7 @@ struct NotificationsPanel: View {
         return VStack(alignment: .leading, spacing: 8) {
             Button {
                 Task { @MainActor in await data.markRead(n) }
-                if let id = n.mission_id { presenter.open(.existing(id)); onClose() }
+                if let id = n.mission_id { presenter.missionTab = (n.kind == "comment" || n.kind == "client") ? "messages" : nil; presenter.open(.existing(id)); onClose() }
             } label: {
                 HStack(alignment: .top, spacing: 10) {
                     Circle().fill(n.isRead ? Color.clear : Theme.blue).frame(width: 7, height: 7).padding(.top, 5)

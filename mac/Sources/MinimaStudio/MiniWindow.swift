@@ -16,7 +16,28 @@ final class Presenter: ObservableObject {
         mission = .new
     }
     func close() { mission = nil }
+
+    // MARK: navigation demandée par une tuile ou une ligne cliquable
+    /// Profils des monteurs en popup (index du monteur affiché), nil = fermé.
+    @Published var editorsIndex: Int?
+    /// Incrémenté à chaque demande de navigation : ShellView change de page, la page lit les réglages en attente.
+    @Published var navTick = 0
+    var navRoute: Route?
+    var navFinanceTab: FinanceTab?
+    var navMonth: Date?
+    var navAnchor: String?
+    /// Onglet à ouvrir dans la prochaine fiche mission (« messages » depuis une notification).
+    var missionTab: String?
+
+    func go(_ route: Route, financeTab: FinanceTab? = nil, month: Date? = nil, anchor: String? = nil) {
+        mission = nil; editorsIndex = nil
+        navRoute = route; navFinanceTab = financeTab; navMonth = month; navAnchor = anchor
+        navTick += 1
+    }
 }
+
+/// Onglets de la page Finances (admin).
+enum FinanceTab: String, Hashable { case overview, missions, payouts, charts }
 
 /// Récupère la NSWindow qui contient une vue SwiftUI.
 struct WindowAccessor: NSViewRepresentable {

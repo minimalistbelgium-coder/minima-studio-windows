@@ -371,11 +371,12 @@ struct CashCard: View {
 struct EditorPayoutsSection: View {
     @EnvironmentObject var data: DataStore
     let month: Date
+    var showCash = true
 
     var body: some View {
         let people = data.payees.filter { data.statement(user: $0.id, month: month).total > 0 || data.statement(user: $0.id, month: month).payment != nil }
         VStack(alignment: .leading, spacing: 14) {
-            CashCard(month: month)
+            if showCash { CashCard(month: month) }
             SectionTitle(text: "Paiement des monteurs · \(monthName(month))", trailing: "Ce que chacun doit te facturer")
             if people.isEmpty {
                 EmptyHint(text: "Aucune mission à payer aux monteurs pour \(monthName(month)).").card()

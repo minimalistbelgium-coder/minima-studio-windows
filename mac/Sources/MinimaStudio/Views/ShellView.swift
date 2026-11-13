@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 enum Route: Hashable {
     // admin
@@ -47,6 +48,10 @@ struct ShellView: View {
         }
         .overlay { PanelHost() }
         .onAppear { route = initialRoute ?? defaultRoute }
+        .onChange(of: presenter.navTick) { _ in
+            if let r = presenter.navRoute, r != route { route = r }
+            presenter.navRoute = nil
+        }
         .onChange(of: app.profile?.role) { _ in route = defaultRoute }
     }
 
@@ -133,9 +138,29 @@ struct PanelHost: View {
                     .transition(.scale(scale: 0.96).combined(with: .opacity).combined(with: .offset(y: 14)))
                     .zIndex(1)
             }
+            if presenter.mission == nil, presenter.editorsIndex != nil {
+                Rectangle().fill(.ultraThinMaterial)
+                    .overlay(Theme.scrim)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture { presenter.editorsIndex = nil }
+                    .transition(.opacity)
+                    .zIndex(2)
+                EditorsPanel()
+                    .frame(maxWidth: 760, maxHeight: 760)
+                    .layoutWidth(Swift.min(760, Swift.max(0, size.width - 56)) - 48)
+                    .foregroundStyle(Theme.text)
+                    .clipShape(shape)
+                    .glassSurface(shape, tint: Theme.bg.opacity(0.55), fill: Theme.bg.opacity(0.82))
+                    .shadow(color: .black.opacity(0.28), radius: 40, y: 16)
+                    .padding(.horizontal, 28).padding(.vertical, 32)
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+                    .zIndex(3)
+            }
         }
         .frame(width: size.width, height: size.height)
         .animation(.spring(response: 0.36, dampingFraction: 0.86), value: presenter.mission)
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: presenter.editorsIndex == nil)
     }
 }
 
@@ -306,6 +331,7 @@ private struct AccountButton<L: View>: View {
     @Binding var launchAtLogin: Bool
     let label: L
     @State private var open = false
+    @State private var panelCode: String?
 
     var body: some View {
         Button { open.toggle() } label: { label.contentShape(Rectangle()) }
@@ -337,12 +363,49 @@ private struct AccountButton<L: View>: View {
                     if app.isTeam {
                         row("Mode mini (⇧⌘M)", "rectangle.inset.bottomright.filled") { MiniWindow.shared.show(app: app, data: data, tracker: tracker) }
                         row("Diagnostic du chrono", "stethoscope") { DiagnosticWindow.show(tracker: tracker) }
+                        Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 4)
+                        Text("PANNEAU PREMIERE").font(.system(size: 10.5, weight: .semibold)).tracking(0.6).foregroundStyle(Theme.muted)
+                            .padding(.horizontal, 8).padding(.top, 2)
+                        Text("Compte ton temps même quand l'app est fermée (Premiere 25.6+). Installe-le, puis colle ton code dans Fenêtre › Plugins UXP › Minima Studio.")
+                            .font(.system(size: 11.5)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 8).padding(.bottom, 2)
+                        row("Télécharger le panneau", "square.and.arrow.down") {
+                            if let u = URL(string: "https://raw.githubusercontent.com/minimalistbelgium-coder/minima-studio-windows/main/premiere-panel/dist/minima-studio.ccx") { NSWorkspace.shared.open(u) }
+                        }
+                        if let code = panelCode {
+                            HStack(spacing: 8) {
+                                Text(code).font(.system(size: 15, weight: .bold, design: .monospaced)).textSelection(.enabled)
+                                Spacer(minLength: 4)
+                                Button("Copier") {
+                                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(code, forType: .string)
+                                    app.showToast("Code copié")
+                                }
+                                .buttonStyle(SecondaryButton()).controlSize(.small)
+                            }
+                            .padding(.horizontal, 8).padding(.vertical, 6)
+                            Text("Ce code ne s'affiche qu'une fois.").font(.system(size: 11)).foregroundStyle(Theme.muted).padding(.horizontal, 8)
+                        } else {
+                            Button {
+                                Task { @MainActor in
+                                    do { panelCode = try await supa.rpc("create_premiere_code").execute().value }
+                                    catch { app.showToast("Impossible de créer le code") }
+                                }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "key").frame(width: 18).foregroundStyle(Theme.muted)
+                                    Text("Générer mon code").font(.system(size: 13)).foregroundStyle(Theme.text)
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.vertical, 7).padding(.horizontal, 8).contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain).hoverRow(radius: 8)
+                        }
                     }
                     Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 4)
                     row("Se déconnecter", "rectangle.portrait.and.arrow.right", danger: true) { Task { @MainActor in await app.signOut() } }
                 }
                 .padding(14)
-                .frame(width: 260)
+                .frame(width: 280)
             }
     }
 

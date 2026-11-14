@@ -1135,15 +1135,19 @@ function financePage() {
   const hist = isHistMonth(mo) ? histTotals(mo) : null;
   const billed = hist ? hist.billed : list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = hist ? hist.payout : list.reduce((a, m) => a + editorPayout(m), 0);
-  const toBill = list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced);
+  // Missions validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
+  const carry = mo >= startOfMonth(new Date()) ? S.missions.filter((m) => ['validated', 'paid'].includes(m.status) && !S.finances[m.id]?.invoiced && workMonth(m) < mo)
+    .sort((a, b) => workMonth(a) - workMonth(b)) : [];
+  const toBill = [...list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced), ...carry];
   const only = S.finToBill && toBill.length;
-  const rows = (only ? toBill : list).map((m) => {
-    const f = S.finances[m.id]; const p = f?.client_price; const pay = editorPayout(m);
+  const finRow = (m) => {
+    const f = S.finances[m.id]; const p = f?.client_price; const pay = editorPayout(m); const late = carry.includes(m);
     return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span>
-      <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${p ? eur(p) : 'prix à renseigner'} → ${eur(Math.round(pay))}</div></div>
+      <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(client(m.client_id)?.name || 'Sans client')} · ${p ? eur(p) : 'prix à renseigner'} → ${eur(Math.round(pay))}${late ? `<span style="color:#F5A524"> · validée en ${esc(monthName(workMonth(m)))}</span>` : ''}</div></div>
       <div class="mono" style="flex-shrink:0;font-weight:600;color:${p == null ? 'var(--muted)' : p - pay >= 0 ? 'var(--green)' : 'var(--red)'}">${p == null ? '–' : eur(Math.round(p - pay))}</div>
       ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}<span class="lg-only">Client facturé</span><span class="sm-only">Facturé</span>` : 'Facturer<span class="lg-only"> le client</span>'}</button>` : ''}</div>`;
-  }).join('');
+  };
+  const rows = (only ? toBill : list).map(finRow).join('') + (!only && carry.length ? `<div class="sub-h" style="color:#F5A524">Validées avant ${esc(monthName(mo))}, toujours à facturer</div>${carry.map(finRow).join('')}` : '');
   const tab = S.finTab || 'overview';
   const TABS = [['overview', 'Résumé', ''], ['missions', 'Missions', toBill.length ? `<span class="tb-n" title="${toBill.length} à facturer">${toBill.length}</span>` : ''], ['payouts', 'Monteurs', ''], ['charts', 'Graphiques', '']];
   const tabs = `<div class="tabs-bar" role="tablist">${TABS.map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="finTab:${k}">${esc(l)}${n}</button>`).join('')}</div>`;
@@ -1152,7 +1156,7 @@ function financePage() {
     ${stat('Facturé aux clients', eur(Math.round(billed)), hist ? `${hist.n} facture${hist.n > 1 ? 's' : ''} · compta · HTVA` : `${list.length} mission${list.length > 1 ? 's' : ''} · HTVA`, undefined, jump('finance', 'fin-missions'))}
     ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '', undefined, jump('finance', 'payouts'))}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)', jump('finance', 'fin-charts'))}
-    ${hist ? stat('Pas encore payé', eur(Math.round(hist.unpaid.reduce((a, h) => a + Number(h.amount), 0))), hist.unpaid.length ? `${hist.unpaid.length} facture${hist.unpaid.length > 1 ? 's' : ''} en attente` : 'Tout est encaissé', hist.unpaid.length ? '#F5A524' : 'var(--green)', jump('finance', 'fin-compta')) : stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
+    ${hist ? stat('Pas encore payé', eur(Math.round(hist.unpaid.reduce((a, h) => a + Number(h.amount), 0))), hist.unpaid.length ? `${hist.unpaid.length} facture${hist.unpaid.length > 1 ? 's' : ''} en attente` : 'Tout est encaissé', hist.unpaid.length ? '#F5A524' : 'var(--green)', jump('finance', 'fin-compta')) : stat('À facturer', String(toBill.length), toBill.length ? `${eur(toBill.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0))}${carry.length ? ` · dont ${carry.length} d'avant` : ''}` : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
   </div>${unbilledCard()}${hist ? '' : cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
   else if (tab === 'missions') body = (hist ? histCard(mo, hist) : '') + `<div class="card flush" id="fin-missions"><div class="card-head"><div><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${hist ? '<div class="lbl" style="margin-top:3px">Suivies dans l\'app, pas comptées dans les totaux de ce mois (la compta fait foi).</div>' : ''}</div>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
   else if (tab === 'payouts') body = payoutsSection(mo);
@@ -1161,7 +1165,7 @@ function financePage() {
 }
 // Ce qui n'est pas encore facturé, tous mois confondus (hors mois repris de la compta).
 function unbilledCard() {
-  const left = S.missions.filter((m) => isDelivered(m) && !S.finances[m.id]?.invoiced && !isHistMonth(workMonth(m)));
+  const left = S.missions.filter((m) => isDelivered(m) && !S.finances[m.id]?.invoiced);
   const now = left.filter((m) => ['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.validated_at) || d(a.v1_delivered_at) || 0) - (d(b.validated_at) || d(b.v1_delivered_at) || 0));
   const soon = left.filter((m) => !['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.v1_delivered_at) || 0) - (d(b.v1_delivered_at) || 0));
   const sum = (l) => l.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);

@@ -42,7 +42,12 @@ struct FinancesView: View {
         let revenue = hist?.billed ?? inMonth.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
         let cost = hist?.cost ?? inMonth.compactMap(\.editor_budget).reduce(0, +)
         let margin = revenue - cost
-        let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true }
+        // Validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
+        let current = month >= monthStart(Date())
+        let carry = current ? data.missions.filter { m in
+            ["validated", "paid"].contains(m.status) && data.finances[m.id]?.invoiced != true && (m.workMonth.map { $0 < month } ?? false)
+        }.sorted { ($0.workMonth ?? .distantPast) < ($1.workMonth ?? .distantPast) } : []
+        let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true } + carry
         let trend = data.monthlyFinance(endingAt: chartEnd)
         let scoped = wideScope ? data.missions(inMonths: trend.map(\.month)) : inMonth
         let shown = onlyToInvoice && !toInvoice.isEmpty ? toInvoice : inMonth
@@ -80,7 +85,8 @@ struct FinancesView: View {
                                  foot: hist.unpaid.isEmpty ? "Tout est encaissé" : "\(hist.unpaid.count) facture\(hist.unpaid.count > 1 ? "s" : "") en attente",
                                  footColor: hist.unpaid.isEmpty ? Theme.green : Theme.amber, action: { tab = .missions })
                     } else {
-                        StatCard(label: "À facturer", value: "\(toInvoice.count)", foot: "Missions validées non facturées",
+                        StatCard(label: "À facturer", value: "\(toInvoice.count)",
+                                 foot: carry.isEmpty ? "Missions validées non facturées" : "dont \(carry.count) validée\(carry.count > 1 ? "s" : "") avant ce mois",
                                  action: { onlyToInvoice = !toInvoice.isEmpty; tab = .missions })
                     }
                 }
@@ -107,6 +113,19 @@ struct FinancesView: View {
                         }
                     }
                     .card(padding: 0)
+                }
+                if !carry.isEmpty && !(onlyToInvoice && !toInvoice.isEmpty) {
+                    SectionTitle(text: "Validées avant ce mois, toujours à facturer", trailing: "\(carry.count)")
+                    WidthReader { w in
+                        VStack(spacing: 0) {
+                            ForEach(Array(carry.enumerated()), id: \.element.id) { i, m in
+                                if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
+                                missionRow(m, wide: w >= 780)
+                            }
+                        }
+                        .card(padding: 0)
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.amber.opacity(0.35)))
+                    }
                 }
 
                 SectionTitle(text: "Détail par client · \(monthKey(month))", trailing: "Facturé · Équipe · Marge")
@@ -397,7 +416,6 @@ private struct UnbilledCard: View {
     var body: some View {
         let left = data.missions.filter { m in
             m.isDelivered && m.status != "revisions" && data.finances[m.id]?.invoiced != true
-                && !(m.workMonth.map { data.isHistoryMonth($0) } ?? false)
         }
         let ready = left.filter { ["validated", "paid"].contains($0.status) }
             .sorted { (date($0, true) ?? .distantFuture) < (date($1, true) ?? .distantFuture) }

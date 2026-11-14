@@ -349,9 +349,7 @@ struct MissionsView: View {
                     searchField.frame(maxWidth: stacked ? .infinity : 240)
                 }
             }
-            sortBar
-            ClientFilterBar(selection: $clientFilter, missions: byStatus)
-            editorBar(byStatus)
+            filtersPanel(byStatus)
 
             if groups.count <= 1 {
                 ActiveMissionsTable(missions: groups.first?.list ?? [], title: groups.first?.label ?? (filter == 0 ? "En cours" : (filter == 1 ? "Terminées" : "Toutes les missions")),
@@ -362,22 +360,30 @@ struct MissionsView: View {
         }
     }
 
-    private var sortBar: some View {
-        HStack(spacing: 10) {
-            Muted("Trier par", size: 12.5).lineLimit(1).fixedSize()
-            ScrollView(.horizontal, showsIndicators: false) {
-                ChipPicker(selection: $sort, options: MissionSort.options.map { ChipPicker<String>.Option(value: $0.0, label: $0.1) })
-            }
-        }
-    }
+    // MARK: tri et filtres : une ligne par critère, libellé à gauche, dans un même encadré
 
-    @ViewBuilder private func editorBar(_ base: [Mission]) -> some View {
+    private func filtersPanel(_ base: [Mission]) -> some View {
+        let clients = data.clients.filter { c in base.contains { $0.client_id == c.id } }
         let eds = data.team.filter { p in p.role != "client" && base.contains { data.memberIds(of: $0.id).contains(p.id) } }
         let claude = base.contains(where: \.hasClaude)
-        if eds.count > 1 || (claude && !eds.isEmpty) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    AgendaFilterChip(label: "Tous les monteurs", on: editorFilter.isEmpty) { editorFilter = "" }
+        let showEditors = eds.count > 1 || (claude && !eds.isEmpty)
+        return VStack(alignment: .leading, spacing: 0) {
+            filterRow("Trier par", first: true) {
+                ForEach(MissionSort.options, id: \.0) { o in
+                    AgendaFilterChip(label: o.1, on: sort == o.0) { withAnimation(.easeOut(duration: 0.15)) { sort = o.0 } }
+                }
+            }
+            if clients.count > 1 {
+                filterRow("Client") {
+                    AgendaFilterChip(label: "Tous", on: clientFilter.isEmpty) { clientFilter = "" }
+                    ForEach(clients) { c in
+                        AgendaFilterChip(label: c.name, on: clientFilter == c.id, dot: Color(hex: c.color)) { clientFilter = c.id }
+                    }
+                }
+            }
+            if showEditors {
+                filterRow("Monteur") {
+                    AgendaFilterChip(label: "Tous", on: editorFilter.isEmpty) { editorFilter = "" }
                     ForEach(eds) { p in
                         AgendaFilterChip(label: p.id == app.profile?.id ? "Moi" : p.firstName, on: editorFilter == p.id, profile: p) { editorFilter = p.id }
                     }
@@ -385,8 +391,25 @@ struct MissionsView: View {
                         AgendaFilterChip(label: "Claude", on: editorFilter == "claude", dot: MissionTimeStrip.claudeColor) { editorFilter = "claude" }
                     }
                 }
-                .padding(.vertical, 2)
             }
+        }
+        .padding(.horizontal, 14)
+        .glassCard(radius: 16)
+    }
+
+    private func filterRow<C: View>(_ label: String, first: Bool = false, @ViewBuilder _ chips: () -> C) -> some View {
+        VStack(spacing: 0) {
+            if !first { Rectangle().fill(Theme.line).frame(height: 1) }
+            HStack(spacing: 12) {
+                Text(label).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.muted)
+                    .lineLimit(1).frame(width: 72, alignment: .leading)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) { chips() }.padding(.vertical, 2)
+                }
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.94), .init(color: .clear, location: 1)],
+                                     startPoint: .leading, endPoint: .trailing))
+            }
+            .padding(.vertical, 10)
         }
     }
 

@@ -48,7 +48,7 @@ struct FinancesView: View {
         // Validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
         let current = month >= monthStart(Date())
         let carry = current ? data.missions.filter { m in
-            ["validated", "paid"].contains(m.status) && data.finances[m.id]?.invoiced != true
+            m.status == "validated" && data.finances[m.id]?.invoiced != true
                 && (m.workMonth.map { $0 < month && $0 >= unbilledFrom } ?? false)
         }.sorted { ($0.workMonth ?? .distantPast) < ($1.workMonth ?? .distantPast) } : []
         let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true } + carry
@@ -419,7 +419,7 @@ private struct UnbilledCard: View {
 
     var body: some View {
         let left = data.missions.filter { m in
-            m.isDelivered && m.status != "revisions" && data.finances[m.id]?.invoiced != true
+            m.isDelivered && m.status != "revisions" && m.status != "paid" && data.finances[m.id]?.invoiced != true
                 && (m.workMonth.map { $0 >= unbilledFrom } ?? false)
         }
         let ready = left.filter { ["validated", "paid"].contains($0.status) }

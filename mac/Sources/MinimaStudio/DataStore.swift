@@ -456,6 +456,10 @@ final class DataStore: ObservableObject {
         await reload()
     }
 
+    func setRelease(_ missionId: String, _ ymd: String?) async throws {
+        try await supa.from("missions").update(ReleaseUpdate(release_on: ymd)).eq("id", value: missionId).execute()
+    }
+
     func setBillMonth(_ missionId: String, _ key: String?) async throws {
         try await supa.from("missions").update(BillMonthUpdate(bill_month: key)).eq("id", value: missionId).execute()
     }

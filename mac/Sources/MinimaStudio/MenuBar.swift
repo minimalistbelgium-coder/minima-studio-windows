@@ -45,6 +45,37 @@ struct MenuBarMenu: View {
         }
     }
 
+    /// Prochaine livraison à venir (les miennes, ou toutes pour l'admin).
+    private var nextDelivery: Mission? {
+        let me = app.profile?.id
+        return data.missions
+            .filter { m in
+                m.isOpen && m.status != "requested" && (m.deadlineDate ?? .distantPast) > Date()
+                    && (app.isAdmin || (me.map { data.memberIds(of: m.id).contains($0) } ?? false))
+            }
+            .min { ($0.deadlineDate ?? .distantFuture) < ($1.deadlineDate ?? .distantFuture) }
+    }
+
+    private func whenLabel(_ d: Date) -> String {
+        let cal = Calendar.current
+        let f = DateFormatter(); f.locale = Locale(identifier: "fr_BE"); f.dateFormat = "HH:mm"
+        if cal.isDateInToday(d) { return "aujourd'hui \(f.string(from: d))" }
+        if cal.isDateInTomorrow(d) { return "demain \(f.string(from: d))" }
+        f.dateFormat = "EEE d MMM HH:mm"
+        return f.string(from: d)
+    }
+
+    @ViewBuilder private var nextDeliveryItem: some View {
+        if let n = nextDelivery, let d = n.deadlineDate {
+            Button("Prochaine livraison : \(n.title), \(whenLabel(d))") {
+                if MiniWindow.shared.isVisible { MiniWindow.shared.hide(app: app) }
+                app.showMainWindow()
+                presenter.open(.existing(n.id))
+            }
+            Divider()
+        }
+    }
+
     var body: some View {
         if let m = tracker.mission {
             Text(m.title)
@@ -62,6 +93,7 @@ struct MenuBarMenu: View {
             Text(statusText)
             Divider()
         }
+        nextDeliveryItem
         Button("Ouvrir Minima Studio") {
             if MiniWindow.shared.isVisible { MiniWindow.shared.hide(app: app) }
             app.showMainWindow()

@@ -29,6 +29,7 @@ struct MinimaStudioApp: App {
                     AppDelegate.appState = app
                     AppDelegate.dataStore = data
                     AppDelegate.presenter = presenter
+                    AppDelegate.tracker = tracker
                     AppDelegate.flushPendingURLs()
                 })
         }

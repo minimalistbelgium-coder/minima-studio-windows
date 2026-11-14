@@ -141,6 +141,21 @@ struct Mission: Codable, Identifiable, Hashable {
     var margin_split: Bool? = nil
     /// Mois où le monteur facture la mission (« 2026-10-01 »), choisi par l'admin. Vide : mois de la première livraison.
     var bill_month: String? = nil
+    /// Date de sortie (publication) du projet, « 2026-11-20 ».
+    var release_on: String? = nil
+
+    /// Date de sortie à minuit (heure locale).
+    var releaseDate: Date? {
+        guard let r = release_on?.prefix(10) else { return nil }
+        let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current; f.dateFormat = "yyyy-MM-dd"
+        return f.date(from: String(r))
+    }
+    var releaseLabel: String? {
+        guard let d = releaseDate else { return nil }
+        let f = DateFormatter(); f.locale = Locale(identifier: "fr_BE"); f.dateFormat = "EEE d MMM"
+        return "Sortie le " + f.string(from: d)
+    }
 
     var hasClaude: Bool { claude_editor ?? false }
     var isDelivered: Bool { ["v1_delivered", "revisions", "fix_delivered", "validated", "paid"].contains(status) }
@@ -338,6 +353,16 @@ struct EditorPaymentUpsert: Encodable {
     let month: String
     let amount: Double
     let paid_at: String
+}
+
+/// Met à jour la date de sortie (null pour l'effacer).
+struct ReleaseUpdate: Encodable {
+    let release_on: String?
+    enum CodingKeys: String, CodingKey { case release_on }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        if let r = release_on { try c.encode(r, forKey: .release_on) } else { try c.encodeNil(forKey: .release_on) }
+    }
 }
 
 /// Met à jour bill_month en écrivant null explicitement quand on revient au mode automatique.

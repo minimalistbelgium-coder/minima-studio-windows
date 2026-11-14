@@ -222,6 +222,10 @@ private struct MissionDetail: View {
                 Muted(DateFmt.deadline(mission.deadlineDate), size: 12.5)
                     .foregroundStyle(mission.isLate ? Theme.red : Theme.muted)
                     .lineLimit(1).padding(.vertical, 3)
+                if let r = mission.releaseLabel {
+                    Text(r).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Color(hex: "C084FC"))
+                        .lineLimit(1).padding(.vertical, 3)
+                }
             }
         }
     }
@@ -525,6 +529,10 @@ private struct MissionDetail: View {
             ForEach(rows) { r in
                 kv(dot: color(for: r.user_id, in: rows), "\(name(r.user_id)) · \(Int((r.percent ?? 0).rounded())) %",
                    Money.eur(r.amount ?? 0), bold: true)
+                if data.profile(r.user_id)?.role != "admin", mission.billMonth != nil,
+                   let ps = data.payState(of: mission, user: r.user_id) {
+                    HStack { Spacer(); Tag(text: ps.label, color: ps.color) }.padding(.bottom, 6)
+                }
             }
             if rows.isEmpty {
                 Muted("La répartition se calcule dès que quelqu'un a travaillé dessus.").padding(.vertical, 6)
@@ -565,6 +573,18 @@ private struct MissionDetail: View {
                bold: true, color: Theme.green)
             kv(dot: nil, "Ton temps", TimeFmt.hm(secs))
             kv(dot: nil, "Ton taux horaire", rate.map { "\(Money.eur($0.rounded())) / h" } ?? "–")
+            if let ps = data.payState(of: mission, user: me) {
+                VStack(spacing: 0) {
+                    Rectangle().fill(Theme.line).frame(height: 1)
+                    HStack(spacing: 8) {
+                        Text("Paiement").font(.system(size: 13.5))
+                        Spacer(minLength: 8)
+                        Tag(text: ps.label, color: ps.color)
+                        if !ps.detail.isEmpty { Muted(ps.detail, size: 12).lineLimit(1) }
+                    }
+                    .padding(.vertical, 10)
+                }
+            }
             Muted((mission.margin_split ?? true) ? "Si tu montes seul, tu touches tout le budget. Si Gaston travaille aussi dessus, c'est d'abord pris sur sa marge, pas sur ta part." : "Si tu montes seul, tu touches tout le budget. Si Gaston fait des retouches, son temps compte × \(weightLabel).", size: 12)
                 .padding(.top, 10).fixedSize(horizontal: false, vertical: true)
         }
@@ -720,6 +740,8 @@ struct MissionEditor: View {
     @State private var price = ""
     @State private var hasDeadline = true
     @State private var deadline = MissionEditor.defaultDeadline()
+    @State private var hasRelease = false
+    @State private var release = Date()
     @State private var rushes = ""
     @State private var memberIds: Set<String> = []
     /// Mois de facturation monteur choisi à la main (« 2026-10-01 ») ou vide pour automatique.
@@ -800,8 +822,17 @@ struct MissionEditor: View {
                     }
 
                     // 3. Quand
-                    EditorSection(number: 3, title: "Deadline") {
+                    EditorSection(number: 3, title: "Livraison du montage") {
                         DeadlinePicker(date: $deadline, enabled: $hasDeadline)
+                        HStack(spacing: 10) {
+                            Toggle("Date de sortie", isOn: $hasRelease).toggleStyle(.checkbox).font(.system(size: 13, weight: .medium))
+                            if hasRelease {
+                                DatePicker("", selection: $release, displayedComponents: .date)
+                                    .labelsHidden().datePickerStyle(.field).environment(\.locale, Locale(identifier: "fr_BE"))
+                            }
+                            Spacer()
+                        }
+                        .padding(.top, 6)
                     }
 
                     // 4. Brief
@@ -883,6 +914,7 @@ struct MissionEditor: View {
             budget = m.editor_budget.map { formatNumber($0) } ?? ""
             price = data.finances[m.id]?.client_price.map { formatNumber($0) } ?? ""
             if let d = m.deadlineDate { deadline = d; hasDeadline = true } else { hasDeadline = false }
+            if let r = m.releaseDate { release = r; hasRelease = true } else { hasRelease = false }
             rushes = m.rushes_url ?? ""
             memberIds = Set(data.memberIds(of: m.id))
             if m.hasClaude { memberIds.insert(MissionTimeStrip.claude) }
@@ -936,6 +968,15 @@ struct MissionEditor: View {
                         rushes_added_at: r.isEmpty ? nil : DateFmt.iso(Date()),
                         claude_editor: withClaude
                     ), memberIds: people, clientPrice: priceValue)
+                }
+
+                let relKey: String? = hasRelease ? {
+                    let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+                    return f.string(from: release)
+                }() : nil
+                if relKey != mission?.release_on.map({ String($0.prefix(10)) }) {
+                    try await data.setRelease(missionId, relKey)
+                    await data.reload()
                 }
 
                 if app.isAdmin && billKey != (mission?.bill_month.map { String($0.prefix(10)) } ?? "") {

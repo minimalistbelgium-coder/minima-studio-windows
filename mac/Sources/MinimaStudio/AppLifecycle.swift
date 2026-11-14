@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var appState: AppState?
     static weak var dataStore: DataStore?
     static weak var presenter: Presenter?
+    static weak var tracker: Tracker?
 
     // MARK: liens minimastudio://
     // On prend la main sur les liens avant SwiftUI : sinon chaque lien ouvre une nouvelle fenêtre.
@@ -64,19 +65,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// ⌘Q : on propose de garder l'app en fond pour que le chrono Premiere continue.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if Self.forceQuit { return .terminateNow }
-        // Extinction, redémarrage ou fermeture de session du Mac : on ne bloque jamais.
+        if Self.forceQuit { return closeSessionThenQuit() }
+        // Extinction, redémarrage ou fermeture de session du Mac : on ne bloque jamais (3 s maximum).
         if let ev = NSAppleEventManager.shared().currentAppleEvent,
-           ev.attributeDescriptor(forKeyword: kAEQuitReason) != nil { return .terminateNow }
+           ev.attributeDescriptor(forKeyword: kAEQuitReason) != nil { return closeSessionThenQuit() }
         let alert = NSAlert()
         alert.messageText = "Garder Minima Studio en fond ?"
         alert.informativeText = "Si tu quittes, ton temps de montage dans Premiere ne sera plus compté par l'app. En fond, la fenêtre disparaît mais le chrono continue."
         alert.addButton(withTitle: "Garder en fond")
         alert.addButton(withTitle: "Quitter quand même")
         NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertSecondButtonReturn { return .terminateNow }
+        if alert.runModal() == .alertSecondButtonReturn { return closeSessionThenQuit() }
         for w in NSApp.windows where w.isVisible { w.orderOut(nil) }
         return .terminateCancel
+    }
+
+    /// Ferme la session de montage en cours (sinon elle reste « en cours » dans les données), puis quitte.
+    /// On n'attend jamais plus de 3 secondes.
+    private func closeSessionThenQuit() -> NSApplication.TerminateReply {
+        guard let t = Self.tracker, t.hasOpenSession else { return .terminateNow }
+        Task { @MainActor in
+            await withTaskGroup(of: Void.self) { g in
+                g.addTask { await t.endSession(deduct: 0, reason: nil) }
+                g.addTask { try? await Task.sleep(nanoseconds: 3_000_000_000) }
+                _ = await g.next()
+                g.cancelAll()
+            }
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

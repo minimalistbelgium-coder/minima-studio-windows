@@ -53,6 +53,8 @@ final class Tracker: ObservableObject {
     private var lastBeat = Date.distantPast
 
     private var sessionId: String?
+    /// Une session de montage est ouverte (pour la fermer proprement en quittant l'app).
+    var hasOpenSession: Bool { sessionId != nil }
     private var sessionStart: Date?
     private var countedIdle: Double = 0
     private var countedAway: Double = 0

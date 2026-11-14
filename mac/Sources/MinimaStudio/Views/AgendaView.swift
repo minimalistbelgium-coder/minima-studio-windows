@@ -70,6 +70,9 @@ enum AgendaCal {
     }
 
     /// Couleur du client, ou rouge si la mission est en retard.
+    /// Couleur des dates de sortie.
+    static let release = Color(hex: "C084FC")
+
     static func color(_ m: Mission, _ c: Client?) -> Color {
         m.isLate ? Theme.red : Color(hex: c?.color ?? "8B8D94")
     }
@@ -103,6 +106,13 @@ struct AgendaView: View {
         for key in Array(out.keys) {
             out[key] = (out[key] ?? []).sorted { ($0.deadlineDate ?? .distantFuture) < ($1.deadlineDate ?? .distantFuture) }
         }
+        return out
+    }
+
+    /// Dates de sortie par jour (affichées en violet).
+    private var releasesByDay: [Date: [Mission]] {
+        var out: [Date: [Mission]] = [:]
+        for m in filtered { if let d = m.releaseDate { out[AgendaCal.day(d), default: []].append(m) } }
         return out
     }
 
@@ -141,6 +151,7 @@ struct AgendaView: View {
 
     var body: some View {
         let map = byDay
+        let rel = releasesByDay
         Page {
             PageHeader(kicker: kicker, title: app.isClient ? "Calendrier" : "Agenda") {
                 ChipPicker(selection: $mode, options: [
@@ -152,11 +163,12 @@ struct AgendaView: View {
             if mode != "list" { navBar }
             if showEditors || showClients { filterBar }
             if mode == "week" {
-                AgendaWeek(days: AgendaCal.week(anchor), map: map)
+                AgendaWeek(days: AgendaCal.week(anchor), map: map, releases: rel)
             } else if mode == "list" {
+                upcomingReleases
                 AgendaList(missions: filtered)
             } else {
-                monthBlock(map)
+                monthBlock(map, rel)
             }
             legend
         }
@@ -225,7 +237,26 @@ struct AgendaView: View {
 
     // MARK: vue mois
 
-    private func monthBlock(_ map: [Date: [Mission]]) -> some View {
+    /// Sorties des 31 prochains jours, en tête de la vue liste.
+    @ViewBuilder private var upcomingReleases: some View {
+        let today = AgendaCal.day(Date())
+        let end = AgendaCal.cal.date(byAdding: .day, value: 31, to: today) ?? today
+        let list = filtered.filter { m in m.releaseDate.map { $0 >= today && $0 < end } ?? false }
+            .sorted { ($0.releaseDate ?? .distantFuture) < ($1.releaseDate ?? .distantFuture) }
+        if !list.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Sorties à venir").font(.system(size: 15, weight: .semibold)).foregroundStyle(AgendaCal.release).lineLimit(1)
+                    Spacer()
+                    Muted("\(list.count)")
+                }
+                ForEach(list) { m in AgendaReleaseRow(mission: m, showDate: true) }
+            }
+            .card()
+        }
+    }
+
+    private func monthBlock(_ map: [Date: [Mission]], _ rel: [Date: [Mission]]) -> some View {
         let days = AgendaCal.monthGrid(anchor)
         let month = AgendaCal.cal.component(.month, from: AgendaCal.monthStart(anchor))
         let columns = Array(repeating: GridItem(.flexible(minimum: 20), spacing: 0, alignment: .top), count: 7)
@@ -248,6 +279,7 @@ struct AgendaView: View {
                             AgendaDayCell(day: d,
                                           inMonth: AgendaCal.cal.component(.month, from: d) == month,
                                           missions: map[d] ?? [],
+                                          releases: rel[d] ?? [],
                                           selected: d == selected,
                                           narrow: narrow) { selected = d }
                         }
@@ -256,11 +288,11 @@ struct AgendaView: View {
                 .glassCard()
             }
 
-            dayPanel(map[selected] ?? [])
+            dayPanel(map[selected] ?? [], rel[selected] ?? [])
         }
     }
 
-    private func dayPanel(_ list: [Mission]) -> some View {
+    private func dayPanel(_ list: [Mission], _ releases: [Mission]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitle(text: AgendaCal.relative(selected)) {
                 if app.isAdmin {
@@ -270,7 +302,8 @@ struct AgendaView: View {
                     Muted("\(list.count) mission\(list.count > 1 ? "s" : "")")
                 }
             }
-            if list.isEmpty { Muted("Rien de prévu ce jour-là.").padding(.vertical, 6) }
+            if list.isEmpty && releases.isEmpty { Muted("Rien de prévu ce jour-là.").padding(.vertical, 6) }
+            ForEach(releases) { m in AgendaReleaseRow(mission: m) }
             ForEach(list) { m in AgendaRow(mission: m) }
         }
         .card()
@@ -282,6 +315,7 @@ struct AgendaView: View {
         FlowLayout(spacing: 16, lineSpacing: 6) {
             legendItem(Theme.red, "En retard")
             legendItem(Theme.muted.opacity(0.5), "Terminée (estompée)")
+            legendItem(AgendaCal.release, "Date de sortie")
             Muted("La couleur est celle du client.", size: 12).lineLimit(1)
         }
     }
@@ -355,20 +389,24 @@ struct AgendaDayCell: View {
     let day: Date
     let inMonth: Bool
     let missions: [Mission]
+    var releases: [Mission] = []
     let selected: Bool
     var narrow = false
     var onSelect: () -> Void
 
     var body: some View {
         let today = AgendaCal.cal.isDateInToday(day)
-        let extra = missions.count - 3
+        let rels = Array(releases.prefix(2))
+        let room = max(0, 3 - rels.count)
+        let extra = missions.count - room
         VStack(alignment: .leading, spacing: 4) {
             Text("\(AgendaCal.cal.component(.day, from: day))")
                 .font(.system(size: 12.5, weight: today ? .bold : .medium)).monospacedDigit()
                 .foregroundStyle(today ? Theme.onAccent : Theme.text2)
                 .frame(width: 24, height: 24)
                 .background(today ? Theme.blue : Color.clear, in: Circle())
-            ForEach(Array(missions.prefix(3))) { m in AgendaChip(mission: m, showTime: !narrow) }
+            ForEach(rels) { m in AgendaReleaseChip(mission: m, showLabel: !narrow) }
+            ForEach(Array(missions.prefix(room))) { m in AgendaChip(mission: m, showTime: !narrow) }
             if extra > 0 { Muted(narrow ? "+ \(extra)" : "+ \(extra) autre\(extra > 1 ? "s" : "")", size: 11).lineLimit(1).padding(.leading, 4) }
             Spacer(minLength: 0)
         }
@@ -414,6 +452,68 @@ struct AgendaChip: View {
         }
         .buttonStyle(.plain)
         .help("\(AgendaCal.time(mission.deadlineDate)) · \(mission.title)")
+    }
+}
+
+/// Date de sortie dans une case du mois ou une colonne de la semaine.
+struct AgendaReleaseChip: View {
+    @EnvironmentObject var presenter: Presenter
+    let mission: Mission
+    var showLabel = true
+
+    var body: some View {
+        let color = AgendaCal.release
+        Button { presenter.open(.existing(mission.id)) } label: {
+            HStack(spacing: 5) {
+                if showLabel {
+                    Text("Sortie").font(.system(size: 10, weight: .semibold)).foregroundStyle(color).lineLimit(1).fixedSize()
+                }
+                Text(mission.title).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 9).padding(.trailing, 5).frame(height: 21)
+            .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(alignment: .leading) { AgendaBar(color: color) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Sortie · \(mission.title)")
+    }
+}
+
+/// Ligne « Sortie » (jour sélectionné et vue liste).
+struct AgendaReleaseRow: View {
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var presenter: Presenter
+    let mission: Mission
+    var showDate = false
+
+    var body: some View {
+        let color = AgendaCal.release
+        Button { presenter.open(.existing(mission.id)) } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sortie").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(color).lineLimit(1)
+                    if showDate, let d = mission.releaseDate {
+                        Text(AgendaCal.short(d)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                    }
+                }
+                .frame(width: showDate ? 92 : 44, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mission.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
+                    Text([data.client(mission.client_id)?.name, mission.isOpen ? "montage pas encore validé" : "montage validé"]
+                        .compactMap { $0 }.joined(separator: " · "))
+                        .font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
+            .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay(alignment: .leading) { AgendaBar(color: color) }
+            .contentShape(Rectangle())
+            .hoverRow(radius: 11)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -473,6 +573,7 @@ struct AgendaWeek: View {
     @EnvironmentObject var presenter: Presenter
     let days: [Date]
     let map: [Date: [Mission]]
+    var releases: [Date: [Mission]] = [:]
 
     @Environment(\.layoutWidth) private var width
 
@@ -525,7 +626,8 @@ struct AgendaWeek: View {
                 }
             }
             Rectangle().fill(Theme.line).frame(height: 1)
-            if list.isEmpty {
+            ForEach(releases[d] ?? []) { m in AgendaReleaseChip(mission: m, showLabel: true) }
+            if list.isEmpty && (releases[d] ?? []).isEmpty {
                 Text("Libre").font(.system(size: 12)).foregroundStyle(Theme.muted.opacity(0.5)).padding(.vertical, 4)
             }
             ForEach(list) { m in AgendaWeekCard(mission: m) }

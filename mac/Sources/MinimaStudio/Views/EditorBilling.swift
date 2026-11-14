@@ -28,6 +28,22 @@ extension DataStore {
         return (isCurrentOrFuture(month) ? .current : .due, st.total)
     }
 
+    /// Paiement d'une mission à un monteur : libellé, couleur et détail. Réglée quand le paiement
+    /// de son mois de facturation couvre tout le relevé de ce mois.
+    func payState(of m: Mission, user: String) -> (label: String, color: Color, detail: String)? {
+        guard memberIds(of: m.id).contains(user), m.status != "requested" else { return nil }
+        guard let mo = m.billMonth else { return ("Pas encore livrée", Theme.muted, "payée avec la facture du mois de sa livraison") }
+        let st = statement(user: user, month: mo)
+        guard st.rows.contains(where: { $0.mission.id == m.id && $0.amount > 0 }) else { return nil }
+        let rest = max(0, st.total - (st.payment?.amount ?? 0))
+        if let p = st.payment, rest <= 0.01 {
+            let d = DateFmt.parse(p.paid_at)?.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "fr_BE"))) ?? ""
+            return ("Payée", Theme.green, d.isEmpty ? "" : "le \(d)")
+        }
+        if st.payment != nil { return ("Payée en partie", Theme.amber, "facture \(deMois(mo))") }
+        return ("Pas encore payée", Theme.amber, "facture \(deMois(mo))" + (invoice(user: user, month: mo) != nil ? " · envoyée" : ""))
+    }
+
     /// Mois terminés pas encore payés (jusqu'à `back` mois en arrière).
     func unpaidMonths(user: String, back: Int = 12) -> [(month: Date, amount: Double)] {
         let cal = Calendar.current

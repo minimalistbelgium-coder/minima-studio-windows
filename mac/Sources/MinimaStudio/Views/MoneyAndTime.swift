@@ -84,6 +84,7 @@ struct FinancesView: View {
                                  action: { onlyToInvoice = !toInvoice.isEmpty; tab = .missions })
                     }
                 }
+                UnbilledCard { m, p in setInvoiced(m, p, true) }
                 if hist == nil { CashCard(month: month) }
                 FinanceTrendCard(points: trend, month: $month)
             case .missions:
@@ -185,7 +186,7 @@ struct FinancesView: View {
                 if let p { moneyCol(p - b, color: p - b >= 0 ? Theme.green : Theme.red, bold: true) }
                 else { Text("–").frame(width: 90, alignment: .trailing).foregroundStyle(Theme.muted) }
                 InvoicedButton(on: invoiced) { setInvoiced(m, p, !invoiced) }
-                    .frame(width: 104, alignment: .trailing)
+                    .frame(width: 140, alignment: .trailing)
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
             .hoverRow()
@@ -386,6 +387,92 @@ struct TimeView: View {
 }
 
 
+
+/// Ce qui n'est pas encore facturé, tous mois confondus (hors mois repris de la compta).
+private struct UnbilledCard: View {
+    @EnvironmentObject var data: DataStore
+    @EnvironmentObject var presenter: Presenter
+    var onInvoice: (Mission, Double?) -> Void
+
+    var body: some View {
+        let left = data.missions.filter { m in
+            m.isDelivered && m.status != "revisions" && data.finances[m.id]?.invoiced != true
+                && !(m.workMonth.map { data.isHistoryMonth($0) } ?? false)
+        }
+        let ready = left.filter { ["validated", "paid"].contains($0.status) }
+            .sorted { (date($0, true) ?? .distantFuture) < (date($1, true) ?? .distantFuture) }
+        let soon = left.filter { !["validated", "paid"].contains($0.status) }
+            .sorted { (date($0, false) ?? .distantFuture) < (date($1, false) ?? .distantFuture) }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Pas encore facturé").font(.system(size: 15, weight: .semibold))
+                    Muted("Tous mois confondus · HTVA", size: 12)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(Money.eur(sum(ready).rounded())).font(.system(size: 22, weight: .bold)).monospacedDigit()
+                    Muted("\(ready.count) à facturer" + (soon.isEmpty ? "" : " · + \(Money.eur(sum(soon).rounded())) bientôt"), size: 12).lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 10)
+            if ready.isEmpty {
+                Muted("Tout ce qui est validé est facturé.").padding(.horizontal, 18).padding(.bottom, 14)
+            } else {
+                header("Validées, à facturer maintenant")
+                ForEach(ready) { m in row(m, ready: true) }
+            }
+            if !soon.isEmpty {
+                header("Livrées, en attente de validation du client")
+                ForEach(soon) { m in row(m, ready: false) }
+            }
+        }
+        .padding(.bottom, 6)
+        .glassCard()
+    }
+
+    private func sum(_ l: [Mission]) -> Double { l.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +) }
+    private func date(_ m: Mission, _ ready: Bool) -> Date? {
+        (ready ? m.validated_at : m.v1_delivered_at).flatMap(DateFmt.parse) ?? m.v1_delivered_at.flatMap(DateFmt.parse)
+    }
+
+    private func header(_ t: String) -> some View {
+        Text(t.uppercased()).font(.system(size: 10.5, weight: .semibold)).tracking(0.5).foregroundStyle(Theme.muted)
+            .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 4)
+    }
+
+    private func row(_ m: Mission, ready: Bool) -> some View {
+        let p = data.finances[m.id]?.client_price
+        let since = date(m, ready).map { max(0, Calendar.current.dateComponents([.day], from: $0, to: Date()).day ?? 0) }
+        let old = ready && (since ?? 0) > 7
+        var sub = data.client(m.client_id)?.name ?? "Sans client"
+        if let since { sub += " · \(ready ? "validée" : "livrée") il y a \(since) j" }
+        if p == nil { sub += " · prix à renseigner" }
+        return VStack(spacing: 0) {
+            Rectangle().fill(Theme.line).frame(height: 1).padding(.leading, 18)
+            HStack(spacing: 10) {
+                Button { presenter.open(.existing(m.id)) } label: {
+                    HStack(spacing: 10) {
+                        ClientDot(color: data.client(m.client_id)?.color)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(m.title).font(.system(size: 13.5)).lineLimit(1)
+                            Text(sub).font(.system(size: 12)).foregroundStyle(old ? Theme.amber : Theme.muted).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Text(p.map(Money.eur) ?? "–").font(.system(size: 13, weight: .semibold)).monospacedDigit().lineLimit(1).fixedSize()
+                if ready, p != nil {
+                    InvoicedButton(on: false) { onInvoice(m, p) }
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 9)
+            .hoverRow()
+        }
+    }
+}
 
 /// Indique si la facture client est envoyée. Un clic bascule l'état.
 private struct InvoicedButton: View {

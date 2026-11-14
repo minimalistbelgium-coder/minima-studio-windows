@@ -697,3 +697,12 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .steps-ol a{color:var(--blue)}
 .code-box{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:10px 14px;border-radius:12px;border:1px dashed var(--line2);background:var(--card2)}
 .code-box .mono{font-size:18px;font-weight:700;letter-spacing:.08em}
+
+/* Tri des missions */
+.sort-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 2px; overflow-x: auto; scrollbar-width: none; }
+.sort-row::-webkit-scrollbar { display: none; }
+.sort-row .lbl { flex: none; }
+.seg.sm button { min-height: 32px; padding: 0 12px; font-size: 13px; white-space: nowrap; }
+.list-h { display: flex; align-items: center; gap: 8px; padding: 14px 18px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--line); }
+.list-h:first-child { border-top: 0; }
+.list-h span { font-weight: 500; opacity: .7; }

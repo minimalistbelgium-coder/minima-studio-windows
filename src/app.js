@@ -977,14 +977,47 @@ function projectGroups() {
   if (isAdmin()) g.requests = S.missions.filter((m) => m.status === 'requested');
   return g;
 }
+// Tri des missions. « Priorité » : urgence calculée (retard, retours à traiter, deadline proche…).
+const SORTS = [['prio', 'Priorité'], ['deadline', 'Deadline'], ['recent', 'Derniers ajouts'], ['client', 'Client'], ['editor', 'Monteur'], ['status', 'Statut']];
+try { S.sort = localStorage.getItem('ms-sort') || 'prio'; } catch { S.sort = 'prio'; }
+function urgency(m) {
+  if (m.status === 'requested') return 6;
+  if (!isOpen(m)) return 9;
+  if (['v1_delivered', 'fix_delivered'].includes(m.status)) return 7;
+  if (isLate(m)) return 0;
+  if (m.status === 'revisions') return 1;
+  const h = d(m.deadline) ? (d(m.deadline) - Date.now()) / 3600e3 : Infinity;
+  if (h <= 24) return 2; if (h <= 72) return 3;
+  return m.status === 'editing' ? 4 : 5;
+}
+const URGENCY_LBL = ['En retard', 'Retours à traiter', 'À livrer sous 24 h', 'À livrer sous 3 jours', 'En montage', 'À commencer', 'Demandes', 'En attente du client', 'Terminées', 'Terminées'];
+const STATUS_ORDER = ['requested', 'revisions', 'editing', 'assigned', 'v1_delivered', 'fix_delivered', 'validated', 'paid'];
+const byDeadline = (a, b) => (d(a.deadline) || 9e15) - (d(b.deadline) || 9e15);
+const byRecent = (a, b) => String(b.created_at).localeCompare(String(a.created_at));
+function sortedGroups(list) {
+  const k = S.sort;
+  if (k === 'deadline') return [[null, [...list].sort(byDeadline)]];
+  if (k === 'recent') return [[null, [...list].sort(byRecent)]];
+  const groups = new Map(); const add = (key, label, m, order) => { if (!groups.has(key)) groups.set(key, { label, order, list: [] }); groups.get(key).list.push(m); };
+  list.forEach((m) => {
+    if (k === 'prio') { const u = urgency(m); add(u, URGENCY_LBL[u], m, u); }
+    else if (k === 'client') { const c = client(m.client_id); add(c?.id || '-', c?.name || 'Sans client', m, c?.name || '~'); }
+    else if (k === 'status') { const i = STATUS_ORDER.indexOf(m.status); add(m.status, (STATUS[m.status] || [m.status])[0], m, i < 0 ? 99 : i); }
+    else if (k === 'editor') { const ids = memberIds(m.id); if (m.claude_editor) add('claude', 'Claude', m, '~Claude'); if (!ids.length && !m.claude_editor) add('-', 'Personne', m, '~~'); ids.forEach((u) => add(u, u === S.me.id ? 'Moi' : firstName(profile(u)), m, u === S.me.id ? '' : firstName(profile(u)))); }
+  });
+  const inner = k === 'prio' ? byDeadline : (a, b) => urgency(a) - urgency(b) || byDeadline(a, b);
+  return [...groups.values()].sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0)).map((g) => [g.label, g.list.sort(inner)]);
+}
 function projectRows() {
   const g = projectGroups();
   let list = g[S.filter] || g.open;
   if (S.clientFilter) list = list.filter((m) => m.client_id === S.clientFilter);
+  if (S.edFilter) list = list.filter((m) => (S.edFilter === 'claude' ? m.claude_editor : memberIds(m.id).includes(S.edFilter)));
   const q = S.search.trim().toLowerCase();
   if (q) list = (S.filter === 'requests' ? list : g.all).filter((m) => `${m.title} ${client(m.client_id)?.name || ''} ${memberIds(m.id).map((u) => firstName(profile(u))).join(' ')}`.toLowerCase().includes(q));
-  if (S.filter === 'done' && !q) list = [...list].reverse();
-  return list.map((m) => missionRow(m)).join('') || `<div class="empty">${q ? 'Aucun résultat.' : S.filter === 'requests' ? 'Aucune demande en attente.' : 'Rien ici.'}</div>`;
+  if (!list.length) return `<div class="empty">${q ? 'Aucun résultat.' : S.filter === 'requests' ? 'Aucune demande en attente.' : 'Rien ici.'}</div>`;
+  const groups = sortedGroups(list);
+  return groups.map(([label, l]) => `${label && groups.length > 1 ? `<div class="list-h">${esc(label)}<span>${l.length}</span></div>` : ''}${l.map((m) => missionRow(m)).join('')}`).join('');
 }
 function projectsPage() {
   const g = projectGroups();
@@ -994,8 +1027,11 @@ function projectsPage() {
   if (isAdmin()) segs.push(['requests', 'Demandes']);
   const seg = segs.map(([k, t]) => `<button class="${S.filter === k ? 'on' : ''}" data-filter="${k}">${t}<span class="n ${k === 'requests' && g[k].length ? 'hot' : ''}">${g[k].length}</span></button>`).join('');
   const chips = clientsIn.length > 1 ? `<div class="chips"><button class="chip ${!S.clientFilter ? 'on' : ''}" data-client="">Tous les clients</button>${clientsIn.map((c) => clientChip(c, S.clientFilter === c.id, 'data-client')).join('')}</div>` : '';
+  const eds = isAdmin() ? team().filter((p) => g[S.filter].some((m) => memberIds(m.id).includes(p.id))) : [];
+  const edChips = eds.length > 1 || (eds.length && g[S.filter].some((m) => m.claude_editor)) ? `<div class="chips"><button class="chip ${!S.edFilter ? 'on' : ''}" data-edf="">Tous les monteurs</button>${eds.map((p) => `<button class="chip ${S.edFilter === p.id ? 'on' : ''}" data-edf="${p.id}">${avatar(p, 18)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}${g[S.filter].some((m) => m.claude_editor) ? `<button class="chip ${S.edFilter === 'claude' ? 'on' : ''}" data-edf="claude">${claudeAvatar(18)}Claude</button>` : ''}</div>` : '';
+  const sorts = `<div class="sort-row"><span class="lbl">Trier par</span><div class="seg sm">${SORTS.filter(([k]) => k !== 'editor' || !isEditor()).map(([k, t]) => `<button class="${S.sort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`).join('')}</div></div>`;
   return `${header(`${g.open.length} en cours · ${g.delivered.length} livrées`, isEditor() ? 'Mes missions' : 'Projets', isAdmin() ? NEW_BTN : '')}
-  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label></div>${chips}
+  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label></div>${sorts}${chips}${edChips}
   <div class="card flush"><div class="list" id="proj-list">${projectRows()}</div></div>
   ${S.filter === 'requests' ? '<p class="lbl" style="margin-top:14px">Ouvre une demande pour fixer le budget, le prix et le monteur, puis accepte-la. Le client est prévenu automatiquement.</p>' : ''}`;
 }
@@ -1887,7 +1923,7 @@ const ACTIONS = {
 };
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-jump],[data-set],[data-thread],[data-mtab]');
+  const t = e.target.closest('[data-go],[data-notif],[data-open],[data-hweek],[data-close],[data-act],[data-filter],[data-client],[data-month],[data-pick],[data-uninvite],[data-view],[data-ag],[data-ag-editor],[data-ag-client],[data-day],[data-teamtab],[data-member],[data-client-open],[data-color],[data-jump],[data-set],[data-thread],[data-mtab],[data-sort],[data-edf]');
   if (!t) return;
   if (t.hasAttribute('data-close') && e.target !== t && !e.target.closest('button[data-close]')) return; // clic dans la feuille
   const D = t.dataset;
@@ -1907,6 +1943,8 @@ document.addEventListener('click', async (e) => {
     else if (D.act && ACTIONS[D.act]) { e.preventDefault(); await ACTIONS[D.act](t); }
     else if (D.filter) { S.filter = D.filter; S.clientFilter = ''; render(); }
     else if (D.client !== undefined && t.classList.contains('chip')) { S.clientFilter = D.client; render(); }
+    else if (D.sort) { S.sort = D.sort; try { localStorage.setItem('ms-sort', D.sort); } catch { /* rien */ } render(); }
+    else if (D.edf !== undefined) { S.edFilter = D.edf; render(); }
     else if (D.mtab) { S.mTab = D.mtab; keepFields(sheetRoot, () => renderSheet(true)); sheetRoot.querySelector('.sheet')?.scrollTo({ top: 0 }); }
     else if (D.thread) { const [mid, aud] = D.thread.split(':'); S.thread[mid] = aud; keepFields(sheetRoot, () => renderSheet(true)); }
     else if (D.month) { S.month = new Date(S.month.getFullYear(), S.month.getMonth() + Number(D.month), 1); render(); }

@@ -10,6 +10,9 @@ private func monthKey(_ d: Date?) -> String {
     return s.prefix(1).uppercased() + s.dropFirst()
 }
 
+/// Le suivi « à facturer » commence en octobre 2026 : avant, tout est déjà facturé dans la compta.
+private let unbilledFrom = DateComponents(calendar: Calendar.current, year: 2026, month: 10, day: 1).date ?? .distantPast
+
 private func monthStart(_ d: Date?) -> Date {
     guard let d else { return .distantPast }
     return Calendar.current.dateInterval(of: .month, for: d)?.start ?? d
@@ -45,7 +48,8 @@ struct FinancesView: View {
         // Validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
         let current = month >= monthStart(Date())
         let carry = current ? data.missions.filter { m in
-            ["validated", "paid"].contains(m.status) && data.finances[m.id]?.invoiced != true && (m.workMonth.map { $0 < month } ?? false)
+            ["validated", "paid"].contains(m.status) && data.finances[m.id]?.invoiced != true
+                && (m.workMonth.map { $0 < month && $0 >= unbilledFrom } ?? false)
         }.sorted { ($0.workMonth ?? .distantPast) < ($1.workMonth ?? .distantPast) } : []
         let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true } + carry
         let trend = data.monthlyFinance(endingAt: chartEnd)
@@ -416,6 +420,7 @@ private struct UnbilledCard: View {
     var body: some View {
         let left = data.missions.filter { m in
             m.isDelivered && m.status != "revisions" && data.finances[m.id]?.invoiced != true
+                && (m.workMonth.map { $0 >= unbilledFrom } ?? false)
         }
         let ready = left.filter { ["validated", "paid"].contains($0.status) }
             .sorted { (date($0, true) ?? .distantFuture) < (date($1, true) ?? .distantFuture) }
@@ -425,7 +430,7 @@ private struct UnbilledCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Pas encore facturé").font(.system(size: 15, weight: .semibold))
-                    Muted("Tous mois confondus · HTVA", size: 12)
+                    Muted("Depuis octobre 2026 · HTVA", size: 12)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {

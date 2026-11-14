@@ -1136,7 +1136,7 @@ function financePage() {
   const billed = hist ? hist.billed : list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = hist ? hist.payout : list.reduce((a, m) => a + editorPayout(m), 0);
   // Missions validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
-  const carry = mo >= startOfMonth(new Date()) ? S.missions.filter((m) => m.status === 'validated' && !S.finances[m.id]?.invoiced && workMonth(m) < mo && workMonth(m) >= UNBILLED_FROM)
+  const carry = mo >= startOfMonth(new Date()) ? S.missions.filter((m) => m.status === 'validated' && !S.finances[m.id]?.invoiced && workMonth(m) < mo && workMonth(m) >= unbilledFrom())
     .sort((a, b) => workMonth(a) - workMonth(b)) : [];
   const toBill = [...list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced), ...carry];
   const only = S.finToBill && toBill.length;
@@ -1163,12 +1163,13 @@ function financePage() {
   else body = financeCharts(mo, list, 'split');
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
 }
-// Le suivi « à facturer » commence en octobre 2026 : avant, tout est déjà facturé dans la compta.
-const UNBILLED_FROM = new Date(2026, 9, 1);
-// Ce qui n'est pas encore facturé, depuis octobre 2026.
+// Le suivi « à facturer » commence après le dernier mois repris de la compta (octobre 2026) :
+// jusque-là, tout est déjà facturé dans la compta.
+const unbilledFrom = () => { const u = histUntil(); return u ? new Date(u.getFullYear(), u.getMonth() + 1, 1) : new Date(2026, 10, 1); };
+// Ce qui n'est pas encore facturé, depuis la fin de la compta.
 function unbilledCard() {
   // « Client payé » veut dire facturé et encaissé : ces missions-là ne sont jamais « à facturer ».
-  const left = S.missions.filter((m) => isDelivered(m) && m.status !== 'paid' && !S.finances[m.id]?.invoiced && workMonth(m) >= UNBILLED_FROM);
+  const left = S.missions.filter((m) => isDelivered(m) && m.status !== 'paid' && !S.finances[m.id]?.invoiced && workMonth(m) >= unbilledFrom());
   const now = left.filter((m) => ['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.validated_at) || d(a.v1_delivered_at) || 0) - (d(b.validated_at) || d(b.v1_delivered_at) || 0));
   const soon = left.filter((m) => !['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.v1_delivered_at) || 0) - (d(b.v1_delivered_at) || 0));
   const sum = (l) => l.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
@@ -1182,7 +1183,7 @@ function unbilledCard() {
       ${ready && p ? `<button class="btn sm" data-act="invoice" data-id="${m.id}">Facturer<span class="lg-only"> le client</span></button>` : ''}</div>`;
   };
   const byClient = Object.values(now.reduce((o, m) => { const k = m.client_id || '-'; (o[k] ||= { c: client(m.client_id), l: [] }).l.push(m); return o; }, {})).sort((a, b) => sum(b.l) - sum(a.l));
-  return `<div class="card flush" id="fin-unbilled" style="margin:16px 0"><div class="card-head"><div><h2>Pas encore facturé</h2><div class="lbl" style="margin-top:3px">Depuis octobre 2026 · HTVA</div></div><div style="text-align:right"><div class="mono" style="font-size:20px;font-weight:700">${eur(Math.round(sum(now)))}</div><div class="lbl">${now.length} à facturer${soon.length ? ` · + ${eur(Math.round(sum(soon)))} bientôt` : ''}</div></div></div>
+  return `<div class="card flush" id="fin-unbilled" style="margin:16px 0"><div class="card-head"><div><h2>Pas encore facturé</h2><div class="lbl" style="margin-top:3px">Depuis ${esc(monthName(unbilledFrom()))} · avant, c'est la compta · HTVA</div></div><div style="text-align:right"><div class="mono" style="font-size:20px;font-weight:700">${eur(Math.round(sum(now)))}</div><div class="lbl">${now.length} à facturer${soon.length ? ` · + ${eur(Math.round(sum(soon)))} bientôt` : ''}</div></div></div>
     ${byClient.length > 1 ? `<div class="chips" style="padding:0 18px 10px">${byClient.map((g) => `<span class="chip"><span class="dot" style="background:${clientColor(g.c)}"></span>${esc(g.c?.name || 'Sans client')} · ${eur(Math.round(sum(g.l)))}</span>`).join('')}</div>` : ''}
     ${now.length ? `<div class="sub-h">Validées, à facturer maintenant</div><div class="list">${now.map((m) => row(m, true)).join('')}</div>` : '<div class="empty">Tout ce qui est validé est facturé.</div>'}
     ${soon.length ? `<div class="sub-h">Livrées, en attente de validation du client</div><div class="list">${soon.map((m) => row(m, false)).join('')}</div>` : ''}</div>`;

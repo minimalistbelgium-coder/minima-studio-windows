@@ -998,12 +998,21 @@ function evRow(m, compact) {
     <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(isClient() ? CLIENT_LINE[m.status] || '' : [c?.name, memberIds(m.id).map((u) => firstName(profile(u))).join(' + ')].filter(Boolean).join(' · '))}</div></div>
     ${isClient() ? '' : avatars(memberIds(m.id))}${pillFor(m)}${(() => { if (isAdmin() || isClient() || !billMonth(m)) return ''; const ps = payState(m, S.me.id); return ps ? pill(ps[0] === 'Payée' ? 'Payée' : 'À payer', ps[1]) : ''; })()}</div>`;
 }
+// Dates de sortie : affichées en violet dans l'agenda, à côté des livraisons
+const REL_C = '#C084FC';
+function relRow(m) {
+  const c = client(m.client_id);
+  return `<div class="ev-row rel" role="button" tabindex="0" data-open="${m.id}" style="--c:${REL_C}">
+    <span class="tm mono" style="color:${REL_C}">Sortie</span>
+    <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc([c?.name, isOpen(m) ? 'montage pas encore validé' : 'montage validé'].filter(Boolean).join(' · '))}</div></div>${pill('Sortie', REL_C)}</div>`;
+}
 function agendaPage() {
   const mobile = isMobile();
   let view = S.view || (mobile ? 'list' : 'month'); if (mobile && view === 'week') view = 'month';
   const all = agendaBase(); const dated = all.filter((m) => m.deadline);
   const byDay = {}; dated.forEach((m) => { (byDay[ymd(d(m.deadline))] ||= []).push(m); });
   Object.values(byDay).forEach((l) => l.sort((a, b) => d(a.deadline) - d(b.deadline)));
+  const relDay = {}; all.filter((m) => m.release_on).forEach((m) => { (relDay[m.release_on] ||= []).push(m); });
   const today = ymd(new Date());
   let from, to, label, body;
   if (view === 'week') { from = startOfWeek(S.agDate); to = addDays(from, 7); label = `${from.getDate()} ${from.getMonth() !== addDays(to, -1).getMonth() ? from.toLocaleDateString('fr-BE', { month: 'short' }) + ' ' : ''}au ${addDays(to, -1).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}`; }
@@ -1013,23 +1022,24 @@ function agendaPage() {
   if (view === 'month') {
     const start = startOfWeek(from); const weeks = Math.ceil(((from.getDay() + 6) % 7 + new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate()) / 7);
     const cells = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i)).map((x) => {
-      const k = ymd(x); const evs = byDay[k] || []; const out = x.getMonth() !== from.getMonth();
-      const chips = evs.slice(0, 3).map((m) => { const st = evState(m); return `<div class="ev ${st}" role="button" tabindex="0" data-open="${m.id}" style="--c:${st === 'late' ? '#FF6B6B' : clientColor(client(m.client_id))}" title="${esc(m.title)}"><span class="tm mono">${fmtTime(d(m.deadline))}</span><span class="tt">${st === 'done' ? '✓ ' : ''}${esc(m.title)}</span></div>`; }).join('');
-      const dots = evs.slice(0, 4).map((m) => `<i style="background:${evState(m) === 'late' ? '#FF6B6B' : clientColor(client(m.client_id))}"></i>`).join('');
+      const k = ymd(x); const evs = byDay[k] || []; const rels = relDay[k] || []; const out = x.getMonth() !== from.getMonth();
+      const relChips = rels.slice(0, 2).map((m) => `<div class="ev" role="button" tabindex="0" data-open="${m.id}" style="--c:${REL_C}" title="Sortie : ${esc(m.title)}"><span class="tm mono">Sortie</span><span class="tt">${esc(m.title)}</span></div>`).join('');
+      const chips = relChips + evs.slice(0, Math.max(0, 3 - Math.min(rels.length, 2))).map((m) => { const st = evState(m); return `<div class="ev ${st}" role="button" tabindex="0" data-open="${m.id}" style="--c:${st === 'late' ? '#FF6B6B' : clientColor(client(m.client_id))}" title="${esc(m.title)}"><span class="tm mono">${fmtTime(d(m.deadline))}</span><span class="tt">${st === 'done' ? '✓ ' : ''}${esc(m.title)}</span></div>`; }).join('');
+      const dots = rels.slice(0, 2).map(() => `<i style="background:${REL_C}"></i>`).join('') + evs.slice(0, 4).map((m) => `<i style="background:${evState(m) === 'late' ? '#FF6B6B' : clientColor(client(m.client_id))}"></i>`).join('');
       return `<div class="cal-d ${out ? 'out' : ''} ${k === today ? 'today' : ''} ${k === S.agDay ? 'sel' : ''} ${x.getDay() % 6 === 0 ? 'we' : ''}" data-day="${k}" role="button" tabindex="0" aria-label="${esc(fmtLong(x))}, ${evs.length} mission${evs.length > 1 ? 's' : ''}">
-        <span class="num">${x.getDate()}</span><div class="evs">${chips}${evs.length > 3 ? `<span class="more">+ ${evs.length - 3} autre${evs.length > 4 ? 's' : ''}</span>` : ''}</div><div class="dots">${dots}</div></div>`;
+        <span class="num">${x.getDate()}</span><div class="evs">${chips}${evs.length + Math.min(rels.length, 2) > 3 ? `<span class="more">+ ${evs.length + Math.min(rels.length, 2) - 3} autre${evs.length + Math.min(rels.length, 2) > 4 ? 's' : ''}</span>` : ''}</div><div class="dots">${dots}</div></div>`;
     }).join('');
-    const sel = fromYmd(S.agDay); const selEvs = byDay[S.agDay] || [];
+    const sel = fromYmd(S.agDay); const selEvs = byDay[S.agDay] || []; const selRels = relDay[S.agDay] || [];
     body = `<div class="cal">${['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((x) => `<div class="cal-h">${x}</div>`).join('')}${cells}</div>
       <div class="card" style="margin-top:14px"><div class="card-head"><h2>${esc(dayName(sel))}</h2>${isAdmin() ? `<button class="btn sm" data-act="newmission" data-day="${S.agDay}">${small(I.plus)}Mission ce jour</button>` : `<span class="lbl">${selEvs.length} mission${selEvs.length > 1 ? 's' : ''}</span>`}</div>
-        ${selEvs.map(evRow).join('') || '<div class="empty" style="padding:6px 0">Rien de prévu ce jour-là.</div>'}</div>`;
+        ${selRels.map(relRow).join('')}${selEvs.map(evRow).join('') || (selRels.length ? '' : '<div class="empty" style="padding:6px 0">Rien de prévu ce jour-là.</div>')}</div>`;
   } else if (view === 'week') {
     body = `<div class="wk">${Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((x) => {
-      const k = ymd(x); const evs = byDay[k] || [];
+      const k = ymd(x); const evs = byDay[k] || []; const rels = relDay[k] || [];
       return `<div class="wk-col ${k === today ? 'today' : ''}"><div class="wk-h"><span>${x.toLocaleDateString('fr-BE', { weekday: 'short' })}</span><b>${x.getDate()}</b>${isAdmin() ? `<button class="wk-add" data-act="newmission" data-day="${k}" aria-label="Nouvelle mission le ${esc(fmtLong(x))}">+</button>` : ''}</div>
-        ${evs.map((m) => { const st = evState(m); const c = client(m.client_id); const col = st === 'late' ? '#FF6B6B' : clientColor(c);
+        ${rels.map((m) => `<div class="wk-card" role="button" tabindex="0" data-open="${m.id}" style="--c:${REL_C}"><div class="wk-c" style="color:${REL_C}">Sortie</div><div class="wk-t">${esc(m.title)}</div></div>`).join('')}${evs.map((m) => { const st = evState(m); const c = client(m.client_id); const col = st === 'late' ? '#FF6B6B' : clientColor(c);
           return `<div class="wk-card ${st}" role="button" tabindex="0" data-open="${m.id}" style="--c:${col}"><div class="wk-c">${esc(c?.name || '')}</div><div class="wk-t">${esc(m.title)}</div>
-            <div class="wk-f"><span class="mono">${fmtTime(d(m.deadline))}</span>${isClient() ? '' : avatars(memberIds(m.id), 18)}</div>${pillFor(m)}</div>`; }).join('') || '<div class="wk-empty">Libre</div>'}</div>`;
+            <div class="wk-f"><span class="mono">${fmtTime(d(m.deadline))}</span>${isClient() ? '' : avatars(memberIds(m.id), 18)}</div>${pillFor(m)}</div>`; }).join('') || (rels.length ? '' : '<div class="wk-empty">Libre</div>')}</div>`;
     }).join('')}</div>`;
   } else {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0); const wkEnd = addDays(startOfWeek(t0), 7);
@@ -1043,6 +1053,8 @@ function agendaPage() {
       const single = Object.keys(days).length === 1 && gi > 0 && gi < 3;
       return `<div class="card" style="margin-bottom:12px"><div class="card-head"><h2 style="${gi === 0 ? 'color:var(--red)' : ''}">${t}</h2><span class="lbl">${l.length}</span></div>${Object.keys(days).sort().map((k) => `${single ? '' : `<div class="day-h">${esc(fmtLong(fromYmd(k)))}</div>`}${days[k].map(evRow).join('')}`).join('')}</div>`;
     }).join('');
+    const soon = all.filter((m) => m.release_on && fromYmd(m.release_on) >= t0 && fromYmd(m.release_on) < addDays(t0, 31)).sort((a, b) => a.release_on.localeCompare(b.release_on));
+    if (soon.length) body = `<div class="card" style="margin-bottom:12px"><div class="card-head"><h2 style="color:${REL_C}">Sorties à venir</h2><span class="lbl">${soon.length}</span></div>${Object.entries(soon.reduce((o, m) => ((o[m.release_on] ||= []).push(m), o), {})).map(([k, l]) => `<div class="day-h">${esc(fmtLong(fromYmd(k)))}</div>${l.map(relRow).join('')}`).join('')}</div>` + body;
     const nodate = all.filter((m) => !m.deadline && isOpen(m));
     if (nodate.length) body += `<div class="card"><div class="card-head"><h2>Sans deadline</h2><span class="lbl">${nodate.length}</span></div>${nodate.map(evRow).join('')}</div>`;
     body = body || '<div class="card"><div class="empty">Aucune deadline à venir.</div></div>';

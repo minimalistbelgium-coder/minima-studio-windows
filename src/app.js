@@ -1153,11 +1153,32 @@ function financePage() {
     ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '', undefined, jump('finance', 'payouts'))}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)', jump('finance', 'fin-charts'))}
     ${hist ? stat('Pas encore payé', eur(Math.round(hist.unpaid.reduce((a, h) => a + Number(h.amount), 0))), hist.unpaid.length ? `${hist.unpaid.length} facture${hist.unpaid.length > 1 ? 's' : ''} en attente` : 'Tout est encaissé', hist.unpaid.length ? '#F5A524' : 'var(--green)', jump('finance', 'fin-compta')) : stat('À facturer', String(toBill.length), toBill.length ? eur(toBill.reduce((a, m) => a + S.finances[m.id].client_price, 0)) : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
-  </div>${hist ? '' : cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
+  </div>${unbilledCard()}${hist ? '' : cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
   else if (tab === 'missions') body = (hist ? histCard(mo, hist) : '') + `<div class="card flush" id="fin-missions"><div class="card-head"><div><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${hist ? '<div class="lbl" style="margin-top:3px">Suivies dans l\'app, pas comptées dans les totaux de ce mois (la compta fait foi).</div>' : ''}</div>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
   else if (tab === 'payouts') body = payoutsSection(mo);
   else body = financeCharts(mo, list, 'split');
   return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
+}
+// Ce qui n'est pas encore facturé, tous mois confondus (hors mois repris de la compta).
+function unbilledCard() {
+  const left = S.missions.filter((m) => isDelivered(m) && !S.finances[m.id]?.invoiced && !isHistMonth(workMonth(m)));
+  const now = left.filter((m) => ['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.validated_at) || d(a.v1_delivered_at) || 0) - (d(b.validated_at) || d(b.v1_delivered_at) || 0));
+  const soon = left.filter((m) => !['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.v1_delivered_at) || 0) - (d(b.v1_delivered_at) || 0));
+  const sum = (l) => l.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
+  const days = (x) => (x ? Math.max(0, Math.floor((Date.now() - x) / 864e5)) : null);
+  const row = (m, ready) => {
+    const p = S.finances[m.id]?.client_price; const since = days(d(ready ? m.validated_at : m.v1_delivered_at));
+    const old = ready && since != null && since > 7;
+    return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(client(m.client_id))}"></span>
+      <div class="grow"><div class="t">${esc(m.title)}</div><div class="s" style="${old ? 'color:#F5A524' : ''}">${esc(client(m.client_id)?.name || 'Sans client')}${since != null ? ` · ${ready ? 'validée' : 'livrée'} il y a ${since} j` : ''}${p ? '' : ' · prix à renseigner'}</div></div>
+      <div class="mono" style="flex-shrink:0;font-weight:600">${p ? eur(p) : '–'}</div>
+      ${ready && p ? `<button class="btn sm" data-act="invoice" data-id="${m.id}">Facturer<span class="lg-only"> le client</span></button>` : ''}</div>`;
+  };
+  const byClient = Object.values(now.reduce((o, m) => { const k = m.client_id || '-'; (o[k] ||= { c: client(m.client_id), l: [] }).l.push(m); return o; }, {})).sort((a, b) => sum(b.l) - sum(a.l));
+  return `<div class="card flush" id="fin-unbilled" style="margin:16px 0"><div class="card-head"><div><h2>Pas encore facturé</h2><div class="lbl" style="margin-top:3px">Tous mois confondus · HTVA</div></div><div style="text-align:right"><div class="mono" style="font-size:20px;font-weight:700">${eur(Math.round(sum(now)))}</div><div class="lbl">${now.length} à facturer${soon.length ? ` · + ${eur(Math.round(sum(soon)))} bientôt` : ''}</div></div></div>
+    ${byClient.length > 1 ? `<div class="chips" style="padding:0 18px 10px">${byClient.map((g) => `<span class="chip"><span class="dot" style="background:${clientColor(g.c)}"></span>${esc(g.c?.name || 'Sans client')} · ${eur(Math.round(sum(g.l)))}</span>`).join('')}</div>` : ''}
+    ${now.length ? `<div class="sub-h">Validées, à facturer maintenant</div><div class="list">${now.map((m) => row(m, true)).join('')}</div>` : '<div class="empty">Tout ce qui est validé est facturé.</div>'}
+    ${soon.length ? `<div class="sub-h">Livrées, en attente de validation du client</div><div class="list">${soon.map((m) => row(m, false)).join('')}</div>` : ''}</div>`;
 }
 // Factures et sous-traitance du mois, reprises de la compta (mois d'avant l'app)
 function histCard(mo, h) {

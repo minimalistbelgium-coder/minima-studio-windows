@@ -1136,7 +1136,7 @@ function financePage() {
   const billed = hist ? hist.billed : list.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
   const payout = hist ? hist.payout : list.reduce((a, m) => a + editorPayout(m), 0);
   // Missions validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
-  const carry = mo >= startOfMonth(new Date()) ? S.missions.filter((m) => ['validated', 'paid'].includes(m.status) && !S.finances[m.id]?.invoiced && workMonth(m) < mo && workMonth(m) >= UNBILLED_FROM)
+  const carry = mo >= startOfMonth(new Date()) ? S.missions.filter((m) => m.status === 'validated' && !S.finances[m.id]?.invoiced && workMonth(m) < mo && workMonth(m) >= UNBILLED_FROM)
     .sort((a, b) => workMonth(a) - workMonth(b)) : [];
   const toBill = [...list.filter((m) => S.finances[m.id]?.client_price && !S.finances[m.id]?.invoiced), ...carry];
   const only = S.finToBill && toBill.length;
@@ -1167,7 +1167,8 @@ function financePage() {
 const UNBILLED_FROM = new Date(2026, 9, 1);
 // Ce qui n'est pas encore facturé, depuis octobre 2026.
 function unbilledCard() {
-  const left = S.missions.filter((m) => isDelivered(m) && !S.finances[m.id]?.invoiced && workMonth(m) >= UNBILLED_FROM);
+  // « Client payé » veut dire facturé et encaissé : ces missions-là ne sont jamais « à facturer ».
+  const left = S.missions.filter((m) => isDelivered(m) && m.status !== 'paid' && !S.finances[m.id]?.invoiced && workMonth(m) >= UNBILLED_FROM);
   const now = left.filter((m) => ['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.validated_at) || d(a.v1_delivered_at) || 0) - (d(b.validated_at) || d(b.v1_delivered_at) || 0));
   const soon = left.filter((m) => !['validated', 'paid'].includes(m.status)).sort((a, b) => (d(a.v1_delivered_at) || 0) - (d(b.v1_delivered_at) || 0));
   const sum = (l) => l.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);

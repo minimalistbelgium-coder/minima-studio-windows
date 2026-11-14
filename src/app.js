@@ -309,7 +309,7 @@ const unread = () => S.notifs.filter((n) => !n.read_at).length;
 function routesFor() {
   if (isAdmin()) {
     const req = S.missions.filter((m) => m.status === 'requested').length;
-    return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Projets', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1],
+    return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1],
       ['finance', 'Finances', I.euro, 0, 0, 1], ['team', 'Équipe', I.team, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
   }
   if (isClient()) return [['projects', 'Mes projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ['agenda', 'Calendrier', I.cal, 0, 0, 1], ['new', 'Nouveau', I.plus, 0, 0, 1], ...(S.me.client_sees_prices ? [['billing', 'Dépenses', I.euro, 0, 0, 1]] : []), ['notifs', 'Activité', I.bell, 0, unread(), 0]];
@@ -1026,12 +1026,12 @@ function projectsPage() {
   const segs = [['open', 'En cours'], ['delivered', 'Livrées'], ['done', 'Terminées'], ['all', 'Toutes']];
   if (isAdmin()) segs.push(['requests', 'Demandes']);
   const seg = segs.map(([k, t]) => `<button class="${S.filter === k ? 'on' : ''}" data-filter="${k}">${t}<span class="n ${k === 'requests' && g[k].length ? 'hot' : ''}">${g[k].length}</span></button>`).join('');
-  const chips = clientsIn.length > 1 ? `<div class="chips"><button class="chip ${!S.clientFilter ? 'on' : ''}" data-client="">Tous les clients</button>${clientsIn.map((c) => clientChip(c, S.clientFilter === c.id, 'data-client')).join('')}</div>` : '';
+  const chips = clientsIn.length > 1 ? `<div class="f-row"><span class="f-lbl">Client</span><div class="f-scroll"><button class="chip ${!S.clientFilter ? 'on' : ''}" data-client="">Tous</button>${clientsIn.map((c) => clientChip(c, S.clientFilter === c.id, 'data-client')).join('')}</div></div>` : '';
   const eds = isAdmin() ? team().filter((p) => g[S.filter].some((m) => memberIds(m.id).includes(p.id))) : [];
-  const edChips = eds.length > 1 || (eds.length && g[S.filter].some((m) => m.claude_editor)) ? `<div class="chips"><button class="chip ${!S.edFilter ? 'on' : ''}" data-edf="">Tous les monteurs</button>${eds.map((p) => `<button class="chip ${S.edFilter === p.id ? 'on' : ''}" data-edf="${p.id}">${avatar(p, 18)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}${g[S.filter].some((m) => m.claude_editor) ? `<button class="chip ${S.edFilter === 'claude' ? 'on' : ''}" data-edf="claude">${claudeAvatar(18)}Claude</button>` : ''}</div>` : '';
-  const sorts = `<div class="sort-row"><span class="lbl">Trier par</span><div class="seg sm">${SORTS.filter(([k]) => k !== 'editor' || !isEditor()).map(([k, t]) => `<button class="${S.sort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`).join('')}</div></div>`;
-  return `${header(`${g.open.length} en cours · ${g.delivered.length} livrées`, isEditor() ? 'Mes missions' : 'Projets', isAdmin() ? NEW_BTN : '')}
-  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label></div>${sorts}${chips}${edChips}
+  const edChips = eds.length > 1 || (eds.length && g[S.filter].some((m) => m.claude_editor)) ? `<div class="f-row"><span class="f-lbl">Monteur</span><div class="f-scroll"><button class="chip ${!S.edFilter ? 'on' : ''}" data-edf="">Tous</button>${eds.map((p) => `<button class="chip ${S.edFilter === p.id ? 'on' : ''}" data-edf="${p.id}">${avatar(p, 18)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}${g[S.filter].some((m) => m.claude_editor) ? `<button class="chip ${S.edFilter === 'claude' ? 'on' : ''}" data-edf="claude">${claudeAvatar(18)}Claude</button>` : ''}</div></div>` : '';
+  const sorts = `<div class="f-row"><span class="f-lbl">Trier par</span><div class="f-scroll">${SORTS.filter(([k]) => k !== 'editor' || !isEditor()).map(([k, t]) => `<button class="chip ${S.sort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`).join('')}</div></div>`;
+  return `${header(`${g.open.length} en cours · ${g.delivered.length} livrées`, isEditor() ? 'Mes missions' : 'Missions', isAdmin() ? NEW_BTN : '')}
+  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label></div><div class="filters">${sorts}${chips}${edChips}</div>
   <div class="card flush"><div class="list" id="proj-list">${projectRows()}</div></div>
   ${S.filter === 'requests' ? '<p class="lbl" style="margin-top:14px">Ouvre une demande pour fixer le budget, le prix et le monteur, puis accepte-la. Le client est prévenu automatiquement.</p>' : ''}`;
 }

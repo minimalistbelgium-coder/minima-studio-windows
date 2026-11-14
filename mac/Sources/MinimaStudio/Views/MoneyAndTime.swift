@@ -10,8 +10,12 @@ private func monthKey(_ d: Date?) -> String {
     return s.prefix(1).uppercased() + s.dropFirst()
 }
 
-/// Le suivi « à facturer » commence en octobre 2026 : avant, tout est déjà facturé dans la compta.
-private let unbilledFrom = DateComponents(calendar: Calendar.current, year: 2026, month: 10, day: 1).date ?? .distantPast
+/// Le suivi « à facturer » commence après le dernier mois repris de la compta : jusque-là, tout y est déjà facturé.
+@MainActor private func unbilledFrom(_ data: DataStore) -> Date {
+    let cal = Calendar.current
+    if let u = data.historyUntil, let next = cal.date(byAdding: .month, value: 1, to: cal.dateInterval(of: .month, for: u)?.start ?? u) { return next }
+    return DateComponents(calendar: cal, year: 2026, month: 11, day: 1).date ?? .distantPast
+}
 
 private func monthStart(_ d: Date?) -> Date {
     guard let d else { return .distantPast }
@@ -49,7 +53,7 @@ struct FinancesView: View {
         let current = month >= monthStart(Date())
         let carry = current ? data.missions.filter { m in
             m.status == "validated" && data.finances[m.id]?.invoiced != true
-                && (m.workMonth.map { $0 < month && $0 >= unbilledFrom } ?? false)
+                && (m.workMonth.map { $0 < month && $0 >= unbilledFrom(data) } ?? false)
         }.sorted { ($0.workMonth ?? .distantPast) < ($1.workMonth ?? .distantPast) } : []
         let toInvoice = inMonth.filter { $0.status == "validated" || $0.status == "paid" }.filter { data.finances[$0.id]?.invoiced != true } + carry
         let trend = data.monthlyFinance(endingAt: chartEnd)
@@ -420,7 +424,7 @@ private struct UnbilledCard: View {
     var body: some View {
         let left = data.missions.filter { m in
             m.isDelivered && m.status != "revisions" && m.status != "paid" && data.finances[m.id]?.invoiced != true
-                && (m.workMonth.map { $0 >= unbilledFrom } ?? false)
+                && (m.workMonth.map { $0 >= unbilledFrom(data) } ?? false)
         }
         let ready = left.filter { ["validated", "paid"].contains($0.status) }
             .sorted { (date($0, true) ?? .distantFuture) < (date($1, true) ?? .distantFuture) }
@@ -430,7 +434,7 @@ private struct UnbilledCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Pas encore facturé").font(.system(size: 15, weight: .semibold))
-                    Muted("Depuis octobre 2026 · HTVA", size: 12)
+                    Muted("Depuis \(monthKey(unbilledFrom(data)).lowercased()) · avant, c'est la compta · HTVA", size: 12)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {

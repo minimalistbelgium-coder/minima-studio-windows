@@ -769,6 +769,62 @@ struct MissionEditor: View {
         return keys
     }
 
+    // MARK: prix habituels des missions récurrentes
+
+    /// « COVER - Melanie » → « COVER », « LRDP épisode 41 » → « LRDP ».
+    static func seriesKey(_ title: String) -> String {
+        let first = title.uppercased().split(whereSeparator: { " -–:·#".contains($0) }).first.map(String.init) ?? ""
+        return first.count >= 2 ? first : ""
+    }
+
+    struct PriceSuggestion { let key: String; let budget: Double?; let price: Double?; let count: Int }
+
+    /// Prix les plus fréquents des dernières missions de la même série (et du même client s'il est choisi).
+    private var priceSuggestion: PriceSuggestion? {
+        let key = Self.seriesKey(title)
+        guard !key.isEmpty else { return nil }
+        let past = data.missions
+            .filter { $0.id != mission?.id && $0.status != "requested" && Self.seriesKey($0.title) == key
+                && (clientId.isEmpty || $0.client_id == clientId) }
+            .sorted { $0.created_at > $1.created_at }
+            .prefix(8)
+        guard !past.isEmpty else { return nil }
+        func usual(_ values: [Double]) -> Double? {
+            guard !values.isEmpty else { return nil }
+            var count: [Double: Int] = [:]
+            values.forEach { count[$0, default: 0] += 1 }
+            let best = count.values.max() ?? 0
+            return values.first { count[$0] == best }   // le plus récent parmi les plus fréquents
+        }
+        let b = usual(past.compactMap { $0.editor_budget }.filter { $0 > 0 })
+        let p = usual(past.compactMap { data.finances[$0.id]?.client_price }.filter { $0 > 0 })
+        guard b != nil || p != nil else { return nil }
+        let sameB = b == nil || Money.parse(budget) == b
+        let sameP = p == nil || !app.isAdmin || Money.parse(price) == p
+        if sameB && sameP { return nil }
+        return PriceSuggestion(key: key, budget: b, price: app.isAdmin ? p : nil, count: past.count)
+    }
+
+    private func suggestionRow(_ sug: PriceSuggestion) -> some View {
+        let parts = [sug.budget.map { "\(Money.eur($0)) montage" }, sug.price.map { "\(Money.eur($0)) client" }].compactMap { $0 }
+        return HStack(spacing: 10) {
+            Image(systemName: "sparkles").foregroundStyle(Theme.blue)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Prix habituel pour \(sug.key)").font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(parts.joined(separator: " · ") + " · d'après les \(sug.count) dernières").font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Button("Utiliser") {
+                if let b = sug.budget { budget = formatNumber(b) }
+                if let p = sug.price { price = formatNumber(p) }
+            }
+            .buttonStyle(PrimaryButton())
+        }
+        .padding(12)
+        .background(Theme.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.blue.opacity(0.3)))
+    }
+
     static func defaultDeadline() -> Date {
         let cal = Calendar.current
         let tomorrow = cal.date(byAdding: .day, value: 1, to: Date()) ?? Date()
@@ -800,15 +856,7 @@ struct MissionEditor: View {
                                     Button("Annuler") { addingClient = false; newClient = "" }.buttonStyle(SecondaryButton())
                                 }
                             } else {
-                                HStack(spacing: 8) {
-                                    Picker("", selection: $clientId) {
-                                        Text("Aucun client").tag("")
-                                        ForEach(data.clients) { c in Text(c.name).tag(c.id) }
-                                    }
-                                    .labelsHidden()
-                                    .frame(maxWidth: .infinity)
-                                    Button("+ Nouveau client") { addingClient = true }.buttonStyle(SecondaryButton())
-                                }
+                                ClientPicker(selected: $clientId) { addingClient = true }
                             }
                         }
                         FormField(label: "Titre") {
@@ -822,17 +870,8 @@ struct MissionEditor: View {
                     }
 
                     // 3. Quand
-                    EditorSection(number: 3, title: "Livraison du montage") {
-                        DeadlinePicker(date: $deadline, enabled: $hasDeadline)
-                        HStack(spacing: 10) {
-                            Toggle("Date de sortie", isOn: $hasRelease).toggleStyle(.checkbox).font(.system(size: 13, weight: .medium))
-                            if hasRelease {
-                                DatePicker("", selection: $release, displayedComponents: .date)
-                                    .labelsHidden().datePickerStyle(.field).environment(\.locale, Locale(identifier: "fr_BE"))
-                            }
-                            Spacer()
-                        }
-                        .padding(.top, 6)
+                    EditorSection(number: 3, title: "Quand") {
+                        WhenPickers(deadline: $deadline, hasDeadline: $hasDeadline, release: $release, hasRelease: $hasRelease)
                     }
 
                     // 4. Brief
@@ -850,6 +889,7 @@ struct MissionEditor: View {
 
                     // 5. Argent
                     EditorSection(number: 5, title: "Budget") {
+                        if let sug = priceSuggestion { suggestionRow(sug) }
                         HStack(alignment: .top, spacing: 14) {
                             FormField(label: "Budget montage (payé à l'équipe)", hint: "Réparti selon le temps de chacun") {
                                 MoneyField(text: $budget)
@@ -1157,6 +1197,15 @@ struct TeamPicker: View {
 struct DeadlinePicker: View {
     @Binding var date: Date
     @Binding var enabled: Bool
+    var accent: Color = Theme.blue
+    var withTime = true
+    var noneLabel = "Sans deadline"
+    /// Raccourcis relatifs à cette date (ex. la remise, pour la date de sortie).
+    var anchor: Date? = nil
+    var anchorName = "la remise"
+    /// Autre date montée en repère dans le calendrier (petit point).
+    var marked: Date? = nil
+    var markedColor: Color = Theme.blue
     @State private var month: Date
     /// Largeur utile de la section (fiche moins ses marges).
     @Environment(\.layoutWidth) private var width
@@ -1168,9 +1217,13 @@ struct DeadlinePicker: View {
         return c
     }
 
-    init(date: Binding<Date>, enabled: Binding<Bool>) {
+    init(date: Binding<Date>, enabled: Binding<Bool>, accent: Color = Theme.blue, withTime: Bool = true,
+         noneLabel: String = "Sans deadline", anchor: Date? = nil, anchorName: String = "la remise",
+         marked: Date? = nil, markedColor: Color = Theme.blue) {
         _date = date
         _enabled = enabled
+        self.accent = accent; self.withTime = withTime; self.noneLabel = noneLabel
+        self.anchor = anchor; self.anchorName = anchorName; self.marked = marked; self.markedColor = markedColor
         let c = Calendar.current
         _month = State(initialValue: c.dateInterval(of: .month, for: date.wrappedValue)?.start ?? date.wrappedValue)
     }
@@ -1180,18 +1233,33 @@ struct DeadlinePicker: View {
             // Raccourcis
             // Les raccourcis passent à la ligne quand la fiche est étroite (jamais écrasés).
             FlowLayout(spacing: 6, lineSpacing: 6) {
-                quick("Aujourd'hui", dayOffset: 0)
-                quick("Demain", dayOffset: 1)
-                quick("Après-demain", dayOffset: 2)
-                quick("Lundi", weekday: 2)
-                quick("Jeudi", weekday: 5)
-                quick("Dans 1 sem.", dayOffset: 7)
-                Toggle("Sans deadline", isOn: Binding(get: { !enabled }, set: { enabled = !$0 }))
+                if let a = anchor {
+                    quick("Jour de \(anchorName)", dayOffset: 0, from: a)
+                    quick("Lendemain", dayOffset: 1, from: a)
+                    quick("+ 3 jours", dayOffset: 3, from: a)
+                    quick("+ 1 semaine", dayOffset: 7, from: a)
+                } else {
+                    quick("Aujourd'hui", dayOffset: 0)
+                    quick("Demain", dayOffset: 1)
+                    quick("Après-demain", dayOffset: 2)
+                    quick("Lundi", weekday: 2)
+                    quick("Jeudi", weekday: 5)
+                    quick("Dans 1 sem.", dayOffset: 7)
+                }
+                Toggle(noneLabel, isOn: Binding(get: { !enabled }, set: { enabled = !$0 }))
                     .toggleStyle(.checkbox).font(.system(size: 12.5)).fixedSize()
                     .frame(height: 28).padding(.leading, 6)
             }
 
-            if enabled {
+            if enabled && !withTime {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(dayLabel).font(.system(size: 20, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(relativeToAnchor).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                    }
+                    calendarView.frame(maxWidth: 320)
+                }
+            } else if enabled {
                 // Calendrier et heure côte à côte, ou l'un sous l'autre si la place manque.
                 let side = width >= 620
                 let layout = side
@@ -1259,13 +1327,17 @@ struct DeadlinePicker: View {
         let selected = cal.isDate(d, inSameDayAs: date)
         let today = cal.isDateInToday(d)
         let past = d < cal.startOfDay(for: Date())
+        let isMarked = marked.map { cal.isDate(d, inSameDayAs: $0) } ?? false
         return Button { setDay(d) } label: {
             Text("\(cal.component(.day, from: d))")
                 .font(.system(size: 13, weight: selected ? .bold : .regular))
                 .foregroundStyle(selected ? Theme.onAccent : (past ? Theme.muted.opacity(0.6) : Theme.text))
                 .frame(width: 36, height: 36)
-                .background(selected ? Theme.blue : Color.clear, in: Circle())
-                .overlay(Circle().stroke(today && !selected ? Theme.blue.opacity(0.7) : Color.clear, lineWidth: 1.5))
+                .background(selected ? accent : Color.clear, in: Circle())
+                .overlay(Circle().stroke(today && !selected ? accent.opacity(0.7) : Color.clear, lineWidth: 1.5))
+                .overlay(alignment: .bottom) {
+                    if isMarked && !selected { Circle().fill(markedColor).frame(width: 5, height: 5).offset(y: -3) }
+                }
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -1295,6 +1367,14 @@ struct DeadlinePicker: View {
     private var dayLabel: String {
         let s = date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_BE")))
         return s.prefix(1).uppercased() + s.dropFirst()
+    }
+
+    private var relativeToAnchor: String {
+        guard let a = anchor else { return DateFmt.relative(date) }
+        let n = cal.dateComponents([.day], from: cal.startOfDay(for: a), to: cal.startOfDay(for: date)).day ?? 0
+        if n == 0 { return "Le jour de \(anchorName)" }
+        if n > 0 { return "\(n) jour\(n > 1 ? "s" : "") après \(anchorName)" }
+        return "\(-n) jour\(n < -1 ? "s" : "") avant \(anchorName)"
     }
 
     private var timeLabel: String { String(format: "%02d:%02d", cal.component(.hour, from: date), cal.component(.minute, from: date)) }
@@ -1329,17 +1409,17 @@ struct DeadlinePicker: View {
             Text(String(format: "%02d:00", h)).font(.system(size: 12.5, weight: .medium)).monospacedDigit()
                 .frame(width: 62, height: 30)
                 .foregroundStyle(on ? Theme.onAccent : Theme.text)
-                .background(on ? Theme.blue : Theme.card2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(on ? accent : Theme.card2, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    private func quick(_ label: String, dayOffset: Int? = nil, weekday: Int? = nil) -> some View {
+    private func quick(_ label: String, dayOffset: Int? = nil, weekday: Int? = nil, from base: Date = Date()) -> some View {
         Button {
-            var target = Date()
+            var target = base
             if let dayOffset {
-                target = cal.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
+                target = cal.date(byAdding: .day, value: dayOffset, to: base) ?? base
             } else if let weekday {
                 let next = cal.nextDate(after: Date(), matching: DateComponents(weekday: weekday), matchingPolicy: .nextTime)
                 target = next ?? Date()
@@ -1352,6 +1432,136 @@ struct DeadlinePicker: View {
                 .background(Theme.card2, in: Capsule())
                 .overlay(Capsule().stroke(Theme.ink.opacity(0.08)))
                 .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Remise du montage et sortie, côte à côte (ou l'une sous l'autre si la fiche est étroite).
+struct WhenPickers: View {
+    @Binding var deadline: Date
+    @Binding var hasDeadline: Bool
+    @Binding var release: Date
+    @Binding var hasRelease: Bool
+    @Environment(\.layoutWidth) private var width
+
+    var body: some View {
+        let side = width >= 720
+        let inner = side ? (width - 14) / 2 - 28 : width - 28
+        let layout = side ? AnyLayout(HStackLayout(alignment: .top, spacing: 14)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
+        layout {
+            DateBlock(title: "Remise du montage", subtitle: "Quand le monteur livre la V1", icon: "film", color: Theme.blue) {
+                DeadlinePicker(date: $deadline, enabled: $hasDeadline,
+                               marked: hasRelease ? release : nil, markedColor: AgendaCal.release)
+            }
+            DateBlock(title: "Sortie", subtitle: "Quand le projet est publié", icon: "sparkles", color: AgendaCal.release) {
+                DeadlinePicker(date: $release, enabled: $hasRelease, accent: AgendaCal.release, withTime: false,
+                               noneLabel: "Pas de date de sortie", anchor: hasDeadline ? deadline : nil,
+                               marked: hasDeadline ? deadline : nil, markedColor: Theme.blue)
+            }
+        }
+        .layoutWidth(inner)
+    }
+}
+
+struct DateBlock<Content: View>: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: icon).font(.system(size: 13, weight: .semibold)).foregroundStyle(color)
+                    .frame(width: 30, height: 30).background(color.opacity(0.15), in: Circle())
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                    Text(subtitle).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+            }
+            content()
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(color.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(color.opacity(0.25)))
+    }
+}
+
+/// Choix du client en tuiles (les plus utilisés récemment d'abord).
+struct ClientPicker: View {
+    @EnvironmentObject var data: DataStore
+    @Binding var selected: String
+    var onNew: () -> Void
+    @State private var showAll = false
+    @State private var query = ""
+
+    private var ordered: [Client] {
+        var last: [String: String] = [:]
+        for m in data.missions { if let c = m.client_id, (last[c] ?? "") < m.created_at { last[c] = m.created_at } }
+        return data.clients.sorted { (last[$0.id] ?? "") > (last[$1.id] ?? "") }
+    }
+
+    var body: some View {
+        let all = ordered
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        let filtered = q.isEmpty ? all : all.filter { $0.name.lowercased().contains(q) }
+        var shown = showAll || !q.isEmpty ? filtered : Array(filtered.prefix(8))
+        if let sel = all.first(where: { $0.id == selected }), !shown.contains(sel) { shown.insert(sel, at: 0) }
+        return VStack(alignment: .leading, spacing: 10) {
+            if all.count > 8 {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Theme.muted)
+                    TextField("Chercher un client", text: $query).textFieldStyle(.plain).font(.system(size: 13))
+                }
+                .padding(.horizontal, 10).frame(height: 34)
+                .background(Theme.card2, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+                ForEach(shown) { c in tile(c) }
+                Button(action: onNew) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.blue)
+                            .frame(width: 28, height: 28).background(Theme.blue.opacity(0.12), in: Circle())
+                        Text("Nouveau client").font(.system(size: 13, weight: .medium)).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 10).frame(height: 48)
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Theme.ink.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            if q.isEmpty && all.count > 8 {
+                Button(showAll ? "Voir moins" : "Voir les \(all.count) clients") { withAnimation(.easeOut(duration: 0.2)) { showAll.toggle() } }
+                    .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.blue)
+            }
+        }
+    }
+
+    private func tile(_ c: Client) -> some View {
+        let on = selected == c.id
+        let color = Color(hex: c.color)
+        let n = data.missions.filter { $0.client_id == c.id }.count
+        return Button { selected = on ? "" : c.id } label: {
+            HStack(spacing: 10) {
+                Text(String(c.name.prefix(1)).uppercased()).font(.system(size: 12.5, weight: .bold)).foregroundStyle(.white)
+                    .frame(width: 28, height: 28).background(color, in: Circle())
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(c.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    Text(n == 0 ? "Aucune mission" : "\(n) mission\(n > 1 ? "s" : "")").font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.system(size: 16))
+                    .foregroundStyle(on ? color : Theme.muted)
+            }
+            .padding(.horizontal, 10).frame(height: 48)
+            .background(on ? color.opacity(0.14) : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(on ? color.opacity(0.7) : Theme.ink.opacity(0.08)))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

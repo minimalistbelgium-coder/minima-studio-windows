@@ -184,6 +184,18 @@ function statement(u, mo) {
   const now = startOfMonth(new Date());
   return { rows, total, pay, sent: invoiceOf(u, mo), current: sameMonth(mo, now), future: mo > now, rest: Math.max(0, Math.round((total - (pay?.amount || 0)) * 100) / 100) };
 }
+// Paiement d'une mission à un monteur : réglée quand le paiement de son mois de facturation couvre le relevé.
+function payState(m, u) {
+  if (!memberIds(m.id).includes(u) || m.status === 'requested') return null;
+  const mo = billMonth(m);
+  if (!mo) return ['Pas encore livrée', '#8B8D94', 'payée avec la facture du mois de sa livraison'];
+  const st = statement(u, mo);
+  if (!st.rows.some((r) => r.m.id === m.id && r.amount > 0)) return null;
+  if (st.pay && st.rest <= 0.01) return ['Payée', '#3DD68C', `le ${paidDay(st.pay)}`];
+  if (st.pay) return ['Payée en partie', '#F5A524', `facture ${deMois(mo)}`];
+  return ['Pas encore payée', '#F5A524', `facture ${deMois(mo)}${st.sent ? ' · envoyée' : ''}`];
+}
+const releaseLabel = (m) => (m.release_on ? `Sortie le ${fromYmd(m.release_on).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' })}` : '');
 // « d'octobre », « de mai »
 const deMois = (mo) => { const n = mo.toLocaleDateString('fr-BE', { month: 'long' }); return /^[aeiouyéèh]/i.test(n) ? `d'${n}` : `de ${n}`; };
 const money2 = (n) => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
@@ -984,7 +996,7 @@ function evRow(m, compact) {
   return `<div class="ev-row ${st} ${compact === true ? 'compact' : ''}" role="button" tabindex="0" data-open="${m.id}" style="--c:${st === 'late' ? '#FF6B6B' : clientColor(c)}">
     <span class="tm mono">${d(m.deadline) ? fmtTime(d(m.deadline)) : '–'}</span>
     <div class="grow"><div class="t">${esc(m.title)}</div><div class="s">${esc(isClient() ? CLIENT_LINE[m.status] || '' : [c?.name, memberIds(m.id).map((u) => firstName(profile(u))).join(' + ')].filter(Boolean).join(' · '))}</div></div>
-    ${isClient() ? '' : avatars(memberIds(m.id))}${pillFor(m)}</div>`;
+    ${isClient() ? '' : avatars(memberIds(m.id))}${pillFor(m)}${(() => { if (isAdmin() || isClient() || !billMonth(m)) return ''; const ps = payState(m, S.me.id); return ps ? pill(ps[0] === 'Payée' ? 'Payée' : 'À payer', ps[1]) : ''; })()}</div>`;
 }
 function agendaPage() {
   const mobile = isMobile();
@@ -1356,7 +1368,7 @@ function renderSheet(keep = false) {
     const m = mission(s.id); if (!m) return closeSheet();
     const c = client(m.client_id);
     if (s.mode === 'edit') return sheetWrap(c?.name || '', isClient() ? 'Modifier ma demande' : 'Modifier la mission', '', isClient() ? requestEditForm(m) : missionForm(m, 'edit'), keep, true);
-    const sub = `<div class="row" style="flex-wrap:wrap">${pillFor(m)}<span class="lbl" style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(deadlineLabel(m))}</span></div>`;
+    const sub = `<div class="row" style="flex-wrap:wrap">${pillFor(m)}<span class="lbl" style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(deadlineLabel(m))}</span>${m.release_on ? `<span class="lbl" style="color:#C084FC">· ${esc(releaseLabel(m))}</span>` : ''}</div>`;
     const bo = isClient() && billOf(m.id);
     const priceCard = bo ? (() => { const [t, sub, col] = billState(bo); return `<div class="card" style="margin-top:16px"><h2>Facturation</h2><div class="kv"><span>Prix du projet</span><b class="mono">${eur(Number(bo.price))} HTVA</b></div><div class="kv"><span>Facture</span><span class="row">${pill(t, col)}${sub ? `<span class="lbl">${esc(sub)}</span>` : ''}</span></div></div>`; })() : '';
     const body = isClient() ? clientDetail(m) + priceCard : m.status === 'requested' && isAdmin() ? missionForm(m, 'accept') : teamDetail(m);
@@ -1535,7 +1547,7 @@ function teamDetail(m) {
     ? `<div class="card" style="border-color:rgba(76,141,255,.35)"><div class="card-head"><h2>Répartition</h2>${pill('Calcul auto', '#4C8DFF')}</div>
         <div class="lbl">Budget montage</div><div class="big" style="margin:6px 0 14px">${eur(m.editor_budget)}</div>
         ${rows.length ? `<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:8px">${rows.map((r, i) => `<div style="width:${(100 * r.amount) / (rows.reduce((a, x) => a + x.amount, 0) || 1)}%;background:${profile(r.u)?.role === 'admin' ? '#4C8DFF' : AV[i % AV.length]}"></div>`).join('')}</div>` : '<div class="lbl">Pas encore de temps enregistré.</div>'}
-        ${rows.map((r) => `<div class="kv"><span>${esc(r.u === S.me.id ? 'Toi' : firstName(profile(r.u)))} · ${Math.round(r.pct)} % <span class="lbl">${hm(r.secs)}</span></span><span class="mono" style="font-weight:600">${eur(Math.round(r.amount * 100) / 100)}</span></div>`).join('')}
+        ${rows.map((r) => { const ps = profile(r.u)?.role !== 'admin' ? payState(m, r.u) : null; return `<div class="kv"><span>${esc(r.u === S.me.id ? 'Toi' : firstName(profile(r.u)))} · ${Math.round(r.pct)} % <span class="lbl">${hm(r.secs)}</span></span><span class="row" style="gap:6px">${ps && billMonth(m) ? pill(ps[0], ps[1]) : ''}<span class="mono" style="font-weight:600">${eur(Math.round(r.amount * 100) / 100)}</span></span></div>`; }).join('')}
         ${m.margin_split && rows.some((r) => profile(r.u)?.role === 'admin') && rows.some((r) => profile(r.u)?.role !== 'admin') ? `<p class="hint" style="margin:8px 0 4px">Ton temps compte ×${String(m.admin_weight || 1.2).replace('.', ',')} et se prend d'abord sur ta marge : la part du monteur ne baisse que si tu la dépasses.</p>` : ''}
         ${f?.client_price != null ? `<div class="kv"><span>Prix client</span><span class="mono">${eur(f.client_price)}</span></div><div class="kv"><span>Ta marge</span><span class="mono" style="font-weight:600;color:var(--green)">${eur(Math.round(f.client_price - editorPayout(m)))}</span></div>
           <div class="kv"><span>Facture au client</span><button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}Client facturé` : 'Facturer le client'}</button></div>` : '<div class="kv"><span class="lbl">Prix client non renseigné</span><button class="btn sm" data-act="edit" data-id="' + m.id + '">Ajouter</button></div>'}
@@ -1543,7 +1555,8 @@ function teamDetail(m) {
     : `<div class="card"><div class="lbl">Budget de la mission</div><div class="big" style="margin:6px 0 14px">${eur(m.editor_budget)}</div>
         <div class="kv"><span>Ta part${share.estimated ? ' (estimation)' : ''}</span><span class="mono" style="font-weight:600;color:var(--green)">${eur(Math.round(share.amount * 100) / 100)}</span></div>
         <div class="kv"><span>Ton temps</span><span class="mono">${hm(me?.secs)}</span></div>
-        <div class="kv"><span>Ton taux horaire</span><span class="mono">${me && me.secs >= 300 ? `${eur(Math.round(me.amount / (me.secs / 3600)))}/h` : '–'}</span></div></div>`;
+        <div class="kv"><span>Ton taux horaire</span><span class="mono">${me && me.secs >= 300 ? `${eur(Math.round(me.amount / (me.secs / 3600)))}/h` : '–'}</span></div>
+        ${(() => { const ps = payState(m, S.me.id); return ps ? `<div class="kv"><span>Paiement</span><span class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end">${pill(ps[0], ps[1])}<span class="lbl">${esc(ps[2])}</span></span></div>` : ''; })()}</div>`;
   const vs = S.versions[m.id] || [];
   const dep = S.settings.delivery_link;
   const linksH = `    <div class="cols" style="margin:0">${linkBlock('Rushes', m.rushes_url, 'Télécharger les rushes', '#4C8DFF', isAdmin(), 'rushes')}
@@ -1587,7 +1600,10 @@ function missionForm(m, mode) {
     <select class="in" id="nm-client" name="client" required ${mode === 'accept' ? 'disabled' : ''}><option value="" disabled ${m?.client_id ? '' : 'selected'}>Choisir le client…</option>${S.clients.map((c) => `<option value="${c.id}" ${m?.client_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ Nouveau client…</option></select>
     <input class="in" id="nm-newclient" name="newclient" placeholder="Nom du nouveau client" aria-label="Nom du nouveau client" style="margin-top:8px;display:none">
     <label class="f" for="nm-title">Titre</label><input class="in" id="nm-title" name="title" required placeholder="Ex. Cover épisode 50" maxlength="120" value="${esc(m?.title || '')}">
-    <label class="f" for="nm-dl">Deadline</label><input class="in" id="nm-dl" name="deadline" type="datetime-local" value="${dl ? toLocalInput(dl) : ''}">
+    <div class="cols" style="margin:0;gap:12px">
+      <div style="flex:1 1 180px"><label class="f" for="nm-dl">Livraison du montage</label><input class="in" id="nm-dl" name="deadline" type="datetime-local" value="${dl ? toLocalInput(dl) : ''}"></div>
+      <div style="flex:1 1 150px"><label class="f" for="nm-rel">Date de sortie</label><input class="in" id="nm-rel" name="release" type="date" value="${esc(m?.release_on || '')}"></div>
+    </div>
     <div class="cols" style="margin:0;gap:12px">
       <div style="flex:1 1 150px"><label class="f" for="nm-price">Prix client HTVA (€)</label><input class="in" id="nm-price" name="price" type="number" inputmode="decimal" min="0" step="1" value="${f?.client_price ?? m?.price ?? ''}"></div>
       <div style="flex:1 1 150px"><label class="f" for="nm-budget">Budget montage (€)</label><input class="in" id="nm-budget" name="budget" type="number" inputmode="decimal" min="0" step="1" required value="${m?.id && mode !== 'accept' ? m.editor_budget ?? '' : m?.editor_budget || ''}"></div>
@@ -1976,7 +1992,7 @@ async function saveMission(f) {
     const name = f.newclient.value.trim(); if (!name) throw new Error('Donne un nom au nouveau client');
     cid = fail(await sb.from('clients').insert({ name, color: COLORS[S.clients.length % COLORS.length] }).select().single()).data.id;
   }
-  const row = { client_id: cid, title: f.title.value.trim(), editor_budget: Number(f.budget.value || 0), deadline: f.deadline.value ? new Date(f.deadline.value).toISOString() : null };
+  const row = { client_id: cid, title: f.title.value.trim(), editor_budget: Number(f.budget.value || 0), deadline: f.deadline.value ? new Date(f.deadline.value).toISOString() : null, release_on: f.release?.value || null };
   if (mode !== 'accept') {
     const rushes = f.rushes.value.trim() || null;
     row.brief = f.brief.value.trim() || null; row.rushes_url = rushes;

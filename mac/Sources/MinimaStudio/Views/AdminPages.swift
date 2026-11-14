@@ -324,11 +324,14 @@ struct MissionsView: View {
     @EnvironmentObject var presenter: Presenter
     @State private var filter = 0
     @State private var clientFilter = ""
+    @State private var editorFilter = ""
     @State private var search = ""
+    @AppStorage("missionSort") private var sort = "prio"
 
     var body: some View {
         let byStatus = statusFiltered
         let list = clientAndSearch(byStatus)
+        let groups = MissionSort.groups(list, by: sort, data: data, me: app.profile?.id)
         Page {
             PageHeader(kicker: "\(data.missions.filter(\.isOpen).count) en cours", title: "Missions") {
                 Button { presenter.open(.new) } label: { Label("Nouvelle mission", systemImage: "plus") }
@@ -346,10 +349,44 @@ struct MissionsView: View {
                     searchField.frame(maxWidth: stacked ? .infinity : 240)
                 }
             }
+            sortBar
             ClientFilterBar(selection: $clientFilter, missions: byStatus)
+            editorBar(byStatus)
 
-            ActiveMissionsTable(missions: list, title: filter == 0 ? "En cours" : (filter == 1 ? "Terminées" : "Toutes les missions"),
-                                emptyText: (search.isEmpty && clientFilter.isEmpty) ? "Aucune mission ici pour le moment." : "Aucune mission ne correspond à ta recherche.")
+            if groups.count <= 1 {
+                ActiveMissionsTable(missions: groups.first?.list ?? [], title: groups.first?.label ?? (filter == 0 ? "En cours" : (filter == 1 ? "Terminées" : "Toutes les missions")),
+                                    emptyText: (search.isEmpty && clientFilter.isEmpty && editorFilter.isEmpty) ? "Aucune mission ici pour le moment." : "Aucune mission ne correspond à ta recherche.")
+            } else {
+                ForEach(groups) { g in ActiveMissionsTable(missions: g.list, title: g.label) }
+            }
+        }
+    }
+
+    private var sortBar: some View {
+        HStack(spacing: 10) {
+            Muted("Trier par", size: 12.5).lineLimit(1).fixedSize()
+            ScrollView(.horizontal, showsIndicators: false) {
+                ChipPicker(selection: $sort, options: MissionSort.options.map { ChipPicker<String>.Option(value: $0.0, label: $0.1) })
+            }
+        }
+    }
+
+    @ViewBuilder private func editorBar(_ base: [Mission]) -> some View {
+        let eds = data.team.filter { p in p.role != "client" && base.contains { data.memberIds(of: $0.id).contains(p.id) } }
+        let claude = base.contains(where: \.hasClaude)
+        if eds.count > 1 || (claude && !eds.isEmpty) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    AgendaFilterChip(label: "Tous les monteurs", on: editorFilter.isEmpty) { editorFilter = "" }
+                    ForEach(eds) { p in
+                        AgendaFilterChip(label: p.id == app.profile?.id ? "Moi" : p.firstName, on: editorFilter == p.id, profile: p) { editorFilter = p.id }
+                    }
+                    if claude {
+                        AgendaFilterChip(label: "Claude", on: editorFilter == "claude", dot: MissionTimeStrip.claudeColor) { editorFilter = "claude" }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
     }
 
@@ -387,6 +424,8 @@ struct MissionsView: View {
     private func clientAndSearch(_ base: [Mission]) -> [Mission] {
         var l = base
         if !clientFilter.isEmpty { l = l.filter { $0.client_id == clientFilter } }
+        if editorFilter == "claude" { l = l.filter(\.hasClaude) }
+        else if !editorFilter.isEmpty { l = l.filter { data.memberIds(of: $0.id).contains(editorFilter) } }
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
         if !q.isEmpty {
             l = l.filter { m in
@@ -394,6 +433,72 @@ struct MissionsView: View {
             }
         }
         return l
+    }
+}
+
+// MARK: - Tri des missions
+
+/// Tri et regroupement des missions. « Priorité » : urgence calculée (retard, retours à traiter, deadline proche…).
+enum MissionSort {
+    static let options: [(String, String)] = [("prio", "Priorité"), ("deadline", "Deadline"), ("recent", "Derniers ajouts"),
+                                               ("client", "Client"), ("editor", "Monteur"), ("status", "Statut")]
+    struct Group: Identifiable { let id: String; let label: String; let order: String; var list: [Mission] }
+
+    static let urgencyLabels = ["En retard", "Retours à traiter", "À livrer sous 24 h", "À livrer sous 3 jours", "En montage",
+                                "À commencer", "Demandes", "En attente du client", "Terminées"]
+    static let statusOrder = ["requested", "revisions", "editing", "assigned", "v1_delivered", "fix_delivered", "validated", "paid"]
+
+    static func urgency(_ m: Mission) -> Int {
+        if m.status == "requested" { return 6 }
+        if !m.isOpen { return 8 }
+        if ["v1_delivered", "fix_delivered"].contains(m.status) { return 7 }
+        let h = m.deadlineDate.map { $0.timeIntervalSinceNow / 3600 } ?? .infinity
+        if h < 0 { return 0 }
+        if m.status == "revisions" { return 1 }
+        if h <= 24 { return 2 }
+        if h <= 72 { return 3 }
+        return m.status == "editing" ? 4 : 5
+    }
+
+    static func byDeadline(_ a: Mission, _ b: Mission) -> Bool { (a.deadlineDate ?? .distantFuture) < (b.deadlineDate ?? .distantFuture) }
+
+    @MainActor static func groups(_ list: [Mission], by key: String, data: DataStore, me: String?) -> [Group] {
+        switch key {
+        case "deadline": return [Group(id: "all", label: "Par deadline", order: "", list: list.sorted(by: byDeadline))]
+        case "recent": return [Group(id: "all", label: "Derniers ajouts", order: "", list: list.sorted { $0.created_at > $1.created_at })]
+        default: break
+        }
+        var out: [String: Group] = [:]
+        func add(_ id: String, _ label: String, _ order: String, _ m: Mission) {
+            if out[id] == nil { out[id] = Group(id: id, label: label, order: order, list: []) }
+            out[id]?.list.append(m)
+        }
+        for m in list {
+            switch key {
+            case "client":
+                let c = data.client(m.client_id)
+                add(c?.id ?? "-", c?.name ?? "Sans client", c?.name.lowercased() ?? "~", m)
+            case "status":
+                let i = statusOrder.firstIndex(of: m.status) ?? 99
+                add(m.status, MissionStatus.label(m.status), String(format: "%02d", i), m)
+            case "editor":
+                let ids = data.memberIds(of: m.id)
+                if m.hasClaude { add("claude", "Claude", "~claude", m) }
+                if ids.isEmpty && !m.hasClaude { add("-", "Personne", "~~", m) }
+                for u in ids {
+                    let name = u == me ? "Moi" : (data.profile(u)?.firstName ?? "?")
+                    add(u, name, u == me ? "" : name.lowercased(), m)
+                }
+            default:
+                let u = urgency(m)
+                add("u\(u)", urgencyLabels[u], String(format: "%02d", u), m)
+            }
+        }
+        let inner: (Mission, Mission) -> Bool = key == "prio" ? byDeadline : { a, b in
+            let ua = urgency(a), ub = urgency(b)
+            return ua != ub ? ua < ub : byDeadline(a, b)
+        }
+        return out.values.sorted { $0.order < $1.order }.map { var g = $0; g.list.sort(by: inner); return g }
     }
 }
 

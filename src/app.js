@@ -195,6 +195,24 @@ function payState(m, u) {
   if (st.pay) return ['Payée en partie', '#F5A524', `facture ${deMois(mo)}`];
   return ['Pas encore payée', '#F5A524', `facture ${deMois(mo)}${st.sent ? ' · envoyée' : ''}`];
 }
+// Prix habituels des missions récurrentes (LRDP, COVER, HTAG…) : les plus fréquents des dernières missions de la série.
+const seriesKey = (t) => { const k = (String(t || '').toUpperCase().split(/[\s\-–:·#]+/).filter(Boolean)[0] || ''); return k.length >= 2 ? k : ''; };
+function priceSuggest(title, cid, exceptId) {
+  const key = seriesKey(title); if (!key) return null;
+  const past = S.missions.filter((m) => m.id !== exceptId && m.status !== 'requested' && seriesKey(m.title) === key && (!cid || cid === '__new' || m.client_id === cid))
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 8);
+  if (!past.length) return null;
+  const usual = (vals) => { vals = vals.filter((v) => v > 0); if (!vals.length) return null; const n = {}; vals.forEach((v) => { n[v] = (n[v] || 0) + 1; }); const best = Math.max(...Object.values(n)); return vals.find((v) => n[v] === best); };
+  const budget = usual(past.map((m) => Number(m.editor_budget || 0)));
+  const price = isAdmin() ? usual(past.map((m) => Number(S.finances[m.id]?.client_price || 0))) : null;
+  return budget || price ? { key, budget, price, count: past.length } : null;
+}
+function renderPriceSuggest() {
+  const f = document.getElementById('mission-form'); const box = document.getElementById('nm-sug'); if (!f || !box) return;
+  const sg = priceSuggest(f.title.value, f.client.value, f.dataset.id);
+  const same = sg && (!sg.budget || Number(f.budget.value) === sg.budget) && (!sg.price || Number(f.price.value) === sg.price);
+  box.innerHTML = sg && !same ? `<div class="card next" style="--c:#4C8DFF;margin:14px 0 0;padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><div><b>Prix habituel pour ${esc(sg.key)}</b><div class="lbl" style="margin-top:2px">${[sg.budget ? `${eur(sg.budget)} montage` : '', sg.price ? `${eur(sg.price)} client` : ''].filter(Boolean).join(' · ')} · d'après les ${sg.count} dernières</div></div><button type="button" class="btn sm pri" data-act="usesug" data-b="${sg.budget || ''}" data-p="${sg.price || ''}">Utiliser</button></div></div>` : '';
+}
 const releaseLabel = (m) => (m.release_on ? `Sortie le ${fromYmd(m.release_on).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' })}` : '');
 // « d'octobre », « de mai »
 const deMois = (mo) => { const n = mo.toLocaleDateString('fr-BE', { month: 'long' }); return /^[aeiouyéèh]/i.test(n) ? `d'${n}` : `de ${n}`; };
@@ -1599,6 +1617,7 @@ function teamDetail(m) {
 
 // Formulaire commun : nouvelle mission, modification, acceptation d'une demande.
 function missionForm(m, mode) {
+  queueMicrotask(renderPriceSuggest);
   const f = m?.id ? S.finances[m.id] : null; const picked = m?.id ? memberIds(m.id) : (m?.members || []);
   let dl = m?.deadline ? d(m.deadline) : null;
   if (!dl && mode === 'new') { dl = new Date(Date.now() + 3 * 86400000); dl.setHours(18, 0, 0, 0); }
@@ -1616,6 +1635,7 @@ function missionForm(m, mode) {
       <div style="flex:1 1 180px"><label class="f" for="nm-dl">Livraison du montage</label><input class="in" id="nm-dl" name="deadline" type="datetime-local" value="${dl ? toLocalInput(dl) : ''}"></div>
       <div style="flex:1 1 150px"><label class="f" for="nm-rel">Date de sortie</label><input class="in" id="nm-rel" name="release" type="date" value="${esc(m?.release_on || '')}"></div>
     </div>
+    <div id="nm-sug"></div>
     <div class="cols" style="margin:0;gap:12px">
       <div style="flex:1 1 150px"><label class="f" for="nm-price">Prix client HTVA (€)</label><input class="in" id="nm-price" name="price" type="number" inputmode="decimal" min="0" step="1" value="${f?.client_price ?? m?.price ?? ''}"></div>
       <div style="flex:1 1 150px"><label class="f" for="nm-budget">Budget montage (€)</label><input class="in" id="nm-budget" name="budget" type="number" inputmode="decimal" min="0" step="1" required value="${m?.id && mode !== 'accept' ? m.editor_budget ?? '' : m?.editor_budget || ''}"></div>
@@ -1722,6 +1742,7 @@ const ACTIONS = {
   },
   async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
+  usesug(t) { const f = document.getElementById('mission-form'); if (!f) return; if (t.dataset.b) f.budget.value = t.dataset.b; if (t.dataset.p && f.price) f.price.value = t.dataset.p; renderPriceSuggest(); },
   edprev() { stepEditor(-1); },
   ednext() { stepEditor(1); },
   edgo(t) { const k = Number(t.dataset.i); if (k !== S.edIdx) { S.edDir = k > S.edIdx ? 1 : -1; S.edIdx = k; keepFields(sheetRoot, () => renderSheet(true)); } },
@@ -1914,12 +1935,13 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'proj-search') { S.search = e.target.value; document.getElementById('proj-list').innerHTML = projectRows(); }
+  if (['nm-title', 'nm-budget', 'nm-price'].includes(e.target.id)) renderPriceSuggest();
 });
 document.addEventListener('focusout', () => { if (S.pending) setTimeout(softRender, 400); });
 
 document.addEventListener('change', async (e) => {
   const sel = e.target;
-  if (sel.id === 'nm-client') { document.getElementById('nm-newclient').style.display = sel.value === '__new' ? 'block' : 'none'; return; }
+  if (sel.id === 'nm-client') { document.getElementById('nm-newclient').style.display = sel.value === '__new' ? 'block' : 'none'; renderPriceSuggest(); return; }
   if (sel.id === 'iv-role') { document.getElementById('iv-client-wrap').style.display = sel.value === 'client' ? '' : 'none'; return; }
   if (sel.id === 'mb-role') { document.getElementById('mb-client-wrap').style.display = sel.value === 'client' ? '' : 'none'; return; }
   if (sel.dataset.status) { try { await setStatus(mission(sel.dataset.status), sel.value); } catch (err) { toast(err.message || String(err)); } }

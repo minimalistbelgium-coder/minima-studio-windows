@@ -3,7 +3,7 @@ import Supabase
 
 enum Route: Hashable {
     // admin
-    case today, missions, agenda, clients, team, finances, time, updates
+    case today, missions, agenda, clients, team, finances, time, apps, updates
     // monteur
     case myDashboard, myMissions, myFinances
     // client
@@ -76,6 +76,7 @@ struct ShellView: View {
             case .team: TeamView()
             case .finances: FinancesView()
             case .time: TimeView()
+            case .apps: AppsStatsView()
             case .updates: UpdatesView()
             default: TodayView()
             }
@@ -285,6 +286,7 @@ private struct Sidebar: View {
                 section("Admin")
                 item("Finances", "eurosign.circle", .finances)
                 item("Analyse du temps", "clock", .time)
+                item("Apps et site", "square.grid.2x2", .apps)
                 item("Mises à jour", "arrow.down.circle", .updates)
             } else if app.isClient {
                 item("Mes projets", "film.stack", .clientProjects)

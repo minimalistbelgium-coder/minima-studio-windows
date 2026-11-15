@@ -66,29 +66,22 @@ struct AppsStatsView: View {
         }
     }
 
+    /// Utilisateurs d'une app (nil = non mesuré).
+    private struct AppUsers { let total, new30, active7, active30: Double; var note: String? = nil }
+
     @ViewBuilder private var appCards: some View {
         if let b = base {
             let u = b["users"].dict ?? [:], f = b["fastsign"].dict ?? [:], c = b["minimaclap"].dict ?? [:], a = b["agora"].dict ?? [:]
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14, alignment: .top)], spacing: 14) {
-                appCard("FastSign", "4C8DFF", [
-                    ("Comptes", "\(fmt(num(u["total"]))) · + \(Int(num(u["new30"]))) sur 30 j"),
-                    ("Projets créés", "\(fmt(num(f["projects"])))" + (num(f["projects30"]) > 0 ? " · \(Int(num(f["projects30"]))) sur 30 j" : "")),
-                    ("Signatures", "\(fmt(num(f["signatures"])))" + (num(f["signatures30"]) > 0 ? " · \(Int(num(f["signatures30"]))) sur 30 j" : "")),
-                    ("Inscrits à la newsletter", fmt(num(f["marketing_optin"]))),
-                ], storeKey: "fastsign")
-                appCard("MinimaClap", "F5A524", [
-                    ("Projets", fmt(num(c["projects"]))),
-                    ("Projets actifs sur 7 j", fmt(num(c["active7"]))),
-                    ("Participants", fmt(num(c["members"]))),
-                    ("Marqueurs posés", fmt(num(c["markers"]))),
-                    ("Connexions par QR sur 30 j", fmt(num(c["joins30"]))),
-                ], storeKey: "clap")
-                appCard("Agora", "C084FC", [
-                    ("Publications suivies", fmt(num(a["posts"]))),
-                    ("Comptes Instagram", fmt(num(a["accounts"]))),
-                    ("Traductions", fmt(num(a["translations"]))),
-                    ("Dernière mise à jour", (a["last_fetch"] as? String).flatMap(DateFmt.parse).map { $0.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(Locale(identifier: "fr_BE"))) } ?? "–"),
-                ], storeKey: "agora")
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14, alignment: .top)], spacing: 14) {
+                appCard("FastSign", "4C8DFF", storeKey: "fastsign",
+                        users: AppUsers(total: num(u["total"]), new30: num(u["new30"]), active7: num(u["active7"]), active30: num(u["active30"])),
+                        activity: (fmt(num(f["signatures30"])), "signature(s) · \(fmt(num(f["projects30"]))) projet(s)"))
+                appCard("Topclap", "F5A524", storeKey: "clap",
+                        users: c["devices"] == nil ? nil : AppUsers(total: num(c["devices"]), new30: num(c["devices_new30"]), active7: num(c["devices_active7"]), active30: num(c["devices_active30"]),
+                                                               note: "Topclap n'a pas de compte : un utilisateur = un iPhone."),
+                        activity: (fmt(num(c["projects30"] ?? c["projects"])), "projet(s) · \(fmt(num(c["joins30"]))) connexion(s) QR"))
+                appCard("Agora", "C084FC", storeKey: "agora", users: nil,
+                        activity: (fmt(num(a["posts30"] ?? a["posts"])), "publications suivies · \(fmt(num(a["translations"]))) traductions"))
             }
         } else {
             Muted((stats?["base"].dict?["error"] as? String) ?? "Statistiques des apps indisponibles.")
@@ -96,30 +89,40 @@ struct AppsStatsView: View {
         }
     }
 
-    private func appCard(_ name: String, _ hex: String, _ lines: [(String, String)], storeKey: String) -> some View {
+    private func appCard(_ name: String, _ hex: String, storeKey: String, users: AppUsers?, activity: (String, String)) -> some View {
         let apps = ((store?["apps"] as? [[String: Any]]) ?? []).filter { (($0["name"] as? String) ?? "").lowercased().contains(storeKey) }
-        var all = lines
-        if store != nil {
-            let dl = apps.map { num($0["downloads"]) }.reduce(0, +), dl7 = apps.map { num($0["downloads7"]) }.reduce(0, +)
-            all.append(("Téléchargements 30 j", fmt(dl) + (dl7 > 0 ? " · \(Int(dl7)) sur 7 j" : "")))
-            all.append(("Revenus App Store 30 j", proceeds(apps.compactMap { $0["proceeds"] as? [String: Any] })))
-        }
+        let dl = apps.map { num($0["downloads"]) }.reduce(0, +), dl7 = apps.map { num($0["downloads7"]) }.reduce(0, +)
+        let subs = ok(stats?["subs"]).map { s in ((s["plans"] as? [[String: Any]]) ?? []).filter { (($0["app"] as? String) ?? "").lowercased().contains(storeKey) } }
+        let paid = subs?.map { num($0["paid"]) }.reduce(0, +), trial = subs?.map { num($0["trial"]) }.reduce(0, +)
         let color = Color(hex: hex)
-        return VStack(alignment: .leading, spacing: 0) {
+        let hasStore = store != nil
+        let tiles: [(String, String?, String?)] = [
+            ("Téléchargements 30 j", hasStore ? fmt(dl) : nil, hasStore ? "\(fmt(dl7)) sur 7 j" : nil),
+            ("Utilisateurs", users.map { fmt($0.total) }, users.map { "+ \(fmt($0.new30)) sur 30 j" }),
+            ("Actifs 7 j", users.map { fmt($0.active7) }, users.map { "\(fmt($0.active30)) sur 30 j" }),
+            ("Abonnés payants", paid.map(fmt), trial.map { "\(fmt($0)) en essai" }),
+            ("Revenus 30 j", hasStore ? proceeds(apps.compactMap { $0["proceeds"] as? [String: Any] }) : nil, hasStore ? "App Store, net" : nil),
+            ("Activité 30 j", activity.0, activity.1),
+        ]
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(color).frame(width: 8, height: 8)
                 Text(name).font(.system(size: 15, weight: .semibold))
             }
-            .padding(.bottom, 10)
-            ForEach(Array(all.enumerated()), id: \.offset) { _, l in
-                Rectangle().fill(Theme.line).frame(height: 1)
-                HStack {
-                    Text(l.0).font(.system(size: 13)).lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(l.1).font(.system(size: 13, weight: .semibold)).monospacedDigit().lineLimit(1)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                ForEach(Array(tiles.enumerated()), id: \.offset) { _, t in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t.0).font(.system(size: 11.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                        Text(t.1 ?? "–").font(.system(size: 20, weight: .bold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                        Text(t.2 ?? "non mesuré").font(.system(size: 11.5)).foregroundStyle(Theme.muted).lineLimit(2)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
+                    .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .padding(.vertical, 8)
             }
+            if let n = users?.note { Muted(n, size: 12) }
+            if users == nil { Muted("Utilisateurs non mesurés : l'app ne remonte pas encore cette info.", size: 12) }
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .topLeading)

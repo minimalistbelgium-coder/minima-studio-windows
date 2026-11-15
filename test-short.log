@@ -1,0 +1,81 @@
+433:CoreData: error: Failed to create NSXPCConnection
+434:CoreData: error: Failed to create NSXPCConnection
+435:CoreData: error: Failed to create NSXPCConnection
+436:CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+437:CoreData: error: userInfo:
+438:CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+439:CoreData: error: storeType: NSXPCStore
+440:CoreData: error: configuration: (null)
+441:CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+448:CoreData: error: Failed to create NSXPCConnection
+449:CoreData: error: Failed to create NSXPCConnection
+450:CoreData: error: Failed to create NSXPCConnection
+451:CoreData: error: Failed to create NSXPCConnection
+452:CoreData: error: Failed to create NSXPCConnection
+453:2026-11-15 11:31:41.173 xctest[9896:31241] CoreData: XPC: sendMessage: failed #0
+454:CoreData: error: Failed to create NSXPCConnection
+455:2026-11-15 11:31:41.177 xctest[9896:31241] CoreData: XPC: sendMessage: failed #1
+456:CoreData: error: Failed to create NSXPCConnection
+457:2026-11-15 11:31:44.260 xctest[9896:31241] CoreData: XPC: sendMessage: failed #2
+459:CoreData: error: Failed to create NSXPCConnection
+460:2026-11-15 11:31:47.291 xctest[9896:31241] CoreData: XPC: sendMessage: failed #3
+461:CoreData: error: Failed to create NSXPCConnection
+462:2026-11-15 11:31:50.433 xctest[9896:31241] CoreData: XPC: sendMessage: failed #4
+463:CoreData: error: Failed to create NSXPCConnection
+464:2026-11-15 11:31:53.508 xctest[9896:31241] CoreData: XPC: sendMessage: failed #5
+465:CoreData: error: Failed to create NSXPCConnection
+466:2026-11-15 11:31:56.651 xctest[9896:31241] CoreData: XPC: sendMessage: failed #6
+467:CoreData: error: Failed to create NSXPCConnection
+468:2026-11-15 11:31:59.790 xctest[9896:31241] CoreData: XPC: sendMessage: failed #7
+475:2026-11-15 11:32:02.798 xctest[9896:31241] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+476:CoreData: error: Failed to create NSXPCConnection
+477:CoreData: error: Failed to create NSXPCConnection
+478:CoreData: error: Failed to create NSXPCConnection
+479:CoreData: error: Failed to create NSXPCConnection
+480:CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+481:CoreData: error: userInfo:
+482:CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+483:CoreData: error: storeType: NSXPCStore
+484:CoreData: error: configuration: (null)
+485:CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+491:CoreData: error: Failed to create NSXPCConnection
+492:CoreData: error: Failed to create NSXPCConnection
+493:CoreData: error: Failed to create NSXPCConnection
+494:CoreData: error: Failed to create NSXPCConnection
+495:CoreData: error: Failed to create NSXPCConnection
+496:2026-11-15 11:32:02.816 xctest[9896:31241] CoreData: XPC: sendMessage: failed #0
+497:CoreData: error: Failed to create NSXPCConnection
+498:2026-11-15 11:32:02.817 xctest[9896:31241] CoreData: XPC: sendMessage: failed #1
+499:CoreData: error: Failed to create NSXPCConnection
+500:2026-11-15 11:32:05.938 xctest[9896:31241] CoreData: XPC: sendMessage: failed #2
+502:CoreData: error: Failed to create NSXPCConnection
+503:2026-11-15 11:32:08.972 xctest[9896:31241] CoreData: XPC: sendMessage: failed #3
+504:CoreData: error: Failed to create NSXPCConnection
+505:2026-11-15 11:32:12.016 xctest[9896:31241] CoreData: XPC: sendMessage: failed #4
+506:CoreData: error: Failed to create NSXPCConnection
+507:2026-11-15 11:32:15.100 xctest[9896:31241] CoreData: XPC: sendMessage: failed #5
+508:CoreData: error: Failed to create NSXPCConnection
+509:2026-11-15 11:32:18.111 xctest[9896:31241] CoreData: XPC: sendMessage: failed #6
+510:CoreData: error: Failed to create NSXPCConnection
+511:2026-11-15 11:32:21.222 xctest[9896:31241] CoreData: XPC: sendMessage: failed #7
+518:2026-11-15 11:32:24.294 xctest[9896:31241] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+519:CoreData: error: Failed to create NSXPCConnection
+520:CoreData: error: Failed to create NSXPCConnection
+521:CoreData: error: Failed to create NSXPCConnection
+522:CoreData: error: Failed to create NSXPCConnection
+523:CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+524:CoreData: error: userInfo:
+525:CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+526:CoreData: error: storeType: NSXPCStore
+527:CoreData: error: configuration: (null)
+528:CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+534:Test Case '-[SnapshotTests.SnapshotTests testSnapshots]' passed (202.553 seconds).
+535:Test Suite 'SnapshotTests' passed at 2026-11-15 11:33:35.758.
+536:	 Executed 1 test, with 0 failures (0 unexpected) in 202.553 (202.554) seconds
+537:Test Suite 'MinimaStudioPackageTests.xctest' passed at 2026-11-15 11:33:35.758.
+538:	 Executed 1 test, with 0 failures (0 unexpected) in 202.553 (202.554) seconds
+539:Test Suite 'All tests' passed at 2026-11-15 11:33:35.758.
+540:	 Executed 1 test, with 0 failures (0 unexpected) in 202.553 (202.555) seconds
+562:✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+563:TESTS=0
+ 28M	shots

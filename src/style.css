@@ -765,3 +765,13 @@ input.in[type=date]::-webkit-date-and-time-value,input.in[type=datetime-local]::
 .sched-st{flex-shrink:0;border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent)}
 .sched-late{margin-top:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,#F5A524 10%,transparent)}
 @media (max-width:640px){.sched-brand{display:none}.sched-fmt{display:none}}
+
+.sched-row[data-act]{cursor:pointer;border-radius:8px;transition:background .15s}
+.sched-row[data-act]:hover{background:rgba(127,127,127,.08)}
+.sched-prev{display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;background:var(--card);text-decoration:none;color:inherit;border:1px solid var(--line)}
+.sched-prev img{width:76px;height:76px;object-fit:cover;border-radius:10px;flex-shrink:0;background:rgba(127,127,127,.15)}
+.sched-stpick{display:flex;flex-wrap:wrap;gap:6px}
+.sched-stpick label{cursor:pointer}
+.sched-stpick input{position:absolute;opacity:0;pointer-events:none}
+.sched-stpick span{display:inline-block;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted,inherit)}
+.sched-stpick input:checked+span{color:var(--c);border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}

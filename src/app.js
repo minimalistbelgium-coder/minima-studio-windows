@@ -1476,6 +1476,13 @@ function renderSheet(keep = false) {
   if (s.type === 'editors') { const r = editorsSheet(keep); S.edDir = 0; return r; }
   if (s.type === 'member') return sheetWrap('Équipe', profile(s.id)?.full_name || profile(s.id)?.email || '', '', memberForm(profile(s.id)), keep, true);
   if (s.type === 'client') return sheetWrap('Clients', s.id ? client(s.id)?.name || '' : 'Nouveau client', '', clientForm(s.id ? client(s.id) : null), keep, true);
+  if (s.type === 'post') {
+    const r = s.id ? (S.apps?.sched?.rows || []).find((x) => String(x.id) === String(s.id)) : null;
+    if (s.id && !r) return closeSheet();
+    const [bn, bc] = r ? IG_BRAND[r.handle] || [r.handle, '#8B8D94'] : ['Programme', '#8B8D94'];
+    const sub = r ? `<div class="row" style="flex-wrap:wrap;gap:8px">${pill(r.status, SCHED_COLOR[r.status] || '#8B8D94')}<span class="lbl">${esc(r.format)} · ${esc(cap(d(r.at).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })))} à ${d(r.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span></div>` : '';
+    return sheetWrap(r ? bn : 'Programme de publication', r ? r.title : 'Nouvelle publication', sub, schedForm(r), keep, true);
+  }
   if (s.type === 'account') return sheetWrap(isAdmin() ? 'Admin' : isClient() ? myClientLabel() || 'Client' : 'Monteur', 'Mon compte', '', accountBody(), keep, true);
 }
 async function loadComments(id) {
@@ -1874,15 +1881,47 @@ function schedSection() {
   const span = S.schedDays || 7; const lim = new Date(now); lim.setDate(lim.getDate() + span);
   const up = rows.filter((r) => r.dayK >= today && d(r.at) <= lim);
   const byDay = {}; up.forEach((r) => { (byDay[r.dayK] ||= []).push(r); });
-  const row = (r) => { const [bn, bc] = IG_BRAND[r.handle] || [r.handle, '#8B8D94']; return `<div class="sched-row"><span class="mono lbl" style="width:42px">${d(r.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span><span class="dot" style="background:${bc}"></span><span class="sched-brand">${esc(bn)}</span><span class="sched-fmt">${esc(r.format)}</span><span class="sched-title">${r.post_url ? `<a href="${esc(r.post_url)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title)}</span><button class="sched-st" data-act="schedst" data-id="${r.id}" style="--c:${SCHED_COLOR[r.status] || '#8B8D94'}" title="Changer le statut">${esc(r.status)}</button></div>`; };
+  const row = (r) => { const [bn, bc] = IG_BRAND[r.handle] || [r.handle, '#8B8D94']; return `<div class="sched-row" data-act="schedopen" data-id="${r.id}" role="button" tabindex="0" title="Afficher et modifier"><span class="mono lbl" style="width:42px">${d(r.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span><span class="dot" style="background:${bc}"></span><span class="sched-brand">${esc(bn)}</span><span class="sched-fmt">${esc(r.format)}</span><span class="sched-title">${esc(r.title)}</span><button class="sched-st" data-act="schedst" data-id="${r.id}" style="--c:${SCHED_COLOR[r.status] || '#8B8D94'}" title="Changer le statut">${esc(r.status)}</button></div>`; };
   const days = Object.keys(byDay).sort().map((k) => `<div class="sched-day"><div class="sub-h" style="padding-left:0">${k === today ? "Aujourd'hui" : esc(cap(fromYmd(k).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })))}</div>${byDay[k].map(row).join('')}</div>`).join('');
   const todo = sc.todo || [];
   return `<div class="card"><div class="card-head" style="padding:0 0 10px"><h2>Programme de publication</h2><span class="lbl">${sc.until ? `planifié jusqu'au ${esc(dshort(d(sc.until)))}` : ''}</span></div>
     ${brands.length ? `<div class="app-kpis sched-kpis">${weekTiles}</div>` : ''}
     ${late.length ? `<div class="sched-late"><b>${late.length} post${late.length > 1 ? 's' : ''} pas encore vu${late.length > 1 ? 's' : ''} en ligne</b>${late.map(row).join('')}</div>` : ''}
     ${days || '<div class="lbl" style="margin-top:10px">Rien de prévu sur cette période.</div>'}
-    <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-act="schedspan">${span === 7 ? 'Voir 4 semaines' : 'Voir 7 jours'}</button>${todo.length ? `<span class="lbl" style="color:#F5A524">${todo.length} contenu${todo.length > 1 ? 's' : ''} encore à créer, le premier pour le ${esc(dshort(d(todo[0].at)))}</span>` : ''}</div>
-    <div class="lbl" style="margin-top:8px">Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en touchant leur statut.</div></div>`;
+    <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm pri" data-act="schednew">${small(I.plus || '')}Ajouter une publication</button><button class="btn sm" data-act="schedspan">${span === 7 ? 'Voir 4 semaines' : 'Voir 7 jours'}</button>${todo.length ? `<span class="lbl" style="color:#F5A524">${todo.length} contenu${todo.length > 1 ? 's' : ''} encore à créer, le premier pour le ${esc(dshort(d(todo[0].at)))}</span>` : ''}</div>
+    <div class="lbl" style="margin-top:8px">Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en touchant leur statut. Touche une publication pour l'afficher et la modifier.</div></div>`;
+}
+const SCHED_FORMATS = ['Carrousel', 'Reel', "Reel d'essai", 'Story', 'Post'];
+const SCHED_STATUSES = ['À créer', 'Prêt', 'Programmé', 'Publié'];
+async function reloadSched() {
+  const from = new Date(Date.now() - 14 * 864e5).toISOString(), to = new Date(Date.now() + 28 * 864e5).toISOString();
+  const { data } = await sb.from('ig_schedule').select('id,handle,at,format,title,status,ref,post_url').gte('at', from).lte('at', to).order('at');
+  const { data: todo } = await sb.from('ig_schedule').select('id,handle,at,title').eq('status', 'À créer').order('at');
+  if (S.apps?.sched) Object.assign(S.apps.sched, { rows: data || [], todo: todo || [] });
+}
+function igMediaFor(r) {
+  if (!r?.post_url) return null;
+  for (const a of S.apps?.ig?.accounts || []) for (const m of a.media || []) if (m.url === r.post_url) return m;
+  return null;
+}
+function schedForm(r) {
+  const at = r ? d(r.at) : (() => { const x = new Date(); x.setDate(x.getDate() + 1); x.setHours(19, 0, 0, 0); return x; })();
+  const handles = [...new Set([...Object.keys(IG_BRAND), ...(S.igAccounts || []).map((a) => a.handle)])];
+  const m = igMediaFor(r);
+  const preview = m ? `<a class="sched-prev" href="${esc(m.url)}" target="_blank" rel="noopener"><img src="${esc(m.img || '')}" alt=""><div><b>Publié sur Instagram</b><div class="lbl">♥ ${nfmt(m.likes)} · ${nfmt(m.comments)} commentaires${m.at ? ` · ${esc(ago(m.at))}` : ''}</div><div class="lbl" style="margin-top:4px">Ouvrir le post ↗</div></div></a>`
+    : r?.post_url ? `<a class="btn full" href="${esc(r.post_url)}" target="_blank" rel="noopener">Ouvrir le post sur Instagram ↗</a>` : '';
+  const opt = (list, cur, lbl = (x) => x) => list.map((x) => `<option value="${esc(x)}" ${x === cur ? 'selected' : ''}>${esc(lbl(x))}</option>`).join('');
+  return `${preview}<form class="card" id="sched-form" data-id="${r?.id || ''}" style="${preview ? 'margin-top:14px' : ''}">
+    <label class="f" for="sc-title" style="margin-top:0">Contenu</label><textarea class="in" id="sc-title" name="title" rows="2" required maxlength="300">${esc(r?.title || '')}</textarea>
+    <div class="form-dates"><div><label class="f" for="sc-handle">Compte</label><select class="in" id="sc-handle" name="handle">${opt(handles, r?.handle || 'fastsign.app', (h) => `${IG_BRAND[h]?.[0] || h} · @${h}`)}</select></div>
+      <div><label class="f" for="sc-format">Format</label><select class="in" id="sc-format" name="format">${opt(SCHED_FORMATS, r?.format || 'Carrousel')}</select></div></div>
+    <div class="form-dates"><div><label class="f" for="sc-date">Date</label><input class="in" type="date" id="sc-date" name="date" required value="${ymd(at)}"></div>
+      <div><label class="f" for="sc-time">Heure</label><input class="in" type="time" id="sc-time" name="time" required value="${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}"></div></div>
+    <label class="f">Statut</label><div class="sched-stpick">${SCHED_STATUSES.map((x) => `<label style="--c:${SCHED_COLOR[x]}"><input type="radio" name="status" value="${esc(x)}" ${x === (r?.status || 'Prêt') ? 'checked' : ''}><span>${esc(x)}</span></label>`).join('')}</div>
+    <label class="f" for="sc-ref">Fichier</label><input class="in" id="sc-ref" name="ref" maxlength="120" value="${esc(r?.ref || '')}" placeholder="Lot 01 · n°001">
+    <label class="f" for="sc-url">Lien du post</label><input class="in" type="url" id="sc-url" name="post_url" maxlength="300" value="${esc(r?.post_url || '')}" placeholder="https://www.instagram.com/p/…">
+    <div class="row" style="margin-top:20px;flex-wrap:wrap"><button class="btn pri" type="submit" style="flex:2">${r ? 'Enregistrer' : 'Ajouter au programme'}</button>
+      ${r ? `<button class="btn danger" type="button" data-act="scheddel" data-id="${r.id}" style="flex:1">Supprimer</button>` : ''}</div></form>`;
 }
 function appsPage() {
   const A = S.apps; const base = A?.base?.ok ? A.base : null; const store = A?.store?.ok ? A.store : null; const site = A?.site?.ok ? A.site : null;
@@ -1979,6 +2018,14 @@ const ACTIONS = {
   async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
   appsrefresh() { loadApps(true); },
+  schedopen(t) { openSheet({ type: 'post', id: t.dataset.id }); },
+  schednew() { openSheet({ type: 'post', id: null }); },
+  async scheddel(t) {
+    const r = (S.apps?.sched?.rows || []).find((x) => String(x.id) === t.dataset.id); if (!r) return;
+    if (!(await dialog({ title: 'Supprimer cette publication du programme ?', body: r.title, ok: 'Supprimer', danger: true }))) return;
+    fail(await sb.from('ig_schedule').delete().eq('id', r.id));
+    closeSheet(); await reloadSched(); render(); toast('Publication retirée du programme.');
+  },
   async schedst(t) {
     const r = S.apps?.sched?.rows?.find((x) => String(x.id) === t.dataset.id); if (!r) return;
     const next = SCHED_NEXT[r.status] || 'Prêt'; r.status = next; render();
@@ -2198,6 +2245,18 @@ document.addEventListener('submit', async (e) => {
   const f = e.target; e.preventDefault();
   const btn = e.submitter || f.querySelector('[type=submit]'); if (btn) btn.disabled = true;
   try {
+    if (f.id === 'sched-form') {
+      const at = new Date(`${f.date.value}T${f.time.value}`);
+      if (isNaN(at)) { toast('Date ou heure invalide.'); return; }
+      const row = { handle: f.handle.value, format: f.format.value, title: f.title.value.trim(), at: at.toISOString(), status: f.querySelector('[name=status]:checked')?.value || 'Prêt',
+        ref: f.ref.value.trim() || null, post_url: f.post_url.value.trim() || null, updated_at: new Date().toISOString() };
+      if (!row.title) { toast('Écris le contenu de la publication.'); return; }
+      const id = f.dataset.id;
+      const res = id ? await sb.from('ig_schedule').update(row).eq('id', id) : await sb.from('ig_schedule').insert(row);
+      fail(res);
+      closeSheet(); await reloadSched(); render(); toast(id ? 'Publication modifiée.' : 'Publication ajoutée au programme.');
+      return;
+    }
     if (f.id === 'ig-form') {
       const h = f.handle.value.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/.*$/, '').toLowerCase();
       if (!/^[a-z0-9._]{1,30}$/.test(h)) { toast('Nom de compte invalide.'); return; }

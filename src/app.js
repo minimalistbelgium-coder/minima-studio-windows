@@ -1757,6 +1757,7 @@ async function loadApps(refresh = false) {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/apps-stats${refresh ? '?refresh=1' : ''}`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY } });
     S.apps = await r.json();
     S.appsSecrets = (await sb.rpc('app_secret_status')).data || {};
+    S.igAccounts = (await sb.from('ig_accounts').select('*').order('sort')).data || [];
   } catch (e) { S.apps = { error: String(e) }; }
   S.appsLoading = false; if (S.route === 'apps') render();
 }
@@ -1794,6 +1795,41 @@ function connectCard() {
       <ol class="steps-ol"><li>Le site minimalistbelgium.com est déjà suivi par Web Analytics, il ne manque que l'accès en lecture.</li><li>Sur <b>dash.cloudflare.com</b> : Mon profil, puis Jetons d'API, puis Créer un jeton, puis « Jeton personnalisé ». Donne-lui la permission <b>Compte · Account Analytics · Lecture</b>.</li><li>Colle le jeton ici.</li></ol>
       <form class="conn-form" data-secrets="cf"><input class="in" name="cf_api_token" type="password" placeholder="Jeton d'API Cloudflare${s.cf_api_token ? ' · enregistré' : ''}" autocomplete="off">${s.cf_site_tag ? '' : '<input class="in" name="cf_site_tag" placeholder="Site tag Web Analytics" autocomplete="off">'}<button class="btn pri" type="submit">Enregistrer</button></form></details></div>`;
 }
+const signed = (n) => (n == null ? '' : n > 0 ? `+ ${nfmt(n)}` : n < 0 ? `− ${nfmt(-n)}` : '±0');
+const ago = (iso) => { const h = Math.round((Date.now() - new Date(iso)) / 36e5); const dd = Math.round(h / 24); return h < 24 ? `il y a ${Math.max(1, h)} h` : dd < 31 ? `il y a ${dd} j` : dd < 365 ? `il y a ${Math.round(dd / 30.4)} mois` : `il y a ${Math.round(dd / 365)} an${dd >= 548 ? 's' : ''}`; };
+function igCard(a) {
+  if (!a.ok) return `<div class="card"><b>@${esc(a.handle)}</b><div class="lbl" style="color:#FF6B6B;margin-top:6px">${esc(a.error || 'Compte introuvable')}</div><div class="lbl" style="margin-top:4px">Le compte doit être un compte professionnel (créateur ou entreprise).</div></div>`;
+  const media = a.media || [];
+  const eng = media.filter((m) => m.likes != null);
+  const avgLikes = eng.length ? eng.reduce((x, m) => x + m.likes, 0) / eng.length : null;
+  const avgCom = eng.length ? eng.reduce((x, m) => x + (m.comments || 0), 0) / eng.length : null;
+  const rate = avgLikes != null && a.followers ? ((avgLikes + avgCom) / a.followers) * 100 : null;
+  return `<div class="card ig-card"><div class="row" style="gap:12px">${a.avatar ? `<img class="ig-av" src="${esc(a.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="ig-av"></span>'}
+      <div style="min-width:0;flex:1"><b>${esc(a.label || a.name)}</b><div class="lbl"><a href="https://instagram.com/${esc(a.handle)}" target="_blank" rel="noopener">@${esc(a.handle)}</a></div></div>
+      <div style="text-align:right"><div class="mono" style="font-size:20px;font-weight:700">${nfmt(a.followers)}</div><div class="lbl" style="color:${a.d7 > 0 ? '#3DD68C' : a.d7 < 0 ? '#FF6B6B' : 'var(--muted)'}">${a.d7 != null ? `${signed(a.d7)} sur 7 j` : 'abonnés'}</div></div></div>
+    <div class="ig-kpis"><div><span class="lbl">Posts</span><b>${nfmt(a.posts)}</b></div><div><span class="lbl">J'aime moy.</span><b>${avgLikes != null ? nfmt(avgLikes) : '–'}</b></div><div><span class="lbl">Comment.</span><b>${avgCom != null ? nfmt(avgCom) : '–'}</b></div><div><span class="lbl">Engagement</span><b>${rate != null ? `${rate.toFixed(1).replace('.', ',')} %` : '–'}</b></div></div>
+    ${media.length ? `<div class="ig-grid">${media.map((m) => `<a class="ig-post" href="${esc(m.url)}" target="_blank" rel="noopener" title="${esc(m.caption || '')}">${m.img ? `<img src="${esc(m.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span class="ig-meta">${m.likes != null ? `♥ ${nfmt(m.likes)}` : ''}${m.comments != null ? ` · ${nfmt(m.comments)}` : ''}<br>${esc(ago(m.at))}${m.type === 'VIDEO' ? ' · reel' : m.type === 'CAROUSEL_ALBUM' ? ' · carrousel' : ''}</span></a>`).join('')}</div>` : '<div class="lbl" style="margin-top:10px">Pas encore de publication.</div>'}
+  </div>`;
+}
+function igSection() {
+  const ig = S.apps?.ig;
+  const list = ig?.ok ? ig.accounts : [];
+  const total = list.filter((a) => a.ok).reduce((x, a) => x + (a.followers || 0), 0);
+  return `<div class="sec-h"><h2>Instagram</h2><span class="lbl">${list.length ? `${nfmt(total)} abonnés au total` : ''}</span></div>
+    ${ig && !ig.ok ? `<div class="card"><div class="lbl" style="color:#FF6B6B">${esc(ig.error || 'Instagram indisponible')}</div></div>` : ''}
+    <div class="apps-grid">${list.map(igCard).join('')}</div>
+    <form class="card ig-manage" id="ig-form" style="margin-top:14px"><b>Comptes suivis</b><div class="chips" style="padding:10px 0 4px">${(S.igAccounts || []).map((a) => `<span class="chip">@${esc(a.handle)}<button type="button" class="x-mini" data-act="igdel" data-h="${esc(a.handle)}" aria-label="Retirer">×</button></span>`).join('')}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><input class="in" name="handle" placeholder="@compte (professionnel)" style="flex:1 1 180px" autocomplete="off"><input class="in" name="label" placeholder="Nom affiché (ex. L'Agence Image)" style="flex:1 1 180px"><button class="btn" type="submit">Ajouter</button></div></form>`;
+}
+function subsCard() {
+  const sub = S.apps?.subs;
+  if (!sub?.ok) return '';
+  const plans = sub.plans || [];
+  const paid = plans.reduce((a, p) => a + p.paid, 0), trial = plans.reduce((a, p) => a + p.trial, 0);
+  return `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>Abonnements actifs</h2><span class="lbl">${sub.day ? `rapport Apple du ${esc(dshort(fromYmd(sub.day)))}` : 'aucun rapport encore'}</span></div>
+    <div class="row" style="gap:28px;margin-bottom:8px"><div><div class="big">${nfmt(paid)}</div><div class="lbl">payants</div></div><div><div class="big">${nfmt(trial)}</div><div class="lbl">en essai gratuit</div></div></div>
+    ${plans.length ? `<div class="kv-list">${plans.sort((a, b) => b.paid - a.paid).map((p) => `<div class="kv"><span>${esc(p.app)} · ${esc(p.plan)}</span><span class="mono">${nfmt(p.paid)}${p.trial ? ` + ${nfmt(p.trial)} essai` : ''}</span></div>`).join('')}</div>` : ''}</div>`;
+}
 function appsPage() {
   const A = S.apps; const base = A?.base?.ok ? A.base : null; const store = A?.store?.ok ? A.store : null; const site = A?.site?.ok ? A.site : null;
   const when = A?.cached || A?.at;
@@ -1806,6 +1842,8 @@ function appsPage() {
     ${stat('Actifs sur 7 jours', base ? nfmt(base.users.active7) : '–', base ? `${base.users.active30} sur 30 jours` : '')}
     ${stat('Téléchargements 30 j', store ? nfmt(dl30) : '–', store ? 'toutes apps · App Store' : 'App Store à connecter', store ? 'var(--muted)' : '#F5A524', store ? '' : 'data-jump="apps#apps-connect"')}
     ${stat('Visites du site 7 j', site ? nfmt(site.week.visits) : '–', site ? `${nfmt(site.week.views)} pages vues` : 'Cloudflare à connecter', site ? 'var(--muted)' : '#F5A524', site ? '' : 'data-jump="apps#apps-connect"')}
+    ${(() => { const ig = A?.ig?.ok ? A.ig.accounts.filter((a) => a.ok) : []; const tot = ig.reduce((x, a) => x + (a.followers || 0), 0); const d7 = ig.every((a) => a.d7 != null) && ig.length ? ig.reduce((x, a) => x + a.d7, 0) : null; return stat('Abonnés Instagram', ig.length ? nfmt(tot) : '–', ig.length ? (d7 != null ? `${signed(d7)} sur 7 jours` : `${ig.length} comptes`) : 'indisponible', d7 > 0 ? '#3DD68C' : 'var(--muted)', 'data-jump="apps#apps-ig"'); })()}
+    ${(() => { const sub = A?.subs?.ok ? A.subs : null; const paid = sub ? sub.plans.reduce((a, p) => a + p.paid, 0) : null; const trial = sub ? sub.plans.reduce((a, p) => a + p.trial, 0) : 0; return stat('Abonnements actifs', sub ? nfmt(paid) : '–', sub ? `${trial ? `+ ${nfmt(trial)} en essai` : 'App Store'}` : 'App Store à connecter', sub ? 'var(--muted)' : '#F5A524', sub ? '' : 'data-jump="apps#apps-connect"'); })()}
   </div>`;
   const revenue = store ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>App Store · 30 derniers jours</h2><span class="lbl">Revenus nets ${esc(procText(proc30))}</span></div>
     ${miniBars(store.daily, (x) => x.n, (x) => `${x.d} : ${x.n} téléchargement${x.n > 1 ? 's' : ''}`)}
@@ -1819,7 +1857,10 @@ function appsPage() {
   const siteCard = site ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>minimalistbelgium.com · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites · ${nfmt(site.days.reduce((a, x) => a + x.views, 0))} pages vues</span></div>
     ${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}
     <div class="site-cols"><div><div class="sub-h" style="padding-left:0">Pages les plus vues</div>${topList(site.pages, (k) => (k === '/' ? 'Accueil' : k))}</div><div><div class="sub-h" style="padding-left:0">Pays</div>${topList(site.countries)}</div><div><div class="sub-h" style="padding-left:0">Provenance</div>${topList(site.refs)}</div></div></div>` : '';
-  return `${header(`Statistiques${when ? ` · mises à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Apps et site', right)}${tiles}${apps}${revenue}${siteCard}${connectCard()}`;
+  return `${header(`Statistiques${when ? ` · mises à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Apps et site', right)}${tiles}
+    <div class="sec-h"><h2>Apps</h2></div>${apps}${subsCard()}${revenue}
+    <div id="apps-ig">${igSection()}</div>
+    ${siteCard ? `<div class="sec-h"><h2>Site</h2></div>${siteCard}` : ''}${connectCard()}`;
 }
 // Panneau Premiere : compte le temps même quand l'app est fermée (Premiere 25.6+).
 function premiereCard() {
@@ -1884,6 +1925,7 @@ const ACTIONS = {
   async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
   appsrefresh() { loadApps(true); },
+  async igdel(t) { fail(await sb.from('ig_accounts').delete().eq('handle', t.dataset.h)); await loadApps(true); },
   usesug(t) { const f = document.getElementById('mission-form'); if (!f) return; if (t.dataset.b) f.budget.value = t.dataset.b; if (t.dataset.p && f.price) f.price.value = t.dataset.p; renderPriceSuggest(); },
   edprev() { stepEditor(-1); },
   ednext() { stepEditor(1); },
@@ -2095,6 +2137,14 @@ document.addEventListener('submit', async (e) => {
   const f = e.target; e.preventDefault();
   const btn = e.submitter || f.querySelector('[type=submit]'); if (btn) btn.disabled = true;
   try {
+    if (f.id === 'ig-form') {
+      const h = f.handle.value.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/.*$/, '').toLowerCase();
+      if (!/^[a-z0-9._]{1,30}$/.test(h)) { toast('Nom de compte invalide.'); return; }
+      fail(await sb.from('ig_accounts').upsert({ handle: h, label: f.label.value.trim() || null, sort: (S.igAccounts || []).length }));
+      toast('Compte ajouté. Je relis Instagram…');
+      await loadApps(true);
+      return;
+    }
     if (f.dataset.secrets) {
       const vals = [...f.querySelectorAll('input,textarea')].filter((x) => x.value.trim());
       if (!vals.length) { toast('Rien à enregistrer.'); return; }

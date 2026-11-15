@@ -1,6 +1,6 @@
 // Tableau « Apps et site » de Minima Studio (admin uniquement).
 // Rassemble : FastSign / MinimaClap / Agora (base FastSign, chiffres agrégés), App Store Connect
-// (téléchargements et revenus) et Cloudflare Web Analytics (visites du site). Résultat gardé 1 h en cache.
+// (téléchargements, revenus, abonnements), Instagram et Cloudflare Web Analytics. Résultat gardé 1 h en cache.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { SignJWT, importPKCS8 } from 'npm:jose@5.9.6';
 
@@ -85,6 +85,66 @@ async function appStore(s: Record<string, string>) {
   return { ok: true, apps: Object.values(apps), daily: days.slice().reverse().map((d) => ({ d, n: daily[d] || 0 })) };
 }
 
+// ---------- App Store Connect : abonnements actifs (dernier rapport disponible) ----------
+async function subscriptions(s: Record<string, string>) {
+  const need = ['asc_issuer_id', 'asc_key_id', 'asc_private_key', 'asc_vendor_number'];
+  if (need.some((k) => !s[k])) return { ok: false, missing: true };
+  const token = await ascToken(s);
+  for (let back = 1; back <= 5; back++) {
+    const day = ymd(daysAgo(back));
+    const u = `https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportDate]=${day}&filter[reportSubType]=SUMMARY&filter[reportType]=SUBSCRIPTION&filter[vendorNumber]=${encodeURIComponent(s.asc_vendor_number)}&filter[version]=1_3`;
+    const r = await fetch(u, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/a-gzip' } });
+    if (r.status === 404) continue;
+    if (!r.ok) return { ok: false, error: `Abonnements ${r.status} : ${(await r.text()).slice(0, 160)}` };
+    const lines = (await gunzipText(await r.arrayBuffer())).trim().split('\n');
+    const head = lines.shift()!.split('\t');
+    const cApp = head.indexOf('App Name'), cSub = head.indexOf('Subscription Name');
+    const paidCols = head.map((h, i) => (/^Active (Standard|Pay)/i.test(h) ? i : -1)).filter((i) => i >= 0);
+    const trialCols = head.map((h, i) => (/Free Trial/i.test(h) ? i : -1)).filter((i) => i >= 0);
+    const out: Record<string, { app: string; plan: string; paid: number; trial: number }> = {};
+    for (const l of lines) {
+      const f = l.split('\t');
+      const k = `${f[cApp]}|${f[cSub]}`;
+      const o = (out[k] ||= { app: f[cApp], plan: f[cSub], paid: 0, trial: 0 });
+      paidCols.forEach((i) => { o.paid += Number(f[i] || 0); });
+      trialCols.forEach((i) => { o.trial += Number(f[i] || 0); });
+    }
+    return { ok: true, day, plans: Object.values(out) };
+  }
+  return { ok: true, day: null, plans: [] };
+}
+
+// ---------- Instagram (via le jeton d'Agora, dans le projet FastSign) ----------
+async function instagram(key?: string) {
+  if (!key) return { ok: false, error: 'Clé interne manquante' };
+  const { data: list } = await sb.from('ig_accounts').select('handle,label,sort').order('sort');
+  const handles = (list || []).map((a) => a.handle);
+  if (!handles.length) return { ok: true, accounts: [] };
+  const r = await fetch(`${FASTSIGN_URL}/functions/v1/ms-instagram`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ k: key, handles }) });
+  const j = await r.json().catch(() => ({}));
+  if (!j.ok) return { ok: false, error: j.error || `Instagram ${r.status}` };
+  // Relevé du jour et comparaison avec il y a 7 et 30 jours
+  const today = ymd(new Date());
+  const rows = j.accounts.filter((a: any) => a.ok && a.followers != null).map((a: any) => ({ handle: a.handle, day: today, followers: a.followers, posts: a.posts }));
+  if (rows.length) await sb.from('ig_snapshots').upsert(rows);
+  const { data: hist } = await sb.from('ig_snapshots').select('handle,day,followers').gte('day', ymd(daysAgo(31))).order('day');
+  const past = (h: string, n: number) => {
+    const lim = ymd(daysAgo(n));
+    const older = (hist || []).filter((x) => x.handle === h && x.day <= lim);
+    return older.length ? older[older.length - 1].followers : null;
+  };
+  const labels = Object.fromEntries((list || []).map((a) => [a.handle, a.label]));
+  return {
+    ok: true,
+    accounts: j.accounts.map((a: any) => ({
+      ...a, label: labels[a.handle] || a.name,
+      d7: a.followers != null && past(a.handle, 7) != null ? a.followers - past(a.handle, 7)! : null,
+      d30: a.followers != null && past(a.handle, 30) != null ? a.followers - past(a.handle, 30)! : null,
+      series: (hist || []).filter((x) => x.handle === a.handle).map((x) => ({ d: x.day, n: x.followers })),
+    })),
+  };
+}
+
 // ---------- Cloudflare Web Analytics ----------
 async function website(s: Record<string, string>) {
   if (!s.cf_api_token || !s.cf_account_id || !s.cf_site_tag) return { ok: false, missing: true };
@@ -128,12 +188,14 @@ Deno.serve(async (req) => {
     if (c && Date.now() - new Date(c.at).getTime() < 3600_000) return json({ ...c.data, cached: c.at });
   }
   const s = await secrets();
-  const [base, store, site] = await Promise.all([
+  const [base, store, site, ig, subs] = await Promise.all([
     fastsign(s.fastsign_stats_key).catch((e) => ({ ok: false, error: String(e) })),
     appStore(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
     website(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
+    instagram(s.fastsign_stats_key).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
+    subscriptions(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
   ]);
-  const out = { base, store, site, at: new Date().toISOString() };
+  const out = { base, store, site, ig, subs, at: new Date().toISOString() };
   await sb.from('app_stats_cache').upsert({ key: 'all', data: out, at: out.at });
   return json(out);
 });

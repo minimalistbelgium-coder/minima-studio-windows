@@ -732,3 +732,16 @@ input.in[type=date]::-webkit-date-and-time-value,input.in[type=datetime-local]::
 .conn-form{display:flex;flex-direction:column;gap:8px;max-width:520px}
 .conn-form textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical}
 .conn-form .btn{align-self:flex-start}
+
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:26px 2px 12px}
+.sec-h h2{font-size:17px}
+.ig-av{width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--card2);flex:none;display:block}
+.ig-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 12px}
+.ig-kpis div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ig-kpis .lbl{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ig-post{position:relative;display:block;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--card2)}
+.ig-post img{width:100%;height:100%;object-fit:cover;display:block}
+.ig-meta{position:absolute;left:0;right:0;bottom:0;padding:16px 7px 6px;font-size:10.5px;line-height:1.3;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.7))}
+.x-mini{border:0;background:none;color:var(--muted);font-size:15px;line-height:1;padding:0 0 0 6px;cursor:pointer}
+.ig-card a{color:inherit}

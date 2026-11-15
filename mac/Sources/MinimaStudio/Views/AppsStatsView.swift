@@ -27,13 +27,6 @@ struct AppsStatsView: View {
             } else {
                 tiles
                 appCards
-                if let b = base, let weekly = b["users"].dict?["weekly"] as? [[String: Any]], !weekly.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Muted("Nouveaux comptes par semaine", size: 12.5)
-                        MiniBars(values: weekly.map { num($0["n"]) }, labels: weekly.map { "Semaine du \($0["w"] as? String ?? "") : \(Int(num($0["n"])))" })
-                    }
-                    .padding(18).glassCard()
-                }
                 if let sub = ok(stats?["subs"]) { subsCard(sub) }
                 if let st = store { storeCard(st) }
                 instagramSection

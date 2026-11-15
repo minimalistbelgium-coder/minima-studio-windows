@@ -1,6 +1,6 @@
 [package]
 name = "minima-studio"
-version = "1.5.7"
+version = "1.5.8"
 description = "Minima Studio pour Windows"
 authors = ["Minimalist Belgium"]
 edition = "2021"

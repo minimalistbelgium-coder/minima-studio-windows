@@ -297,6 +297,7 @@ const I = {
   edit: svg('<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/>'),
   copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'),
   trash: svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
+  apps: svg('<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.25 13.5v7.5M13.5 17.25H21"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   left: svg('<path d="M15 5l-7 7 7 7"/>'),
   right: svg('<path d="M9 5l7 7-7 7"/>'),
@@ -310,7 +311,7 @@ function routesFor() {
   if (isAdmin()) {
     const req = S.missions.filter((m) => m.status === 'requested').length;
     return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1],
-      ['finance', 'Finances', I.euro, 0, 0, 1], ['team', 'Équipe', I.team, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
+      ['finance', 'Finances', I.euro, 0, 0, 1], ['team', 'Équipe', I.team, 0, 0, 1], ['apps', 'Apps et site', I.apps, 0, 0, 0], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
   }
   if (isClient()) return [['projects', 'Mes projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ['agenda', 'Calendrier', I.cal, 0, 0, 1], ['new', 'Nouveau', I.plus, 0, 0, 1], ...(S.me.client_sees_prices ? [['billing', 'Dépenses', I.euro, 0, 0, 1]] : []), ['notifs', 'Activité', I.bell, 0, unread(), 0]];
   return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
@@ -742,6 +743,7 @@ function page() {
     case 'billing': return clientBillingPage();
     case 'notifs': return notifsPage();
     case 'team': return teamPage();
+    case 'apps': if (!S.apps && !S.appsLoading) queueMicrotask(() => loadApps()); return appsPage();
     default: return '';
   }
 }
@@ -1743,8 +1745,81 @@ function accountBody() {
   return `<form class="card" id="account-form"><div class="row" style="gap:12px">${avatar(S.me, 48)}<div><b>${esc(S.me.full_name || firstName(S.me))}</b><div class="lbl">${esc(S.me.email)}</div></div></div>
     <label class="f" for="ac-name">Nom affiché</label><div class="row"><input class="in" id="ac-name" name="name" maxlength="60" value="${esc(S.me.full_name || '')}" placeholder="Prénom Nom"><button class="btn" type="submit">Enregistrer</button></div></form>
   ${pushable ? `<div class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>Notifications</b><div class="lbl" style="margin-top:4px">${S.pushOn && Notification.permission === 'granted' ? 'Activées sur cet appareil.' : Notification.permission === 'denied' ? 'Bloquées dans les réglages de ton navigateur.' : 'Reçois les nouvelles sur cet appareil.'}</div></div>${S.pushOn && Notification.permission === 'granted' ? pill('Actives', '#3DD68C') : Notification.permission === 'denied' ? '' : '<button class="btn pri" data-act="push">Activer</button>'}</div></div>` : ''}
+  ${isAdmin() ? `<button class="btn full" data-jump="apps" style="margin-top:14px">${small(I.apps)}Apps et site : statistiques</button>` : ''}
   ${isAdmin() || isEditor() ? premiereCard() : ''}
   <button class="btn full danger" data-act="logout" style="margin-top:14px">${small(I.out)}Se déconnecter</button>`;
+}
+// ---------- Apps et site : statistiques de FastSign, MinimaClap, Agora et du site ----------
+async function loadApps(refresh = false) {
+  S.appsLoading = true; if (S.route === 'apps') render();
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/apps-stats${refresh ? '?refresh=1' : ''}`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_KEY } });
+    S.apps = await r.json();
+    S.appsSecrets = (await sb.rpc('app_secret_status')).data || {};
+  } catch (e) { S.apps = { error: String(e) }; }
+  S.appsLoading = false; if (S.route === 'apps') render();
+}
+const nfmt = (n) => Math.round(n || 0).toLocaleString('fr-BE');
+function miniBars(list, val, label) {
+  const max = Math.max(1, ...list.map(val));
+  return `<div class="mini-bars">${list.map((x) => `<span style="height:${Math.max(3, (100 * val(x)) / max)}%" title="${esc(label(x))}"></span>`).join('')}</div>`;
+}
+const topList = (list, fmt = (k) => k) => (list || []).length ? `<div class="kv-list">${list.map((x) => `<div class="kv"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fmt(x.k))}</span><span class="mono">${nfmt(x.n)}</span></div>`).join('')}</div>` : '<div class="lbl">Pas encore de données.</div>';
+// Revenus App Store en euros si possible (sinon dans chaque devise)
+const procText = (p) => { const e = Object.entries(p || {}); if (!e.length) return '0 €'; return e.map(([c, v]) => (c === 'EUR' ? eur(Math.round(v)) : `${nfmt(v)} ${c}`)).join(' + '); };
+function storeFor(name) {
+  const apps = S.apps?.store?.ok ? S.apps.store.apps : [];
+  const k = name.toLowerCase();
+  return apps.filter((a) => (a.name || '').toLowerCase().includes(k));
+}
+function appCard(name, color, lines, storeName) {
+  const st = storeFor(storeName || name);
+  const dl = st.reduce((a, x) => a + x.downloads, 0); const dl7 = st.reduce((a, x) => a + x.downloads7, 0);
+  const proc = st.reduce((o, x) => { Object.entries(x.proceeds).forEach(([c, v]) => { o[c] = (o[c] || 0) + v; }); return o; }, {});
+  const storeLines = S.apps?.store?.ok ? [['Téléchargements 30 j', `${nfmt(dl)}${dl7 ? ` · ${nfmt(dl7)} sur 7 j` : ''}`], ['Revenus App Store 30 j', procText(proc)]] : [];
+  return `<div class="card app-card" style="--c:${color}"><div class="card-head" style="padding:0 0 10px"><h2><span class="dot" style="background:${color}"></span>${esc(name)}</h2></div>
+    ${[...lines, ...storeLines].map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span class="mono" style="font-weight:600">${esc(String(v))}</span></div>`).join('')}</div>`;
+}
+function connectCard() {
+  const s = S.appsSecrets || {};
+  const ascOk = ['asc_issuer_id', 'asc_key_id', 'asc_private_key', 'asc_vendor_number'].every((k) => s[k]);
+  const cfOk = ['cf_api_token', 'cf_account_id', 'cf_site_tag'].every((k) => s[k]);
+  const err = (x) => (x && !x.ok && x.error ? `<div class="lbl" style="color:#FF6B6B;margin-top:6px">${esc(x.error)}</div>` : '');
+  return `<div class="card" id="apps-connect" style="margin-top:16px"><div style="padding:0 0 6px"><h2>Connexions</h2><div class="lbl" style="margin-top:4px">Tes clés sont enregistrées côté serveur et ne sont jamais réaffichées.</div></div>
+    <details class="conn" ${ascOk ? '' : 'open'}><summary><b>App Store Connect</b> ${ascOk ? pill('Connecté', '#3DD68C') : pill('À connecter', '#F5A524')}<span class="lbl"> · téléchargements et revenus</span></summary>${err(S.apps?.store)}
+      <ol class="steps-ol"><li>Sur <b>appstoreconnect.apple.com</b> : Utilisateurs et accès, puis Intégrations, puis Clés de l'API App Store Connect.</li><li>Génère une clé avec l'accès <b>Ventes</b> (ou Finances). Note l'<b>ID de l'émetteur</b> et l'<b>ID de la clé</b>, et télécharge le fichier .p8 (une seule fois possible).</li><li>Ton <b>numéro de fournisseur</b> est en haut de Paiements et rapports financiers.</li><li>Colle tout ici. Pour la clé privée, ouvre le .p8 avec TextEdit et colle tout son contenu.</li></ol>
+      <form class="conn-form" data-secrets="asc"><input class="in" name="asc_issuer_id" placeholder="ID de l'émetteur (Issuer ID)${s.asc_issuer_id ? ' · enregistré' : ''}" autocomplete="off"><input class="in" name="asc_key_id" placeholder="ID de la clé (Key ID)${s.asc_key_id ? ' · enregistré' : ''}" autocomplete="off"><input class="in" name="asc_vendor_number" placeholder="Numéro de fournisseur${s.asc_vendor_number ? ' · enregistré' : ''}" autocomplete="off" inputmode="numeric"><textarea class="in" name="asc_private_key" rows="3" placeholder="-----BEGIN PRIVATE KEY----- …${s.asc_private_key ? ' (enregistrée)' : ''}" autocomplete="off" spellcheck="false"></textarea><button class="btn pri" type="submit">Enregistrer</button></form></details>
+    <details class="conn" ${cfOk ? '' : 'open'}><summary><b>Cloudflare Web Analytics</b> ${cfOk ? pill('Connecté', '#3DD68C') : pill('À connecter', '#F5A524')}<span class="lbl"> · visites du site</span></summary>${err(S.apps?.site)}
+      <ol class="steps-ol"><li>Le site minimalistbelgium.com est déjà suivi par Web Analytics, il ne manque que l'accès en lecture.</li><li>Sur <b>dash.cloudflare.com</b> : Mon profil, puis Jetons d'API, puis Créer un jeton, puis « Jeton personnalisé ». Donne-lui la permission <b>Compte · Account Analytics · Lecture</b>.</li><li>Colle le jeton ici.</li></ol>
+      <form class="conn-form" data-secrets="cf"><input class="in" name="cf_api_token" type="password" placeholder="Jeton d'API Cloudflare${s.cf_api_token ? ' · enregistré' : ''}" autocomplete="off">${s.cf_site_tag ? '' : '<input class="in" name="cf_site_tag" placeholder="Site tag Web Analytics" autocomplete="off">'}<button class="btn pri" type="submit">Enregistrer</button></form></details></div>`;
+}
+function appsPage() {
+  const A = S.apps; const base = A?.base?.ok ? A.base : null; const store = A?.store?.ok ? A.store : null; const site = A?.site?.ok ? A.site : null;
+  const when = A?.cached || A?.at;
+  const right = `<button class="btn" data-act="appsrefresh" ${S.appsLoading ? 'disabled' : ''}>${S.appsLoading ? 'Chargement…' : 'Actualiser'}</button>`;
+  if (!A) return `${header('Statistiques de tes apps et de ton site', 'Apps et site', right)}<div class="card"><div class="empty">Chargement des statistiques…</div></div>`;
+  const dl30 = store ? store.apps.reduce((a, x) => a + x.downloads, 0) : null;
+  const proc30 = store ? store.apps.reduce((o, x) => { Object.entries(x.proceeds).forEach(([c, v]) => { o[c] = (o[c] || 0) + v; }); return o; }, {}) : null;
+  const tiles = `<div class="grid">
+    ${stat('Comptes FastSign', base ? nfmt(base.users.total) : '–', base ? `+ ${base.users.new7} cette semaine` : 'indisponible', base?.users.new7 ? '#3DD68C' : 'var(--muted)')}
+    ${stat('Actifs sur 7 jours', base ? nfmt(base.users.active7) : '–', base ? `${base.users.active30} sur 30 jours` : '')}
+    ${stat('Téléchargements 30 j', store ? nfmt(dl30) : '–', store ? 'toutes apps · App Store' : 'App Store à connecter', store ? 'var(--muted)' : '#F5A524', store ? '' : 'data-jump="apps#apps-connect"')}
+    ${stat('Visites du site 7 j', site ? nfmt(site.week.visits) : '–', site ? `${nfmt(site.week.views)} pages vues` : 'Cloudflare à connecter', site ? 'var(--muted)' : '#F5A524', site ? '' : 'data-jump="apps#apps-connect"')}
+  </div>`;
+  const revenue = store ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>App Store · 30 derniers jours</h2><span class="lbl">Revenus nets ${esc(procText(proc30))}</span></div>
+    ${miniBars(store.daily, (x) => x.n, (x) => `${x.d} : ${x.n} téléchargement${x.n > 1 ? 's' : ''}`)}
+    <div class="kv-list" style="margin-top:12px">${store.apps.sort((a, b) => b.downloads - a.downloads).map((a) => `<div class="kv"><span>${esc(a.name)}</span><span class="mono">${nfmt(a.downloads)} tél. · ${esc(procText(a.proceeds))}</span></div>`).join('') || '<div class="lbl">Aucune vente sur la période.</div>'}</div></div>` : '';
+  const weekly = base?.users.weekly?.length ? `<div class="lbl" style="margin:10px 0 6px">Nouveaux comptes par semaine</div>${miniBars(base.users.weekly, (x) => x.n, (x) => `Semaine du ${x.w} : ${x.n}`)}` : '';
+  const apps = base ? `<div class="apps-grid">
+    ${appCard('FastSign', '#4C8DFF', [['Comptes', `${nfmt(base.users.total)} · + ${base.users.new30} sur 30 j`], ['Projets créés', `${nfmt(base.fastsign.projects)}${base.fastsign.projects30 ? ` · ${base.fastsign.projects30} sur 30 j` : ''}`], ['Signatures', `${nfmt(base.fastsign.signatures)}${base.fastsign.signatures30 ? ` · ${base.fastsign.signatures30} sur 30 j` : ''}`], ['Inscrits à la newsletter', nfmt(base.fastsign.marketing_optin)]])}
+    ${appCard('MinimaClap', '#F5A524', [['Projets', nfmt(base.minimaclap.projects)], ['Projets actifs sur 7 j', nfmt(base.minimaclap.active7)], ['Participants', nfmt(base.minimaclap.members)], ['Marqueurs posés', nfmt(base.minimaclap.markers)], ['Connexions par QR sur 30 j', nfmt(base.minimaclap.joins30)]], 'clap')}
+    ${appCard('Agora', '#C084FC', [['Publications suivies', nfmt(base.agora.posts)], ['Comptes Instagram', nfmt(base.agora.accounts)], ['Traductions', nfmt(base.agora.translations)], ['Dernière mise à jour', base.agora.last_fetch ? `${dshort(d(base.agora.last_fetch))} ${d(base.agora.last_fetch).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : '–']])}
+  </div><div class="card" style="margin-top:16px">${weekly || '<div class="lbl">Pas encore de comptes cette période.</div>'}</div>` : `<div class="card"><div class="empty">${esc(A?.base?.error || A?.error || 'Statistiques des apps indisponibles.')}</div></div>`;
+  const siteCard = site ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>minimalistbelgium.com · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites · ${nfmt(site.days.reduce((a, x) => a + x.views, 0))} pages vues</span></div>
+    ${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}
+    <div class="site-cols"><div><div class="sub-h" style="padding-left:0">Pages les plus vues</div>${topList(site.pages, (k) => (k === '/' ? 'Accueil' : k))}</div><div><div class="sub-h" style="padding-left:0">Pays</div>${topList(site.countries)}</div><div><div class="sub-h" style="padding-left:0">Provenance</div>${topList(site.refs)}</div></div></div>` : '';
+  return `${header(`Statistiques${when ? ` · mises à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Apps et site', right)}${tiles}${apps}${revenue}${siteCard}${connectCard()}`;
 }
 // Panneau Premiere : compte le temps même quand l'app est fermée (Premiere 25.6+).
 function premiereCard() {
@@ -1808,6 +1883,7 @@ const ACTIONS = {
   },
   async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
+  appsrefresh() { loadApps(true); },
   usesug(t) { const f = document.getElementById('mission-form'); if (!f) return; if (t.dataset.b) f.budget.value = t.dataset.b; if (t.dataset.p && f.price) f.price.value = t.dataset.p; renderPriceSuggest(); },
   edprev() { stepEditor(-1); },
   ednext() { stepEditor(1); },
@@ -2019,6 +2095,14 @@ document.addEventListener('submit', async (e) => {
   const f = e.target; e.preventDefault();
   const btn = e.submitter || f.querySelector('[type=submit]'); if (btn) btn.disabled = true;
   try {
+    if (f.dataset.secrets) {
+      const vals = [...f.querySelectorAll('input,textarea')].filter((x) => x.value.trim());
+      if (!vals.length) { toast('Rien à enregistrer.'); return; }
+      for (const x of vals) fail(await sb.rpc('set_app_secret', { k: x.name, v: x.value.trim() }));
+      toast('Enregistré. Je relis les statistiques…');
+      await loadApps(true);
+      return;
+    }
     if (f.id === 'mail-form') {
       const email = f.email.value.trim().toLowerCase();
       fail(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } }));

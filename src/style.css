@@ -716,3 +716,19 @@ input.in[type=date],input.in[type=datetime-local]{-webkit-appearance:none;appear
 input.in[type=date]::-webkit-date-and-time-value,input.in[type=datetime-local]::-webkit-date-and-time-value{text-align:left;margin:0}
 .form-dates > div{min-width:0}
 @media (max-width:640px){.form-dates{gap:0 12px!important}}
+
+/* Apps et site */
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:2px}
+.app-card h2{display:flex;align-items:center;gap:8px}
+.app-card{border-top:2px solid var(--c)}
+.mini-bars{display:flex;align-items:flex-end;gap:3px;height:70px}
+.mini-bars span{flex:1;min-width:2px;border-radius:3px 3px 1px 1px;background:linear-gradient(180deg,var(--blue),rgba(76,141,255,.35))}
+.kv-list .kv{font-size:13.5px}
+.site-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 20px;margin-top:8px}
+.conn{border-top:1px solid var(--line);padding:12px 0}
+.conn:first-of-type{border-top:0}
+.conn summary{cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;list-style:none}
+.conn summary::-webkit-details-marker{display:none}
+.conn-form{display:flex;flex-direction:column;gap:8px;max-width:520px}
+.conn-form textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical}
+.conn-form .btn{align-self:flex-start}

@@ -47,7 +47,8 @@ struct FinancesView: View {
         let inMonth = data.missions(inMonthOf: month).filter { $0.status != "requested" }
         let hist = data.isHistoryMonth(month) ? data.historyTotals(month) : nil
         let revenue = hist?.billed ?? inMonth.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
-        let cost = hist?.cost ?? inMonth.compactMap(\.editor_budget).reduce(0, +)
+        // Ta part quand tu montes toi-même reste dans ta marge : seuls les autres monteurs sont un coût.
+        let cost = hist?.cost ?? inMonth.map { data.editorPayout($0) }.reduce(0, +)
         let margin = revenue - cost
         // Validées les mois précédents et toujours pas facturées : reportées sur le mois en cours.
         let current = month >= monthStart(Date())
@@ -145,7 +146,7 @@ struct FinancesView: View {
                         if i > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
                         let ms = byClient[k] ?? []
                         let r = ms.compactMap { data.finances[$0.id]?.client_price }.reduce(0, +)
-                        let c = ms.compactMap(\.editor_budget).reduce(0, +)
+                        let c = ms.map { data.editorPayout($0) }.reduce(0, +)
                         HStack(spacing: 12) {
                             ClientDot(color: data.client(k)?.color, size: 9)
                             Text(data.client(k)?.name ?? "Sans client").font(.system(size: 13.5, weight: .medium)).lineLimit(1)
@@ -192,7 +193,7 @@ struct FinancesView: View {
     private func missionRow(_ m: Mission, wide: Bool) -> some View {
         let f = data.finances[m.id]
         let p = f?.client_price
-        let b = m.editor_budget ?? 0
+        let b = data.editorPayout(m)
         let invoiced = f?.invoiced ?? false
         if wide {
             HStack(spacing: 12) {

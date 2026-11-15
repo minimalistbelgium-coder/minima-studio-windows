@@ -54,7 +54,7 @@ extension DataStore {
         for m in missions {
             guard let k = financeMonth(of: m) else { continue }
             billed[k, default: 0] += finances[m.id]?.client_price ?? 0
-            cost[k, default: 0] += m.editor_budget ?? 0
+            cost[k, default: 0] += editorPayout(m)
             n[k, default: 0] += 1
         }
         let fr = Locale(identifier: "fr_BE")

@@ -1696,7 +1696,7 @@ function missionForm(m, mode) {
     <select class="in" id="nm-client" name="client" required ${mode === 'accept' ? 'disabled' : ''}><option value="" disabled ${m?.client_id ? '' : 'selected'}>Choisir le client…</option>${S.clients.map((c) => `<option value="${c.id}" ${m?.client_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ Nouveau client…</option></select>
     <input class="in" id="nm-newclient" name="newclient" placeholder="Nom du nouveau client" aria-label="Nom du nouveau client" style="margin-top:8px;display:none">
     <label class="f" for="nm-title">Titre</label><input class="in" id="nm-title" name="title" required placeholder="Ex. Cover épisode 50" maxlength="120" value="${esc(m?.title || '')}">
-    <div class="cols" style="margin:0;gap:12px">
+    <div class="cols form-dates" style="margin:0;gap:12px">
       <div style="flex:1 1 180px"><label class="f" for="nm-dl">Livraison du montage</label><input class="in" id="nm-dl" name="deadline" type="datetime-local" value="${dl ? toLocalInput(dl) : ''}"></div>
       <div style="flex:1 1 150px"><label class="f" for="nm-rel">Date de sortie</label><input class="in" id="nm-rel" name="release" type="date" value="${esc(m?.release_on || '')}"></div>
     </div>
@@ -1705,6 +1705,7 @@ function missionForm(m, mode) {
       <div style="flex:1 1 150px"><label class="f" for="nm-price">Prix client HTVA (€)</label><input class="in" id="nm-price" name="price" type="number" inputmode="decimal" min="0" step="1" value="${f?.client_price ?? m?.price ?? ''}"></div>
       <div style="flex:1 1 150px"><label class="f" for="nm-budget">Budget montage (€)</label><input class="in" id="nm-budget" name="budget" type="number" inputmode="decimal" min="0" step="1" required value="${m?.id && mode !== 'accept' ? m.editor_budget ?? '' : m?.editor_budget || ''}"></div>
     </div>
+    ${isAdmin() && mode !== 'accept' ? `<label class="cl-check" style="margin-top:12px"><input type="checkbox" name="invoiced" ${f?.invoiced ? 'checked' : ''}><span>Facture client déjà envoyée</span></label>` : ''}
     ${isAdmin() && mode !== 'accept' ? `<label class="f" for="nm-bill">Facturé par le monteur en</label><select class="in" id="nm-bill" name="bill"><option value="">Automatique : mois de livraison${m?.v1_delivered_at ? ` (${esc(monthName(startOfMonth(d(m.v1_delivered_at))))})` : ''}</option>${Array.from({ length: 15 }, (_, i) => { const x = new Date(new Date().getFullYear(), new Date().getMonth() - 12 + i, 1); return `<option value="${ymd(x)}" ${m?.bill_month === ymd(x) ? 'selected' : ''}>${esc(cap(monthName(x)))}</option>`; }).join('')}</select>` : ''}
     <label class="f">Qui monte ?</label>
     <div class="pick">${team().map((p) => `<button type="button" data-pick="${p.id}" class="${picked.includes(p.id) ? 'on' : ''}" aria-pressed="${picked.includes(p.id)}">${avatar(p, 22)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}<button type="button" data-pick="__claude" class="${m?.claude_editor ? 'on' : ''}" aria-pressed="${!!m?.claude_editor}">${claudeAvatar(22)}Claude</button></div>
@@ -2104,7 +2105,12 @@ async function saveMission(f) {
   row.claude_editor = allPicks.includes('__claude');
   if (mode === 'new') id = fail(await sb.from('missions').insert({ ...row, status: 'assigned' }).select().single()).data.id;
   else fail(await sb.from('missions').update(row).eq('id', id));
-  if (f.price.value !== '') fail(await sb.from('mission_finance').upsert({ mission_id: id, client_price: Number(f.price.value) }));
+  if (f.price.value !== '' || f.invoiced?.checked) {
+    const fin = { mission_id: id };
+    if (f.price.value !== '') fin.client_price = Number(f.price.value);
+    if (f.invoiced) fin.invoiced = f.invoiced.checked;
+    fail(await sb.from('mission_finance').upsert(fin));
+  } else if (f.invoiced && !f.invoiced.checked && S.finances[id]?.invoiced) fail(await sb.from('mission_finance').update({ invoiced: false }).eq('mission_id', id));
   const picks = allPicks.filter((u) => u !== '__claude'); const cur = old ? memberIds(id) : [];
   const add = picks.filter((u) => !cur.includes(u)); const del = cur.filter((u) => !picks.includes(u));
   if (add.length) fail(await sb.from('mission_members').insert(add.map((u) => ({ mission_id: id, user_id: u }))));

@@ -710,3 +710,9 @@ main.enter .bar-row .bt i{animation:growX .7s var(--ease) both;animation-delay:c
 .list-h{display:flex;align-items:center;gap:8px;padding:14px 18px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line)}
 .list-h:first-child{border-top:0}
 .list-h span{font-weight:500;opacity:.7}
+
+/* Champs date sur iPhone : Safari leur donne une largeur propre et un texte centré, ils débordaient de la fiche */
+input.in[type=date],input.in[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;text-align:left;line-height:22px}
+input.in[type=date]::-webkit-date-and-time-value,input.in[type=datetime-local]::-webkit-date-and-time-value{text-align:left;margin:0}
+.form-dates > div{min-width:0}
+@media (max-width:640px){.form-dates{gap:0 12px!important}}

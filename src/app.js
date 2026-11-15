@@ -20,6 +20,7 @@ const S = {
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
   deepLink: new URLSearchParams(location.search).get('m'),
+  deepRoute: new URLSearchParams(location.search).get('r'),
 };
 const app = document.getElementById('app');
 const sheetRoot = document.getElementById('sheet-root');
@@ -743,7 +744,7 @@ function page() {
     case 'billing': return clientBillingPage();
     case 'notifs': return notifsPage();
     case 'team': return teamPage();
-    case 'apps': if (!S.apps && !S.appsLoading) queueMicrotask(() => loadApps()); return appsPage();
+    case 'apps': if (!isAdmin()) return ''; if (!S.apps && !S.appsLoading) queueMicrotask(() => loadApps()); return appsPage();
     default: return '';
   }
 }
@@ -1327,7 +1328,7 @@ function pushCard() {
   if (Notification.permission === 'denied') return '<div class="card" style="margin-bottom:16px"><b>Notifications bloquées</b><div class="lbl" style="margin-top:6px">Autorise-les dans les réglages de ton navigateur ou de ton iPhone pour Minima Studio.</div></div>';
   return '<div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>Recevoir les notifications</b><div class="lbl" style="margin-top:4px">Nouvelle demande, V1 livrée, retours… directement sur ton téléphone.</div></div><button class="btn pri" data-act="push">Activer</button></div>';
 }
-const KIND_COLOR = { request: '#F472B6', comment: '#4C8DFF', client: '#3DD68C', deadline: '#F5A524', rushes: '#2DD4BF', brief: '#A78BFA', status: '#8B8D94', member: '#A78BFA', payment: '#3DD68C' };
+const KIND_COLOR = { request: '#F472B6', comment: '#4C8DFF', client: '#3DD68C', deadline: '#F5A524', rushes: '#2DD4BF', brief: '#A78BFA', status: '#8B8D94', member: '#A78BFA', payment: '#3DD68C', app: '#C084FC' };
 function notifsPage() {
   const groups = {}; const t0 = new Date(); t0.setHours(0, 0, 0, 0);
   S.notifs.forEach((n) => { const x = d(n.created_at); const k = x >= t0 ? "Aujourd'hui" : x >= addDays(t0, -1) ? 'Hier' : x >= addDays(t0, -7) ? 'Cette semaine' : 'Plus tôt'; (groups[k] ||= []).push(n); });
@@ -1791,6 +1792,8 @@ function appCard(name, color, storeName, u, activity) {
       ${tile('Abonnés payants', plans ? nfmt(paid) : null, plans ? `${nfmt(trial)} en essai` : null)}
       ${tile('Revenus 30 j', store ? esc(procText(proc)) : null, store ? 'App Store, net' : null)}
       ${tile('Activité 30 j', esc(activity[0]), activity[1])}
+      ${tile('Note App Store', !st.length ? null : st[0].rating ? `★ ${st[0].rating.toFixed(1).replace('.', ',')}` : '–', !st.length ? null : st[0].ratings ? `${nfmt(st[0].ratings)} avis` : 'pas encore de note')}
+      ${tile('Retéléch. et MAJ 30 j', store ? nfmt(st.reduce((a, x) => a + (x.redownloads || 0), 0)) : null, store ? `retéléch. · ${nfmt(st.reduce((a, x) => a + (x.updates || 0), 0))} mises à jour` : null)}
     </div>${u?.note ? `<div class="lbl" style="margin-top:10px">${esc(u.note)}</div>` : ''}${!u ? '<div class="lbl" style="margin-top:10px">Utilisateurs non mesurés : l\'app ne remonte pas encore cette info.</div>' : ''}</div>`;
 }
 function connectCard() {
@@ -1841,6 +1844,44 @@ function subsCard() {
     <div class="row" style="gap:28px;margin-bottom:8px"><div><div class="big">${nfmt(paid)}</div><div class="lbl">payants</div></div><div><div class="big">${nfmt(trial)}</div><div class="lbl">en essai gratuit</div></div></div>
     ${plans.length ? `<div class="kv-list">${plans.sort((a, b) => b.paid - a.paid).map((p) => `<div class="kv"><span>${esc(p.app)} · ${esc(p.plan)}</span><span class="mono">${nfmt(p.paid)}${p.trial ? ` + ${nfmt(p.trial)} essai` : ''}</span></div>`).join('')}</div>` : ''}</div>`;
 }
+const COUNTRY = { BE: 'Belgique', FR: 'France', NL: 'Pays-Bas', LU: 'Luxembourg', DE: 'Allemagne', CH: 'Suisse', CA: 'Canada', US: 'États-Unis', GB: 'Royaume-Uni', ES: 'Espagne', IT: 'Italie', MA: 'Maroc', CD: 'RD Congo', SN: 'Sénégal', CI: 'Côte d\'Ivoire', DZ: 'Algérie', TN: 'Tunisie' };
+function storeDetail(a) {
+  const top = (o) => Object.entries(o || {}).sort((x, y) => y[1] - x[1]).slice(0, 4).map(([k, n]) => ({ k, n }));
+  const color = /agora/i.test(a.name) ? '#C084FC' : /clap|minimatime/i.test(a.name) ? '#F5A524' : '#4C8DFF';
+  return `<div class="store-app" style="--c:${color}"><div class="row" style="gap:10px;align-items:center">${a.icon ? `<img class="store-ic" src="${esc(a.icon)}" alt="" loading="lazy">` : ''}<div style="min-width:0;flex:1"><b>${esc(a.name)}</b><div class="lbl">${a.version ? `Version ${esc(a.version)}${a.released ? ` · ${esc(dshort(d(a.released)))}` : ''}` : ''}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">App Store</a>` : ''}</div></div><div style="text-align:right"><div class="mono" style="font-size:18px;font-weight:700">${nfmt(a.downloads)}</div><div class="lbl">téléch. 30 j</div></div></div>
+    ${miniBars(a.daily || [], (x) => x.n, (x) => `${x.d} : ${x.n}`)}
+    <div class="site-cols"><div><div class="sub-h" style="padding-left:0">Pays</div>${topList(top(a.countries), (k) => COUNTRY[k] || k)}</div><div><div class="sub-h" style="padding-left:0">Appareils</div>${topList(top(a.devices))}</div><div><div class="sub-h" style="padding-left:0">En plus</div><div class="kv-list"><div class="kv"><span>Retéléchargements</span><span class="mono">${nfmt(a.redownloads)}</span></div><div class="kv"><span>Mises à jour</span><span class="mono">${nfmt(a.updates)}</span></div><div class="kv"><span>Achats et abonnements</span><span class="mono">${nfmt(a.iapUnits)}</span></div></div></div></div></div>`;
+}
+// ---------- Programme de publication Instagram ----------
+const IG_BRAND = { 'fastsign.app': ['FastSign', '#4C8DFF'], 'agora.app.be': ['Agora', '#C084FC'], 'agenceimage.be': ["L'Agence Image", '#F472B6'], 'minimalist.belgium': ['Minimalist', '#8B8D94'] };
+const SCHED_NEXT = { 'Prêt': 'Programmé', 'Programmé': 'Publié', 'Publié': 'Prêt', 'À créer': 'Prêt' };
+const SCHED_COLOR = { 'Prêt': '#3DD68C', 'Programmé': '#4C8DFF', 'Publié': '#8B8D94', 'À créer': '#F5A524' };
+function schedSection() {
+  const sc = S.apps?.sched;
+  if (!sc?.ok) return sc?.error ? `<div class="card"><div class="lbl">${esc(sc.error)}</div></div>` : '';
+  const now = new Date(); const today = ymd(now);
+  const day = (iso) => ymd(d(iso));
+  const rows = sc.rows.map((r) => ({ ...r, dayK: day(r.at) }));
+  // Semaine en cours (lundi à dimanche) : posts publiés / prévus par marque
+  const mon = new Date(now); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(sun.getDate() + 7);
+  let week = rows.filter((r) => r.format !== 'Story' && d(r.at) >= mon && d(r.at) < sun); let wLbl = 'cette semaine';
+  if (!week.some((r) => d(r.at) >= now)) { mon.setDate(mon.getDate() + 7); sun.setDate(sun.getDate() + 7); const nx = rows.filter((r) => r.format !== 'Story' && d(r.at) >= mon && d(r.at) < sun); if (nx.length) { week = nx; wLbl = 'la semaine prochaine'; } }
+  const brands = Object.keys(IG_BRAND).filter((h) => rows.some((r) => r.handle === h));
+  const weekTiles = brands.map((h) => { const l = week.filter((r) => r.handle === h); const done = l.filter((r) => r.status === 'Publié').length; return `<div class="ak" style="--c:${IG_BRAND[h][1]}"><span class="lbl">${esc(IG_BRAND[h][0])}</span><b class="mono">${done}/${l.length}</b><span class="lbl">posts publiés ${wLbl}</span></div>`; }).join('');
+  const late = rows.filter((r) => r.format !== 'Story' && r.status !== 'Publié' && r.dayK < today);
+  const span = S.schedDays || 7; const lim = new Date(now); lim.setDate(lim.getDate() + span);
+  const up = rows.filter((r) => r.dayK >= today && d(r.at) <= lim);
+  const byDay = {}; up.forEach((r) => { (byDay[r.dayK] ||= []).push(r); });
+  const row = (r) => { const [bn, bc] = IG_BRAND[r.handle] || [r.handle, '#8B8D94']; return `<div class="sched-row"><span class="mono lbl" style="width:42px">${d(r.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span><span class="dot" style="background:${bc}"></span><span class="sched-brand">${esc(bn)}</span><span class="sched-fmt">${esc(r.format)}</span><span class="sched-title">${r.post_url ? `<a href="${esc(r.post_url)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title)}</span><button class="sched-st" data-act="schedst" data-id="${r.id}" style="--c:${SCHED_COLOR[r.status] || '#8B8D94'}" title="Changer le statut">${esc(r.status)}</button></div>`; };
+  const days = Object.keys(byDay).sort().map((k) => `<div class="sched-day"><div class="sub-h" style="padding-left:0">${k === today ? "Aujourd'hui" : esc(cap(fromYmd(k).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })))}</div>${byDay[k].map(row).join('')}</div>`).join('');
+  const todo = sc.todo || [];
+  return `<div class="card"><div class="card-head" style="padding:0 0 10px"><h2>Programme de publication</h2><span class="lbl">${sc.until ? `planifié jusqu'au ${esc(dshort(d(sc.until)))}` : ''}</span></div>
+    ${brands.length ? `<div class="app-kpis sched-kpis">${weekTiles}</div>` : ''}
+    ${late.length ? `<div class="sched-late"><b>${late.length} post${late.length > 1 ? 's' : ''} pas encore vu${late.length > 1 ? 's' : ''} en ligne</b>${late.map(row).join('')}</div>` : ''}
+    ${days || '<div class="lbl" style="margin-top:10px">Rien de prévu sur cette période.</div>'}
+    <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-act="schedspan">${span === 7 ? 'Voir 4 semaines' : 'Voir 7 jours'}</button>${todo.length ? `<span class="lbl" style="color:#F5A524">${todo.length} contenu${todo.length > 1 ? 's' : ''} encore à créer, le premier pour le ${esc(dshort(d(todo[0].at)))}</span>` : ''}</div>
+    <div class="lbl" style="margin-top:8px">Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en touchant leur statut.</div></div>`;
+}
 function appsPage() {
   const A = S.apps; const base = A?.base?.ok ? A.base : null; const store = A?.store?.ok ? A.store : null; const site = A?.site?.ok ? A.site : null;
   const when = A?.cached || A?.at;
@@ -1856,9 +1897,9 @@ function appsPage() {
     ${(() => { const ig = A?.ig?.ok ? A.ig.accounts.filter((a) => a.ok) : []; const tot = ig.reduce((x, a) => x + (a.followers || 0), 0); const d7 = ig.every((a) => a.d7 != null) && ig.length ? ig.reduce((x, a) => x + a.d7, 0) : null; return stat('Abonnés Instagram', ig.length ? nfmt(tot) : '–', ig.length ? (d7 != null ? `${signed(d7)} sur 7 jours` : `${ig.length} comptes`) : 'indisponible', d7 > 0 ? '#3DD68C' : 'var(--muted)', 'data-jump="apps#apps-ig"'); })()}
     ${(() => { const sub = A?.subs?.ok ? A.subs : null; const paid = sub ? sub.plans.reduce((a, p) => a + p.paid, 0) : null; const trial = sub ? sub.plans.reduce((a, p) => a + p.trial, 0) : 0; return stat('Abonnements actifs', sub ? nfmt(paid) : '–', sub ? `${trial ? `+ ${nfmt(trial)} en essai` : 'App Store'}` : 'App Store à connecter', sub ? 'var(--muted)' : '#F5A524', sub ? '' : 'data-jump="apps#apps-connect"'); })()}
   </div>`;
-  const revenue = store ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>App Store · 30 derniers jours</h2><span class="lbl">Revenus nets ${esc(procText(proc30))}</span></div>
+  const revenue = store ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>App Store · 30 derniers jours</h2><span class="lbl">Revenus nets ${esc(procText(proc30))}${store.lastDay ? ` · dernier rapport Apple : ${esc(dshort(fromYmd(store.lastDay)))}` : ''}</span></div>
     ${miniBars(store.daily, (x) => x.n, (x) => `${x.d} : ${x.n} téléchargement${x.n > 1 ? 's' : ''}`)}
-    <div class="kv-list" style="margin-top:12px">${store.apps.sort((a, b) => b.downloads - a.downloads).map((a) => `<div class="kv"><span>${esc(a.name)}</span><span class="mono">${nfmt(a.downloads)} tél. · ${esc(procText(a.proceeds))}</span></div>`).join('') || '<div class="lbl">Aucune vente sur la période.</div>'}</div></div>` : '';
+    <div class="store-apps">${store.apps.filter((a) => a.appleId).sort((a, b) => b.downloads - a.downloads).map(storeDetail).join('') || '<div class="lbl">Aucune vente sur la période.</div>'}</div></div>` : '';
   const apps = base ? `<div class="apps-grid">
     ${appCard('FastSign', '#4C8DFF', 'FastSign', { total: base.users.total, new30: base.users.new30, active7: base.users.active7, active30: base.users.active30 }, [nfmt(base.fastsign.signatures30 || 0), `signature(s) · ${nfmt(base.fastsign.projects30 || 0)} projet(s)`])}
     ${appCard('Topclap', '#F5A524', 'clap', base.minimaclap.devices != null ? { total: base.minimaclap.devices, new30: base.minimaclap.devices_new30, active7: base.minimaclap.devices_active7, active30: base.minimaclap.devices_active30, note: 'Topclap n\'a pas de compte : un utilisateur = un iPhone.' } : null, [nfmt(base.minimaclap.projects30 ?? base.minimaclap.projects), `projet(s) · ${nfmt(base.minimaclap.joins30)} connexion(s) QR`])}
@@ -1869,6 +1910,7 @@ function appsPage() {
     <div class="site-cols"><div><div class="sub-h" style="padding-left:0">Pages les plus vues</div>${topList(site.pages, (k) => (k === '/' ? 'Accueil' : k))}</div><div><div class="sub-h" style="padding-left:0">Pays</div>${topList(site.countries)}</div><div><div class="sub-h" style="padding-left:0">Provenance</div>${topList(site.refs)}</div></div></div>` : '';
   return `${header(`Statistiques${when ? ` · mises à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Apps et site', right)}${tiles}
     <div class="sec-h"><h2>Apps</h2></div>${apps}${subsCard()}${revenue}
+    <div class="sec-h" id="apps-sched"><h2>Publications</h2></div>${schedSection()}
     <div id="apps-ig">${igSection()}</div>
     ${siteCard ? `<div class="sec-h"><h2>Site</h2></div>${siteCard}` : ''}${connectCard()}`;
 }
@@ -1935,6 +1977,12 @@ const ACTIONS = {
   async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
   appsrefresh() { loadApps(true); },
+  async schedst(t) {
+    const r = S.apps?.sched?.rows?.find((x) => String(x.id) === t.dataset.id); if (!r) return;
+    const next = SCHED_NEXT[r.status] || 'Prêt'; r.status = next; render();
+    fail(await sb.from('ig_schedule').update({ status: next, updated_at: new Date().toISOString() }).eq('id', r.id));
+  },
+  schedspan() { S.schedDays = (S.schedDays || 7) === 7 ? 28 : 7; render(); },
   async igdel(t) { fail(await sb.from('ig_accounts').delete().eq('handle', t.dataset.h)); await loadApps(true); },
   usesug(t) { const f = document.getElementById('mission-form'); if (!f) return; if (t.dataset.b) f.budget.value = t.dataset.b; if (t.dataset.p && f.price) f.price.value = t.dataset.p; renderPriceSuggest(); },
   edprev() { stepEditor(-1); },
@@ -2094,6 +2142,7 @@ document.addEventListener('click', async (e) => {
       // Re-toucher l'onglet de la page en cours remonte tout en haut (comme sur iOS).
       if (!same) window.scrollTo(0, 0); else if (!hadSheet && !D.gomonth) window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     }
+    else if (D.notif && D.nkind === 'app' && isAdmin()) { markRead(null, D.notif); S.route = 'apps'; render(true); }
     else if (D.notif) { if (D.open) openMission(D.open, 'view', D.nkind === 'comment' || D.nkind === 'client' ? 'messages' : 'infos'); markRead(D.open || null, D.notif); }
     else if (D.open) { openMission(D.open); markRead(D.open); }
     else if (D.hweek) { S.hoursWeek = Math.min(0, S.hoursWeek + Number(D.hweek)); render(); }
@@ -2357,6 +2406,7 @@ async function boot() {
   S.loading = false; render(true); window.dispatchEvent(new Event('ms-refresh'));
   if (ok) goLive();
   if (S.deepLink && S.me) { const id = S.deepLink; S.deepLink = null; history.replaceState(null, '', '/'); if (mission(id)) { openMission(id); markRead(id); } }
+  if (S.deepRoute && S.me) { const r = S.deepRoute; S.deepRoute = null; history.replaceState(null, '', '/'); if (r === 'apps' && isAdmin()) { S.route = 'apps'; render(true); } }
 }
 
 sb.auth.onAuthStateChange((ev, session) => {

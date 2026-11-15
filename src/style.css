@@ -750,3 +750,18 @@ input.in[type=date]::-webkit-date-and-time-value,input.in[type=datetime-local]::
 .app-kpis .ak{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--c) 7%,transparent);min-width:0}
 .app-kpis .ak b{font-size:20px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .app-kpis .ak .lbl{font-size:11.5px;line-height:1.3}
+
+.store-apps{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.store-app{padding:14px;border-radius:14px;background:color-mix(in srgb,var(--c) 6%,transparent)}
+.store-app .mini-bars{margin-top:10px;height:44px}
+.store-ic{width:40px;height:40px;border-radius:10px;flex-shrink:0}
+.sched-kpis{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:6px}
+.sched-day{margin-top:8px}
+.sched-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;min-width:0}
+.sched-brand{font-weight:600;white-space:nowrap}
+.sched-fmt{font-size:11.5px;padding:2px 7px;border-radius:999px;background:var(--card2,rgba(127,127,127,.12));white-space:nowrap}
+.sched-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sched-title a{color:inherit}
+.sched-st{flex-shrink:0;border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent)}
+.sched-late{margin-top:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,#F5A524 10%,transparent)}
+@media (max-width:640px){.sched-brand{display:none}.sched-fmt{display:none}}

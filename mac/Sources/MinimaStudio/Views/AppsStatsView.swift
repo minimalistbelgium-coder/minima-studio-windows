@@ -8,6 +8,7 @@ struct AppsStatsView: View {
     @State private var stats: [String: Any]? = nil
     @State private var loading = false
     @State private var error: String? = nil
+    @State private var schedDays = 7
 
     private var base: [String: Any]? { ok(stats?["base"]) }
     private var store: [String: Any]? { ok(stats?["store"]) }
@@ -29,6 +30,7 @@ struct AppsStatsView: View {
                 appCards
                 if let sub = ok(stats?["subs"]) { subsCard(sub) }
                 if let st = store { storeCard(st) }
+                scheduleSection
                 instagramSection
                 if let s = site { siteCard(s) }
                 connections
@@ -89,6 +91,7 @@ struct AppsStatsView: View {
         let paid = subs?.map { num($0["paid"]) }.reduce(0, +), trial = subs?.map { num($0["trial"]) }.reduce(0, +)
         let color = Color(hex: hex)
         let hasStore = store != nil
+        let mainApp = apps.first { !(($0["appleId"] as? String) ?? "").isEmpty }
         let tiles: [(String, String?, String?)] = [
             ("Téléchargements 30 j", hasStore ? fmt(dl) : nil, hasStore ? "\(fmt(dl7)) sur 7 j" : nil),
             ("Utilisateurs", users.map { fmt($0.total) }, users.map { "+ \(fmt($0.new30)) sur 30 j" }),
@@ -96,6 +99,10 @@ struct AppsStatsView: View {
             ("Abonnés payants", paid.map(fmt), trial.map { "\(fmt($0)) en essai" }),
             ("Revenus 30 j", hasStore ? proceeds(apps.compactMap { $0["proceeds"] as? [String: Any] }) : nil, hasStore ? "App Store, net" : nil),
             ("Activité 30 j", activity.0, activity.1),
+            ("Note App Store", mainApp.map { a in num(a["ratings"]) > 0 ? "★ " + String(format: "%.1f", num(a["rating"])).replacingOccurrences(of: ".", with: ",") : "–" },
+             mainApp.map { a in num(a["ratings"]) > 0 ? "\(fmt(num(a["ratings"]))) avis" : "pas encore de note" }),
+            ("Retéléch. et MAJ 30 j", hasStore ? fmt(apps.map { num($0["redownloads"]) }.reduce(0, +)) : nil,
+             hasStore ? "retéléch. · \(fmt(apps.map { num($0["updates"]) }.reduce(0, +))) mises à jour" : nil),
         ]
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -235,27 +242,181 @@ struct AppsStatsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private static let countries: [String: String] = ["BE": "Belgique", "FR": "France", "NL": "Pays-Bas", "LU": "Luxembourg", "DE": "Allemagne", "CH": "Suisse", "CA": "Canada",
+        "US": "États-Unis", "GB": "Royaume-Uni", "ES": "Espagne", "IT": "Italie", "MA": "Maroc", "CD": "RD Congo", "SN": "Sénégal", "CI": "Côte d'Ivoire", "DZ": "Algérie", "TN": "Tunisie"]
+
     private func storeCard(_ st: [String: Any]) -> some View {
-        let apps = ((st["apps"] as? [[String: Any]]) ?? []).sorted { num($0["downloads"]) > num($1["downloads"]) }
+        let apps = ((st["apps"] as? [[String: Any]]) ?? []).filter { !(($0["appleId"] as? String) ?? "").isEmpty }.sorted { num($0["downloads"]) > num($1["downloads"]) }
+        let all = (st["apps"] as? [[String: Any]]) ?? []
         let daily = (st["daily"] as? [[String: Any]]) ?? []
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("App Store · 30 derniers jours").font(.system(size: 15, weight: .semibold))
                 Spacer()
-                Muted("Revenus nets " + proceeds(apps.compactMap { $0["proceeds"] as? [String: Any] }), size: 12.5)
+                Muted("Revenus nets " + proceeds(all.compactMap { $0["proceeds"] as? [String: Any] }), size: 12.5)
             }
             MiniBars(values: daily.map { num($0["n"]) }, labels: daily.map { "\($0["d"] as? String ?? "") : \(Int(num($0["n"]))) téléchargements" })
             if apps.isEmpty { Muted("Aucune vente sur la période.") }
-            ForEach(Array(apps.enumerated()), id: \.offset) { _, a in
-                HStack {
-                    Text(a["name"] as? String ?? "?").font(.system(size: 13))
-                    Spacer()
-                    Text("\(fmt(num(a["downloads"]))) tél. · \(proceeds([a["proceeds"] as? [String: Any] ?? [:]]))")
-                        .font(.system(size: 13)).monospacedDigit()
-                }
-            }
+            ForEach(Array(apps.enumerated()), id: \.offset) { _, a in storeApp(a) }
         }
         .padding(18).glassCard()
+    }
+
+    private func storeApp(_ a: [String: Any]) -> some View {
+        let name = a["name"] as? String ?? "?"
+        let color = Color(hex: name.range(of: "agora", options: .caseInsensitive) != nil ? "C084FC" : (name.range(of: "clap", options: .caseInsensitive) != nil || name.range(of: "minimatime", options: .caseInsensitive) != nil) ? "F5A524" : "4C8DFF")
+        let daily = (a["daily"] as? [[String: Any]]) ?? []
+        let top: (Any?) -> [[String: Any]] = { raw in
+            ((raw as? [String: Any]) ?? [:]).map { ["k": $0.key, "n": $0.value] }.sorted { num($0["n"]) > num($1["n"]) }.prefix(4).map { $0 }
+        }
+        var info: [String] = []
+        if let v = a["version"] as? String { info.append("Version \(v)") }
+        if let r = a["released"] as? String, let d = DateFmt.parse(r) { info.append(d.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "fr_BE")))) }
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                if let ic = a["icon"] as? String, let u = URL(string: ic) {
+                    AsyncImage(url: u) { $0.resizable().scaledToFill() } placeholder: { Theme.card2 }
+                        .frame(width: 36, height: 36).clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                    HStack(spacing: 6) {
+                        Muted(info.joined(separator: " · "), size: 12)
+                        if let s = a["url"] as? String, let u = URL(string: s) { Link("App Store", destination: u).font(.system(size: 12)) }
+                    }
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(fmt(num(a["downloads"]))).font(.system(size: 18, weight: .bold)).monospacedDigit()
+                    Muted("téléch. 30 j", size: 11.5)
+                }
+            }
+            MiniBars(values: daily.map { num($0["n"]) }, labels: daily.map { "\($0["d"] as? String ?? "") : \(Int(num($0["n"])))" })
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 20, alignment: .top)], spacing: 10) {
+                topList("Pays", top(a["countries"])) { Self.countries[$0] ?? $0 }
+                topList("Appareils", top(a["devices"])) { $0 }
+                topList("En plus", [["k": "Retéléchargements", "n": num(a["redownloads"])], ["k": "Mises à jour", "n": num(a["updates"])], ["k": "Achats et abonnements", "n": num(a["iapUnits"])]]) { $0 }
+            }
+        }
+        .padding(14)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    // MARK: Programme de publication
+
+    private static let igBrand: [String: (String, String)] = ["fastsign.app": ("FastSign", "4C8DFF"), "agora.app.be": ("Agora", "C084FC"), "agenceimage.be": ("L'Agence Image", "F472B6"), "minimalist.belgium": ("Minimalist", "8B8D94")]
+    private static let schedNext: [String: String] = ["Prêt": "Programmé", "Programmé": "Publié", "Publié": "Prêt", "À créer": "Prêt"]
+    private static func schedColor(_ s: String) -> Color { s == "Prêt" ? Theme.green : s == "Programmé" ? Color(hex: "4C8DFF") : s == "À créer" ? Theme.amber : Theme.muted }
+
+    private struct SchedRow: Identifiable { let id: Int; let handle: String; let at: Date; let format: String; let title: String; let status: String; let url: String? }
+
+    private var schedRows: [SchedRow] {
+        ((ok(stats?["sched"])?["rows"] as? [[String: Any]]) ?? []).compactMap { r in
+            guard let at = (r["at"] as? String).flatMap(DateFmt.parse) else { return nil }
+            return SchedRow(id: Int(num(r["id"])), handle: r["handle"] as? String ?? "", at: at, format: r["format"] as? String ?? "", title: r["title"] as? String ?? "", status: r["status"] as? String ?? "Prêt", url: r["post_url"] as? String)
+        }
+    }
+
+    @ViewBuilder private var scheduleSection: some View {
+        if let sc = ok(stats?["sched"]) {
+            let rows = schedRows
+            let cal = Calendar(identifier: .iso8601)
+            let now = Date()
+            let startToday = cal.startOfDay(for: now)
+            let thisWeek = cal.dateInterval(of: .weekOfYear, for: now)!
+            let posts = rows.filter { $0.format != "Story" }
+            let curWeek = posts.filter { thisWeek.contains($0.at) }
+            let useNext = !curWeek.contains { $0.at >= now }
+            let nextWeek = DateInterval(start: thisWeek.end, duration: thisWeek.duration)
+            let week = useNext ? posts.filter { nextWeek.contains($0.at) } : curWeek
+            let wLbl = useNext && !week.isEmpty ? "la semaine prochaine" : "cette semaine"
+            let brands = ["fastsign.app", "agora.app.be", "agenceimage.be", "minimalist.belgium"].filter { h in rows.contains { $0.handle == h } }
+            let late = posts.filter { $0.status != "Publié" && $0.at < startToday }
+            let limit = cal.date(byAdding: .day, value: schedDays, to: now)!
+            let up = rows.filter { $0.at >= startToday && $0.at <= limit }
+            let days = Dictionary(grouping: up) { cal.startOfDay(for: $0.at) }.sorted { $0.key < $1.key }
+            let todo = (sc["todo"] as? [[String: Any]]) ?? []
+            Text("Publications").font(.system(size: 17, weight: .semibold)).padding(.top, 8)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Programme de publication").font(.system(size: 15, weight: .semibold))
+                    Spacer()
+                    if let u = (sc["until"] as? String).flatMap(DateFmt.parse) { Muted("planifié jusqu'au " + u.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "fr_BE"))), size: 12.5) }
+                }
+                if !brands.isEmpty {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], spacing: 8) {
+                        ForEach(brands, id: \.self) { h in
+                            let l = week.filter { $0.handle == h }
+                            let brand = Self.igBrand[h] ?? (h, "8B8D94")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(brand.0).font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                                Text("\(l.filter { $0.status == "Publié" }.count)/\(l.count)").font(.system(size: 20, weight: .bold)).monospacedDigit()
+                                Text("posts publiés \(wLbl)").font(.system(size: 11.5)).foregroundStyle(Theme.muted)
+                            }
+                            .padding(.horizontal, 12).padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(hex: brand.1).opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                    }
+                }
+                if !late.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("\(late.count) post\(late.count > 1 ? "s" : "") pas encore vu\(late.count > 1 ? "s" : "") en ligne").font(.system(size: 13, weight: .semibold)).padding(.bottom, 4)
+                        ForEach(late) { schedLine($0) }
+                    }
+                    .padding(12)
+                    .background(Theme.amber.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                if days.isEmpty { Muted("Rien de prévu sur cette période.") }
+                ForEach(days, id: \.key) { entry in
+                    Text(cal.isDateInToday(entry.key) ? "AUJOURD'HUI" : entry.key.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_BE"))).uppercased())
+                        .font(.system(size: 10.5, weight: .semibold)).tracking(0.5).foregroundStyle(Theme.muted).padding(.top, 6)
+                    ForEach(entry.value.sorted { $0.at < $1.at }) { schedLine($0) }
+                }
+                HStack(spacing: 10) {
+                    Button(schedDays == 7 ? "Voir 4 semaines" : "Voir 7 jours") { schedDays = schedDays == 7 ? 28 : 7 }.buttonStyle(SecondaryButton())
+                    if let first = todo.first, let at = (first["at"] as? String).flatMap(DateFmt.parse) {
+                        Text("\(todo.count) contenu\(todo.count > 1 ? "s" : "") encore à créer, le premier pour le \(at.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "fr_BE"))))")
+                            .font(.system(size: 12.5)).foregroundStyle(Theme.amber)
+                    }
+                }
+                Muted("Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en cliquant sur leur statut.", size: 12)
+            }
+            .padding(18).glassCard()
+        }
+    }
+
+    private func schedLine(_ r: SchedRow) -> some View {
+        let brand = Self.igBrand[r.handle] ?? (r.handle, "8B8D94")
+        let bn = brand.0, bc = brand.1
+        let col = Self.schedColor(r.status)
+        return HStack(spacing: 8) {
+            Text(r.at.formatted(.dateTime.hour().minute().locale(Locale(identifier: "fr_BE")))).font(.system(size: 12.5)).monospacedDigit().foregroundStyle(Theme.muted).frame(width: 44, alignment: .leading)
+            Circle().fill(Color(hex: bc)).frame(width: 7, height: 7)
+            Text(bn).font(.system(size: 13, weight: .semibold)).lineLimit(1).fixedSize()
+            Text(r.format).font(.system(size: 11)).padding(.horizontal, 7).padding(.vertical, 2).background(Theme.card2, in: Capsule()).fixedSize()
+            if let s = r.url, let u = URL(string: s) { Link(r.title, destination: u).font(.system(size: 13)).lineLimit(1) }
+            else { Text(r.title).font(.system(size: 13)).lineLimit(1).truncationMode(.tail) }
+            Spacer(minLength: 6)
+            Button { Task { await setSchedStatus(r) } } label: {
+                Text(r.status).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(col)
+                    .padding(.horizontal, 9).padding(.vertical, 3).background(col.opacity(0.15), in: Capsule())
+            }
+            .buttonStyle(.plain).help("Changer le statut")
+        }
+        .padding(.vertical, 5)
+    }
+
+    private func setSchedStatus(_ r: SchedRow) async {
+        let next = Self.schedNext[r.status] ?? "Prêt"
+        if var sc = stats?["sched"] as? [String: Any], var rows = sc["rows"] as? [[String: Any]], let i = rows.firstIndex(where: { Int(num($0["id"])) == r.id }) {
+            rows[i]["status"] = next; sc["rows"] = rows; stats?["sched"] = sc
+        }
+        do {
+            try await supa.from("ig_schedule").update(["status": next, "updated_at": ISO8601DateFormatter().string(from: Date())]).eq("id", value: r.id).execute()
+        } catch {
+            self.error = "Statut non enregistré : \(error.localizedDescription)"
+        }
     }
 
     private func siteCard(_ s: [String: Any]) -> some View {

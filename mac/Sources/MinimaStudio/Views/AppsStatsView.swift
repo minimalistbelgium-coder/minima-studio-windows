@@ -9,6 +9,7 @@ struct AppsStatsView: View {
     @State private var loading = false
     @State private var error: String? = nil
     @State private var schedDays = 7
+    @State private var editing: PostDraft? = nil
 
     private var base: [String: Any]? { ok(stats?["base"]) }
     private var store: [String: Any]? { ok(stats?["store"]) }
@@ -37,6 +38,9 @@ struct AppsStatsView: View {
             }
         }
         .task { await load(refresh: false) }
+        .sheet(item: $editing) { d in
+            PostEditor(draft: d, media: igMedia(for: d.url), handles: igHandles) { Task { await load(refresh: false) } }
+        }
     }
 
     // MARK: blocs
@@ -379,13 +383,14 @@ struct AppsStatsView: View {
                     ForEach(entry.value.sorted { $0.at < $1.at }) { schedLine($0) }
                 }
                 HStack(spacing: 10) {
+                    Button { editing = PostDraft() } label: { Label("Ajouter une publication", systemImage: "plus") }.buttonStyle(PrimaryButton())
                     Button(schedDays == 7 ? "Voir 4 semaines" : "Voir 7 jours") { schedDays = schedDays == 7 ? 28 : 7 }.buttonStyle(SecondaryButton())
                     if let first = todo.first, let at = (first["at"] as? String).flatMap(DateFmt.parse) {
                         Text("\(todo.count) contenu\(todo.count > 1 ? "s" : "") encore à créer, le premier pour le \(at.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "fr_BE"))))")
                             .font(.system(size: 12.5)).foregroundStyle(Theme.amber)
                     }
                 }
-                Muted("Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en cliquant sur leur statut.", size: 12)
+                Muted("Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en cliquant sur leur statut. Clique sur une publication pour l'afficher et la modifier.", size: 12)
             }
             .padding(18).glassCard()
         }
@@ -400,8 +405,7 @@ struct AppsStatsView: View {
             Circle().fill(Color(hex: bc)).frame(width: 7, height: 7)
             Text(bn).font(.system(size: 13, weight: .semibold)).lineLimit(1).fixedSize()
             Text(r.format).font(.system(size: 11)).padding(.horizontal, 7).padding(.vertical, 2).background(Theme.card2, in: Capsule()).fixedSize()
-            if let s = r.url, let u = URL(string: s) { Link(r.title, destination: u).font(.system(size: 13)).lineLimit(1) }
-            else { Text(r.title).font(.system(size: 13)).lineLimit(1).truncationMode(.tail) }
+            Text(r.title).font(.system(size: 13)).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 6)
             Button { Task { await setSchedStatus(r) } } label: {
                 Text(r.status).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(col)
@@ -410,6 +414,30 @@ struct AppsStatsView: View {
             .buttonStyle(.plain).help("Changer le statut")
         }
         .padding(.vertical, 5)
+        .contentShape(Rectangle())
+        .onTapGesture { open(r) }
+        .help("Afficher et modifier")
+    }
+
+    private func open(_ r: SchedRow) {
+        let raw = ((ok(stats?["sched"])?["rows"] as? [[String: Any]]) ?? []).first { Int(num($0["id"])) == r.id }
+        editing = PostDraft(rowId: r.id, handle: r.handle, format: r.format, title: r.title, status: r.status,
+                            ref: raw?["ref"] as? String ?? "", url: r.url ?? "", at: r.at)
+    }
+
+    private var igHandles: [String] {
+        let acc = ((stats?["ig"] as? [String: Any])?["accounts"] as? [[String: Any]] ?? []).compactMap { $0["handle"] as? String }
+        var out = ["fastsign.app", "agora.app.be", "agenceimage.be", "minimalist.belgium"]
+        for h in acc where !out.contains(h) { out.append(h) }
+        return out
+    }
+
+    private func igMedia(for url: String) -> [String: Any]? {
+        guard !url.isEmpty else { return nil }
+        for a in ((stats?["ig"] as? [String: Any])?["accounts"] as? [[String: Any]] ?? []) {
+            for m in (a["media"] as? [[String: Any]] ?? []) where (m["url"] as? String) == url { return m }
+        }
+        return nil
     }
 
     private func setSchedStatus(_ r: SchedRow) async {

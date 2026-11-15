@@ -71,9 +71,9 @@ struct AppsStatsView: View {
                 appCard("FastSign", "4C8DFF", storeKey: "fastsign",
                         users: AppUsers(total: num(u["total"]), new30: num(u["new30"]), active7: num(u["active7"]), active30: num(u["active30"])),
                         activity: (fmt(num(f["signatures30"])), "signature(s) · \(fmt(num(f["projects30"]))) projet(s)"))
-                appCard("Topclap", "F5A524", storeKey: "clap",
+                appCard("MinimaClap", "F5A524", storeKey: "clap",
                         users: c["devices"] == nil ? nil : AppUsers(total: num(c["devices"]), new30: num(c["devices_new30"]), active7: num(c["devices_active7"]), active30: num(c["devices_active30"]),
-                                                               note: "Topclap n'a pas de compte : un utilisateur = un iPhone."),
+                                                               note: "MinimaClap n'a pas de compte : un utilisateur = un iPhone."),
                         activity: (fmt(num(c["projects30"] ?? c["projects"])), "projet(s) · \(fmt(num(c["joins30"]))) connexion(s) QR"))
                 appCard("Agora", "C084FC", storeKey: "agora", users: nil,
                         activity: (fmt(num(a["posts30"] ?? a["posts"])), "publications suivies · \(fmt(num(a["translations"]))) traductions"))
@@ -145,7 +145,7 @@ struct AppsStatsView: View {
             }
             ForEach(Array(plans.enumerated()), id: \.offset) { _, p in
                 HStack {
-                    Text("\(p["app"] as? String ?? "") · \(p["plan"] as? String ?? "")").font(.system(size: 13)).lineLimit(1)
+                    Text("\(Self.appName(p["app"] as? String ?? "")) · \(Self.appName(p["plan"] as? String ?? ""))").font(.system(size: 13)).lineLimit(1)
                     Spacer()
                     Text(fmt(num(p["paid"])) + (num(p["trial"]) > 0 ? " + \(fmt(num(p["trial"]))) essai" : "")).font(.system(size: 13)).monospacedDigit()
                 }
@@ -242,6 +242,11 @@ struct AppsStatsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Sur l'App Store, MinimaClap s'appelle encore Topclap (et son abonnement MinimaTime).
+    static func appName(_ n: String) -> String {
+        n.replacingOccurrences(of: "Topclap", with: "MinimaClap", options: .caseInsensitive).replacingOccurrences(of: "MinimaTime", with: "MinimaClap", options: .caseInsensitive)
+    }
+
     private static let countries: [String: String] = ["BE": "Belgique", "FR": "France", "NL": "Pays-Bas", "LU": "Luxembourg", "DE": "Allemagne", "CH": "Suisse", "CA": "Canada",
         "US": "États-Unis", "GB": "Royaume-Uni", "ES": "Espagne", "IT": "Italie", "MA": "Maroc", "CD": "RD Congo", "SN": "Sénégal", "CI": "Côte d'Ivoire", "DZ": "Algérie", "TN": "Tunisie"]
 
@@ -263,7 +268,7 @@ struct AppsStatsView: View {
     }
 
     private func storeApp(_ a: [String: Any]) -> some View {
-        let name = a["name"] as? String ?? "?"
+        let name = Self.appName(a["name"] as? String ?? "?")
         let color = Color(hex: name.range(of: "agora", options: .caseInsensitive) != nil ? "C084FC" : (name.range(of: "clap", options: .caseInsensitive) != nil || name.range(of: "minimatime", options: .caseInsensitive) != nil) ? "F5A524" : "4C8DFF")
         let daily = (a["daily"] as? [[String: Any]]) ?? []
         let top: (Any?) -> [[String: Any]] = { raw in

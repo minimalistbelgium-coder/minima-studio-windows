@@ -1774,13 +1774,24 @@ function storeFor(name) {
   const k = name.toLowerCase();
   return apps.filter((a) => (a.name || '').toLowerCase().includes(k));
 }
-function appCard(name, color, lines, storeName) {
+function appCard(name, color, storeName, u, activity) {
   const st = storeFor(storeName || name);
+  const store = S.apps?.store?.ok;
   const dl = st.reduce((a, x) => a + x.downloads, 0); const dl7 = st.reduce((a, x) => a + x.downloads7, 0);
   const proc = st.reduce((o, x) => { Object.entries(x.proceeds).forEach(([c, v]) => { o[c] = (o[c] || 0) + v; }); return o; }, {});
-  const storeLines = S.apps?.store?.ok ? [['Téléchargements 30 j', `${nfmt(dl)}${dl7 ? ` · ${nfmt(dl7)} sur 7 j` : ''}`], ['Revenus App Store 30 j', procText(proc)]] : [];
-  return `<div class="card app-card" style="--c:${color}"><div class="card-head" style="padding:0 0 10px"><h2><span class="dot" style="background:${color}"></span>${esc(name)}</h2></div>
-    ${[...lines, ...storeLines].map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span class="mono" style="font-weight:600">${esc(String(v))}</span></div>`).join('')}</div>`;
+  const k = (storeName || name).toLowerCase();
+  const plans = S.apps?.subs?.ok ? (S.apps.subs.plans || []).filter((p) => (p.app || '').toLowerCase().includes(k)) : null;
+  const paid = plans ? plans.reduce((a, p) => a + (p.paid || 0), 0) : null; const trial = plans ? plans.reduce((a, p) => a + (p.trial || 0), 0) : null;
+  const tile = (l, v, sub) => `<div class="ak"><span class="lbl">${esc(l)}</span><b class="mono">${v == null ? '–' : v}</b><span class="lbl">${sub == null ? 'non mesuré' : esc(sub)}</span></div>`;
+  return `<div class="card app-card" style="--c:${color}"><div class="card-head" style="padding:0 0 12px"><h2><span class="dot" style="background:${color}"></span>${esc(name)}</h2></div>
+    <div class="app-kpis">
+      ${tile('Téléchargements 30 j', store ? nfmt(dl) : null, store ? `${nfmt(dl7)} sur 7 j` : null)}
+      ${tile('Utilisateurs', u ? nfmt(u.total) : null, u ? `+ ${nfmt(u.new30)} sur 30 j` : null)}
+      ${tile('Actifs 7 j', u ? nfmt(u.active7) : null, u ? `${nfmt(u.active30)} sur 30 j` : null)}
+      ${tile('Abonnés payants', plans ? nfmt(paid) : null, plans ? `${nfmt(trial)} en essai` : null)}
+      ${tile('Revenus 30 j', store ? esc(procText(proc)) : null, store ? 'App Store, net' : null)}
+      ${tile('Activité 30 j', esc(activity[0]), activity[1])}
+    </div>${u?.note ? `<div class="lbl" style="margin-top:10px">${esc(u.note)}</div>` : ''}${!u ? '<div class="lbl" style="margin-top:10px">Utilisateurs non mesurés : l\'app ne remonte pas encore cette info.</div>' : ''}</div>`;
 }
 function connectCard() {
   const s = S.appsSecrets || {};
@@ -1850,9 +1861,9 @@ function appsPage() {
     <div class="kv-list" style="margin-top:12px">${store.apps.sort((a, b) => b.downloads - a.downloads).map((a) => `<div class="kv"><span>${esc(a.name)}</span><span class="mono">${nfmt(a.downloads)} tél. · ${esc(procText(a.proceeds))}</span></div>`).join('') || '<div class="lbl">Aucune vente sur la période.</div>'}</div></div>` : '';
   const weekly = base?.users.weekly?.length ? `<div class="lbl" style="margin:10px 0 6px">Nouveaux comptes par semaine</div>${miniBars(base.users.weekly, (x) => x.n, (x) => `Semaine du ${x.w} : ${x.n}`)}` : '';
   const apps = base ? `<div class="apps-grid">
-    ${appCard('FastSign', '#4C8DFF', [['Comptes', `${nfmt(base.users.total)} · + ${base.users.new30} sur 30 j`], ['Projets créés', `${nfmt(base.fastsign.projects)}${base.fastsign.projects30 ? ` · ${base.fastsign.projects30} sur 30 j` : ''}`], ['Signatures', `${nfmt(base.fastsign.signatures)}${base.fastsign.signatures30 ? ` · ${base.fastsign.signatures30} sur 30 j` : ''}`], ['Inscrits à la newsletter', nfmt(base.fastsign.marketing_optin)]])}
-    ${appCard('MinimaClap', '#F5A524', [['Projets', nfmt(base.minimaclap.projects)], ['Projets actifs sur 7 j', nfmt(base.minimaclap.active7)], ['Participants', nfmt(base.minimaclap.members)], ['Marqueurs posés', nfmt(base.minimaclap.markers)], ['Connexions par QR sur 30 j', nfmt(base.minimaclap.joins30)]], 'clap')}
-    ${appCard('Agora', '#C084FC', [['Publications suivies', nfmt(base.agora.posts)], ['Comptes Instagram', nfmt(base.agora.accounts)], ['Traductions', nfmt(base.agora.translations)], ['Dernière mise à jour', base.agora.last_fetch ? `${dshort(d(base.agora.last_fetch))} ${d(base.agora.last_fetch).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : '–']])}
+    ${appCard('FastSign', '#4C8DFF', 'FastSign', { total: base.users.total, new30: base.users.new30, active7: base.users.active7, active30: base.users.active30 }, [nfmt(base.fastsign.signatures30 || 0), `signature(s) · ${nfmt(base.fastsign.projects30 || 0)} projet(s)`])}
+    ${appCard('Topclap', '#F5A524', 'clap', base.minimaclap.devices != null ? { total: base.minimaclap.devices, new30: base.minimaclap.devices_new30, active7: base.minimaclap.devices_active7, active30: base.minimaclap.devices_active30, note: 'Topclap n\'a pas de compte : un utilisateur = un iPhone.' } : null, [nfmt(base.minimaclap.projects30 ?? base.minimaclap.projects), `projet(s) · ${nfmt(base.minimaclap.joins30)} connexion(s) QR`])}
+    ${appCard('Agora', '#C084FC', 'Agora', null, [nfmt(base.agora.posts30 ?? base.agora.posts), `publications suivies · ${nfmt(base.agora.translations)} traductions`])}
   </div><div class="card" style="margin-top:16px">${weekly || '<div class="lbl">Pas encore de comptes cette période.</div>'}</div>` : `<div class="card"><div class="empty">${esc(A?.base?.error || A?.error || 'Statistiques des apps indisponibles.')}</div></div>`;
   const siteCard = site ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>minimalistbelgium.com · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites · ${nfmt(site.days.reduce((a, x) => a + x.views, 0))} pages vues</span></div>
     ${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}

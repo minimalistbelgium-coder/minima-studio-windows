@@ -124,7 +124,8 @@ async function appStore(s: Record<string, string>) {
 // ---------- Notification quotidienne des téléchargements (appelée par pg_cron) ----------
 const nextDay = (d: string) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return ymd(x); };
 const frDay = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
-const shortName = (t: string) => (t || '').split(/\s+[:\-–]\s+/)[0].trim();
+// Sur l'App Store, MinimaClap s'appelle encore Topclap : on garde le bon nom dans les notifications
+const shortName = (t: string) => (t || '').split(/\s+[:\-–]\s+/)[0].trim().replace(/topclap|minimatime/gi, 'MinimaClap');
 
 async function dailyDownloads(s: Record<string, string>) {
   const need = ['asc_issuer_id', 'asc_key_id', 'asc_private_key', 'asc_vendor_number'];

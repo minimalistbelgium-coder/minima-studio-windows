@@ -34,7 +34,9 @@ struct AppsStatsView: View {
                     }
                     .padding(18).glassCard()
                 }
+                if let sub = ok(stats?["subs"]) { subsCard(sub) }
                 if let st = store { storeCard(st) }
+                instagramSection
                 if let s = site { siteCard(s) }
                 connections
             }
@@ -58,6 +60,9 @@ struct AppsStatsView: View {
                      foot: dl == nil ? "App Store à connecter" : "toutes apps · App Store", footColor: dl == nil ? Theme.amber : Theme.muted)
             StatCard(label: "Visites du site 7 j", value: week.map { fmt(num($0["visits"])) } ?? "–",
                      foot: week.map { "\(fmt(num($0["views"]))) pages vues" } ?? "Cloudflare à connecter", footColor: week == nil ? Theme.amber : Theme.muted)
+            StatCard(label: "Abonnés Instagram", value: igTotal.map(fmt) ?? "–", foot: igTotal == nil ? "indisponible" : "tous tes comptes")
+            StatCard(label: "Abonnements actifs", value: subsPaid.map(fmt) ?? "–",
+                     foot: subsPaid == nil ? "App Store à connecter" : "App Store", footColor: subsPaid == nil ? Theme.amber : Theme.muted)
         }
     }
 
@@ -120,6 +125,118 @@ struct AppsStatsView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .glassCard()
         .overlay(alignment: .top) { RoundedRectangle(cornerRadius: 1).fill(color).frame(height: 2).padding(.horizontal, 16) }
+    }
+
+    private func subsCard(_ sub: [String: Any]) -> some View {
+        let plans = ((sub["plans"] as? [[String: Any]]) ?? []).sorted { num($0["paid"]) > num($1["paid"]) }
+        let paid = plans.map { num($0["paid"]) }.reduce(0, +), trial = plans.map { num($0["trial"]) }.reduce(0, +)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Abonnements actifs").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Muted((sub["day"] as? String).map { "rapport Apple du \($0)" } ?? "aucun rapport encore", size: 12.5)
+            }
+            HStack(spacing: 28) {
+                VStack(alignment: .leading) { Text(fmt(paid)).font(.system(size: 24, weight: .bold)); Muted("payants", size: 12) }
+                VStack(alignment: .leading) { Text(fmt(trial)).font(.system(size: 24, weight: .bold)); Muted("en essai gratuit", size: 12) }
+            }
+            ForEach(Array(plans.enumerated()), id: \.offset) { _, p in
+                HStack {
+                    Text("\(p["app"] as? String ?? "") · \(p["plan"] as? String ?? "")").font(.system(size: 13)).lineLimit(1)
+                    Spacer()
+                    Text(fmt(num(p["paid"])) + (num(p["trial"]) > 0 ? " + \(fmt(num(p["trial"]))) essai" : "")).font(.system(size: 13)).monospacedDigit()
+                }
+            }
+        }
+        .padding(18).glassCard()
+    }
+
+    // MARK: Instagram
+
+    @ViewBuilder private var instagramSection: some View {
+        let ig = stats?["ig"] as? [String: Any]
+        let accounts = (ig?["accounts"] as? [[String: Any]]) ?? []
+        if !accounts.isEmpty || ig?["error"] != nil {
+            HStack {
+                Text("Instagram").font(.system(size: 17, weight: .semibold))
+                Spacer()
+                Muted("\(fmt(accounts.filter { ($0["ok"] as? Bool) == true }.map { num($0["followers"]) }.reduce(0, +))) abonnés au total", size: 12.5)
+            }
+            .padding(.top, 8)
+            if let e = ig?["error"] as? String { Muted(e).padding(14).glassCard() }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 14, alignment: .top)], spacing: 14) {
+                ForEach(Array(accounts.enumerated()), id: \.offset) { _, a in igCard(a) }
+            }
+            Muted("Ajouter ou retirer un compte suivi : version web, page Apps et site.", size: 12)
+        }
+    }
+
+    private func igCard(_ a: [String: Any]) -> some View {
+        let handle = a["handle"] as? String ?? ""
+        let media = (a["media"] as? [[String: Any]]) ?? []
+        let liked = media.filter { $0["likes"] is NSNumber }
+        let avgLikes = liked.isEmpty ? nil : liked.map { num($0["likes"]) }.reduce(0, +) / Double(liked.count)
+        let avgCom = liked.isEmpty ? nil : liked.map { num($0["comments"]) }.reduce(0, +) / Double(liked.count)
+        let followers = num(a["followers"])
+        let rate = (avgLikes != nil && followers > 0) ? ((avgLikes! + (avgCom ?? 0)) / followers * 100) : nil
+        let d7 = a["d7"] as? NSNumber
+        return VStack(alignment: .leading, spacing: 12) {
+            if (a["ok"] as? Bool) != true {
+                Text("@\(handle)").font(.system(size: 14, weight: .semibold))
+                Text(a["error"] as? String ?? "Compte introuvable").font(.system(size: 12.5)).foregroundStyle(Theme.red)
+            } else {
+                HStack(spacing: 12) {
+                    AsyncImage(url: URL(string: a["avatar"] as? String ?? "")) { img in img.resizable().scaledToFill() } placeholder: { Theme.card2 }
+                        .frame(width: 44, height: 44).clipShape(Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(a["label"] as? String ?? handle).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                        Link("@\(handle)", destination: URL(string: "https://instagram.com/\(handle)")!).font(.system(size: 12)).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(fmt(followers)).font(.system(size: 20, weight: .bold)).monospacedDigit()
+                        Text(d7.map { $0.intValue == 0 ? "±0 sur 7 j" : ($0.intValue > 0 ? "+ \($0.intValue) sur 7 j" : "− \(-$0.intValue) sur 7 j") } ?? "abonnés")
+                            .font(.system(size: 11.5)).foregroundStyle((d7?.intValue ?? 0) > 0 ? Theme.green : ((d7?.intValue ?? 0) < 0 ? Theme.red : Theme.muted))
+                    }
+                }
+                HStack(spacing: 8) {
+                    kpi("Posts", fmt(num(a["posts"])))
+                    kpi("J'aime moy.", avgLikes.map(fmt) ?? "–")
+                    kpi("Comment.", avgCom.map(fmt) ?? "–")
+                    kpi("Engagement", rate.map { String(format: "%.1f %%", $0).replacingOccurrences(of: ".", with: ",") } ?? "–")
+                }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+                    ForEach(Array(media.enumerated()), id: \.offset) { _, m in
+                        Link(destination: URL(string: m["url"] as? String ?? "https://instagram.com")!) {
+                            Color.clear.aspectRatio(1, contentMode: .fit)
+                                .overlay {
+                                    AsyncImage(url: URL(string: m["img"] as? String ?? "")) { img in img.resizable().scaledToFill() } placeholder: { Theme.card2 }
+                                }
+                                .overlay(alignment: .bottomLeading) {
+                                    Text("♥ \(fmt(num(m["likes"]))) · \(fmt(num(m["comments"])))")
+                                        .font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white)
+                                        .padding(.horizontal, 6).padding(.vertical, 4)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        }
+                        .help(m["caption"] as? String ?? "")
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .glassCard()
+    }
+
+    private func kpi(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+            Text(value).font(.system(size: 14, weight: .semibold)).monospacedDigit().lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func storeCard(_ st: [String: Any]) -> some View {
@@ -201,6 +318,15 @@ struct AppsStatsView: View {
     }
 
     // MARK: données
+
+    private var igTotal: Double? {
+        guard let acc = (stats?["ig"] as? [String: Any])?["accounts"] as? [[String: Any]], !acc.isEmpty else { return nil }
+        return acc.filter { ($0["ok"] as? Bool) == true }.map { num($0["followers"]) }.reduce(0, +)
+    }
+    private var subsPaid: Double? {
+        guard let s = ok(stats?["subs"]) else { return nil }
+        return ((s["plans"] as? [[String: Any]]) ?? []).map { num($0["paid"]) }.reduce(0, +)
+    }
 
     private var updatedLabel: String {
         guard let s = (stats?["cached"] as? String) ?? (stats?["at"] as? String), let d = DateFmt.parse(s) else { return "Statistiques de tes apps et de ton site" }

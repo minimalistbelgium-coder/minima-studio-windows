@@ -64,9 +64,12 @@ function start() {
 
   invoke('plugin:app|version').then((v) => { st.version = v; checkUpdate(); });
   setInterval(checkUpdate, 3 * 3600 * 1000);
-  setInterval(() => tick().catch(console.error), TICK * 1000);
+  // Deux horloges : celle de la page et un battement envoyé par l'app (Rust), qui continue
+  // quand Windows ralentit la page cachée. tickOnce évite de compter deux fois.
+  setInterval(tickOnce, TICK * 1000);
+  T.event?.listen?.('ms-tick', tickOnce);
   setInterval(publishMini, 1000);
-  tick().catch(console.error);
+  tickOnce();
 }
 
 const me = () => window.MS.S.me;
@@ -108,6 +111,13 @@ async function linkProject(key, missionId) {
 }
 
 // ---------- boucle du chrono ----------
+let ticking = false, lastTickStart = 0;
+function tickOnce() {
+  const t = Date.now();
+  if (ticking || t - lastTickStart < (TICK - 1) * 1000) return;
+  ticking = true; lastTickStart = t;
+  tick().catch(console.error).finally(() => { ticking = false; });
+}
 async function tick() {
   if (!isTeam()) { st.status = 'disabled'; renderCard(); return; }
   const t = Date.now();

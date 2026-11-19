@@ -137,6 +137,11 @@ fn premiere_state() -> PremiereState {
     }
 }
 
+/// Arguments WebView2 : sans eux, Windows ralentit les minuteurs JS quand la fenêtre est cachée
+/// (app réduite dans la zone de notification), à une fois par minute, et le chrono décroche.
+/// Mêmes valeurs que dans tauri.conf.json : toutes les fenêtres doivent partager les mêmes.
+const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows";
+
 /// Ouvre (ou montre) la petite fenêtre du chrono, toujours au-dessus.
 #[tauri::command]
 fn show_mini(app: tauri::AppHandle) -> Result<(), String> {
@@ -154,6 +159,7 @@ fn show_mini(app: tauri::AppHandle) -> Result<(), String> {
         .shadow(false)
         .always_on_top(true)
         .skip_taskbar(true)
+        .additional_browser_args(BROWSER_ARGS)
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -221,6 +227,16 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
+            // Battement du chrono envoyé depuis Rust toutes les 5 s : il arrive même quand la
+            // fenêtre est cachée et que la page ralentit ses propres minuteurs.
+            {
+                use tauri::Emitter;
+                let handle = app.handle().clone();
+                std::thread::spawn(move || loop {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    let _ = handle.emit_to("main", "ms-tick", ());
+                });
+            }
             {
                 use tauri::Emitter;
                 use tauri_plugin_deep_link::DeepLinkExt;

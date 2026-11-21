@@ -805,3 +805,54 @@ input.in[type=date]::-webkit-date-and-time-value,input.in[type=datetime-local]::
 .bars.pad .bar-row .bl{flex-wrap:wrap;row-gap:2px}
 .bars.pad .bar-row .bl .lbl{flex:1 1 100%;white-space:normal!important;overflow:hidden!important;overflow-wrap:anywhere;line-height:1.35}
 .bars.pad .bar-row .bl>span:not(.dot):not(.av):not(.lbl){flex:1 1 0}
+
+/* ---------- Champs date et heure : jamais plus larges que leur colonne (Safari iPhone) ---------- */
+input.in[type=time],input.in[type=month]{-webkit-appearance:none;appearance:none;display:block;width:100%;min-width:0;max-width:100%;text-align:left;line-height:22px}
+input.in[type=time]::-webkit-date-and-time-value,input.in[type=month]::-webkit-date-and-time-value{text-align:left;margin:0}
+input.in[type=date],input.in[type=datetime-local]{width:100%}
+.form-dates>div>input,.form-dates>div>select{width:100%;min-width:0}
+.sheet form,.sheet .card,.sheet .row{min-width:0;max-width:100%}
+
+/* ---------- Prochaines publications ---------- */
+.posts-card{margin-top:16px;overflow:hidden}
+.posts-card .card-head{align-items:center}
+.posts-card .card-head h2{margin-right:auto}
+.link-btn{border:0;background:none;padding:4px 0;font:inherit;font-size:13px;color:var(--blue,#4C8DFF);cursor:pointer;white-space:nowrap}
+.link-btn:hover{text-decoration:underline}
+.post-strip{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding:0 2px;margin:0 -2px;padding:2px 2px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.post-strip::-webkit-scrollbar{display:none}
+.post-tile{flex:0 0 148px;width:148px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0}
+.post-thumb{position:relative;display:grid;place-items:center;width:100%;aspect-ratio:4/5;border-radius:14px;overflow:hidden;margin-bottom:4px;
+  background:linear-gradient(150deg,color-mix(in srgb,var(--c) 42%,transparent),color-mix(in srgb,var(--c) 12%,transparent));border:1px solid var(--line2);box-shadow:var(--spec,none);transition:transform .25s var(--spring)}
+.post-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.post-thumb svg{width:30px;height:30px;fill:none;stroke:rgba(255,255,255,.85);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.post-fmt{position:absolute;top:8px;left:8px;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:600;color:#fff;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.post-tile.late .post-thumb{border-color:color-mix(in srgb,#F5A524 70%,transparent)}
+.post-tile:hover .post-thumb{transform:translateY(-2px)}
+.post-tile:focus-visible{outline:none}.post-tile:focus-visible .post-thumb{box-shadow:0 0 0 2px var(--c)}
+.post-brand{display:flex;align-items:center;gap:6px;max-width:100%;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.post-when{max-width:100%;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.post-when.warn{color:#F5A524}
+.post-title{max-width:100%;font-size:12px;line-height:1.35;color:var(--text2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.post-st{margin-top:2px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;color:var(--s);background:color-mix(in srgb,var(--s) 15%,transparent)}
+@media (max-width:640px){.post-tile{flex-basis:132px;width:132px}.post-strip{margin:0 -16px;padding:2px 16px 6px;scroll-padding:0 16px}}
+/* Les textes longs (adresses e-mail, liens) se coupent au lieu de sortir de leur carte */
+.row>div:not([class]),.row>.grow{min-width:0}
+.lbl,.kv>span,.card b{overflow-wrap:anywhere}
+/* Listes qui défilent sur le côté : un fondu indique la suite, le dernier élément peut sortir du fondu */
+.f-scroll,.chips{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);padding-right:28px}
+@media (max-width:640px){.tabs-bar button{padding:9px 9px;font-size:13px}.tabs-bar{gap:2px}}
+/* Missions : les 4 ou 5 filtres tiennent toujours sur la largeur du téléphone (libellé + nombre empilés) */
+@media (max-width:640px){
+  .toolbar .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;overflow:hidden}
+  .toolbar .seg button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:46px;padding:4px 2px;font-size:12.5px;line-height:1.15;min-width:0}
+  .toolbar .seg .n{margin-left:0;font-size:11px}
+}
+@media (max-width:360px){
+  .toolbar .seg button{font-size:11.5px}
+  .tabs-bar button{flex:1 1 auto;min-width:0;padding:8px 4px;font-size:11.5px}
+  .seg button{padding:0 9px}
+}
+.post-strip{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);padding-right:22px}
+:root[data-theme="light"] .post-thumb svg{stroke:color-mix(in srgb,var(--c) 85%,#000)}
+:root[data-theme="light"] .post-thumb{border-color:color-mix(in srgb,var(--c) 30%,transparent)}

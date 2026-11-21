@@ -248,7 +248,7 @@ async function loadAll() {
     sb.from('mission_versions').select('*').order('created_at'),
     sb.from('app_settings').select('*'),
   ];
-  if (isAdmin()) q.push(sb.from('mission_finance').select('*'), sb.from('team_invites').select('*').order('invited_at', { ascending: false }));
+  if (isAdmin()) q.push(sb.from('mission_finance').select('*'), sb.from('team_invites').select('*').order('invited_at', { ascending: false }), postsQuery());
   const r = await Promise.all(q);
   const err = r.find((x) => x.error); if (err) console.warn(err.error);
   [S.clients, S.missions, S.profiles, S.members, S.sessions, S.notifs] = r.slice(0, 6).map((x) => x.data || []);
@@ -256,6 +256,7 @@ async function loadAll() {
   S.settings = {}; (r[7].data || []).forEach((x) => { S.settings[x.key] = x.value; });
   S.finances = {}; (r[8]?.data || []).forEach((f) => { S.finances[f.mission_id] = f; });
   S.invites = r[9]?.data || [];
+  if (isAdmin()) S.posts = r[10]?.error ? (S.posts || []) : r[10]?.data || [];
   if (isAdmin()) { const ca = await sb.from('client_access').select('*'); S.access = ca.error ? [] : ca.data || []; } else S.access = [];
   // Historique comptable (factures et sous-traitance d'avant l'app), réservé à l'admin
   if (isAdmin()) { const h = await sb.from('finance_history').select('*').order('doc_date'); S.history = h.error ? [] : h.data || []; } else S.history = [];
@@ -836,6 +837,7 @@ function homeAdmin() {
     <div class="wide stack">${todoCard(todo)}</div>
     <div class="narrow stack">${upcomingCard(7)}</div>
   </div>
+  ${postsCard(true)}
   ${teamFold()}`;
 }
 // À faire : les 3 plus urgents, le reste derrière « voir les autres ».
@@ -1042,7 +1044,7 @@ function projectsPage() {
   const edChips = eds.length > 1 || (eds.length && g[S.filter].some((m) => m.claude_editor)) ? `<div class="f-row"><span class="f-lbl">Monteur</span><div class="f-scroll"><button class="chip ${!S.edFilter ? 'on' : ''}" data-edf="">Tous</button>${eds.map((p) => `<button class="chip ${S.edFilter === p.id ? 'on' : ''}" data-edf="${p.id}">${avatar(p, 18)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}${g[S.filter].some((m) => m.claude_editor) ? `<button class="chip ${S.edFilter === 'claude' ? 'on' : ''}" data-edf="claude">${claudeAvatar(18)}Claude</button>` : ''}</div></div>` : '';
   const sorts = `<div class="f-row"><span class="f-lbl">Trier par</span><div class="f-scroll">${SORTS.filter(([k]) => k !== 'editor' || !isEditor()).map(([k, t]) => `<button class="chip ${S.sort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`).join('')}</div></div>`;
   return `${header(`${g.open.length} en cours · ${g.delivered.length} livrées`, isEditor() ? 'Mes missions' : 'Missions', `${viewSeg()}${isAdmin() ? NEW_BTN : ''}`)}
-  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label><button class="btn ${S.showFilters ? 'on' : ''}" data-set="showFilters:${S.showFilters ? '' : '1'}" aria-expanded="${!!S.showFilters}">Filtrer${S.clientFilter || S.edFilter ? ' · actif' : ''}</button></div>${S.showFilters || S.clientFilter || S.edFilter ? `<div class="filters">${sorts}${chips}${edChips}</div>` : ''}
+  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher…" value="${esc(S.search)}" aria-label="Rechercher"></label><button class="btn ${S.showFilters ? 'on' : ''}" data-set="showFilters:${S.showFilters ? '' : '1'}" aria-expanded="${!!S.showFilters}">Filtrer${S.clientFilter || S.edFilter ? ' · actif' : ''}</button></div>${S.showFilters || S.clientFilter || S.edFilter ? `<div class="filters">${sorts}${chips}${edChips}</div>` : ''}
   <div class="card flush"><div class="list" id="proj-list">${projectRows()}</div></div>
   ${S.filter === 'requests' ? '<p class="lbl" style="margin-top:14px">Ouvre une demande pour fixer le budget, le prix et le monteur, puis accepte-la. Le client est prévenu automatiquement.</p>' : ''}`;
 }
@@ -1447,7 +1449,7 @@ function notifsPage() {
 const ROLE_LABEL = { admin: 'Admin', editor: 'Monteur', client: 'Client', none: 'Sans accès' };
 const ROLE_COLOR = { admin: '#4C8DFF', editor: '#3DD68C', client: '#F472B6', none: '#8B8D94' };
 function teamPage() {
-  const tabs = [['members', 'Équipe'], ['clients', 'Clients'], ['settings', 'Liens'], ['connect', 'Connexions'], ['account', 'Mon compte']].map(([k, t]) => `<button role="tab" aria-selected="${(S.teamTab || 'members') === k}" class="${(S.teamTab || 'members') === k ? 'on' : ''}" data-teamtab="${k}">${t}</button>`).join('');
+  const tabs = [['members', 'Équipe'], ['clients', 'Clients'], ['settings', 'Liens'], ['connect', 'Connexions'], ['account', 'Compte']].map(([k, t]) => `<button role="tab" aria-selected="${(S.teamTab || 'members') === k}" class="${(S.teamTab || 'members') === k ? 'on' : ''}" data-teamtab="${k}">${t}</button>`).join('');
   let body = '';
   if (S.teamTab === 'clients') {
     body = `<div class="card flush"><div class="card-head"><h2>Clients</h2><button class="btn sm" data-act="newclient">${small(I.plus)}Ajouter</button></div><div class="list">
@@ -1586,7 +1588,7 @@ function renderSheet(keep = false) {
   if (s.type === 'member') return sheetWrap('Équipe', profile(s.id)?.full_name || profile(s.id)?.email || '', '', memberForm(profile(s.id)), keep, true);
   if (s.type === 'client') return sheetWrap('Clients', s.id ? client(s.id)?.name || '' : 'Nouveau client', '', clientForm(s.id ? client(s.id) : null), keep, true);
   if (s.type === 'post') {
-    const r = s.id ? (S.apps?.sched?.rows || []).find((x) => String(x.id) === String(s.id)) : null;
+    const r = s.id ? findPost(s.id) : null;
     if (s.id && !r) return closeSheet();
     const [bn, bc] = r ? IG_BRAND[r.handle] || [r.handle, '#8B8D94'] : ['Programme', '#8B8D94'];
     const sub = r ? `<div class="row" style="flex-wrap:wrap;gap:8px">${pill(r.status, SCHED_COLOR[r.status] || '#8B8D94')}<span class="lbl">${esc(r.format)} · ${esc(cap(d(r.at).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })))} à ${d(r.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span></div>` : '';
@@ -1997,11 +1999,11 @@ const IG_BRAND = { 'fastsign.app': ['FastSign', '#4C8DFF'], 'agora.app.be': ['Ag
 const SCHED_NEXT = { 'Prêt': 'Programmé', 'Programmé': 'Publié', 'Publié': 'Prêt', 'À créer': 'Prêt' };
 const SCHED_COLOR = { 'Prêt': '#3DD68C', 'Programmé': '#4C8DFF', 'Publié': '#8B8D94', 'À créer': '#F5A524' };
 function schedSection() {
-  const sc = S.apps?.sched;
+  const sc = S.apps?.sched?.ok ? S.apps.sched : S.posts ? { ok: true, rows: S.posts, todo: S.posts.filter((r) => r.status === 'À créer') } : S.apps?.sched;
   if (!sc?.ok) return sc?.error ? `<div class="card"><div class="lbl">${esc(sc.error)}</div></div>` : '';
   const now = new Date(); const today = ymd(now);
   const day = (iso) => ymd(d(iso));
-  const rows = sc.rows.map((r) => ({ ...r, dayK: day(r.at) }));
+  const rows = postRows().map((r) => ({ ...r, dayK: day(r.at) }));
   // Semaine en cours (lundi à dimanche) : posts publiés / prévus par marque
   const mon = new Date(now); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(sun.getDate() + 7);
   let week = rows.filter((r) => r.format !== 'Story' && d(r.at) >= mon && d(r.at) < sun); let wLbl = 'cette semaine';
@@ -2022,11 +2024,40 @@ function schedSection() {
     <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm pri" data-act="schednew">${small(I.plus || '')}Ajouter une publication</button><button class="btn sm" data-act="schedspan">${span === 7 ? 'Voir 4 semaines' : 'Voir 7 jours'}</button>${todo.length ? `<span class="lbl" style="color:#F5A524">${todo.length} contenu${todo.length > 1 ? 's' : ''} encore à créer, le premier pour le ${esc(dshort(d(todo[0].at)))}</span>` : ''}</div>
     <div class="lbl" style="margin-top:8px">Les carrousels et reels publiés sont cochés tout seuls quand ils apparaissent sur Instagram. Les stories et les reels d'essai, tu les coches en touchant leur statut. Touche une publication pour l'afficher et la modifier.</div></div>`;
 }
+// Aperçu visuel des prochaines publications (Accueil et Marques › Publications).
+const POST_ICON = { Reel: '<path d="M4 5h16v14H4z"/><path d="M10 9l5 3-5 3z"/>', "Reel d'essai": '<path d="M4 5h16v14H4z"/><path d="M10 9l5 3-5 3z"/>', Story: '<circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/>', Carrousel: '<path d="M7 7h12v12H7z"/><path d="M4 4h12"/><path d="M4 4v12"/>', Post: '<path d="M4 4h16v16H4z"/><path d="M4 16l5-5 4 4 3-3 4 4"/>' };
+function postsCard(compact) {
+  const rows = postRows(); const today = ymd(new Date());
+  const late = rows.filter((r) => r.format !== 'Story' && r.status !== 'Publié' && ymd(d(r.at)) < today);
+  const next = rows.filter((r) => ymd(d(r.at)) >= today && r.status !== 'Publié').sort((a, b) => d(a.at) - d(b.at));
+  const list = [...late, ...next.slice(0, compact ? 8 : 16)];
+  const tile = (r) => {
+    const [bn, bc] = IG_BRAND[r.handle] || [r.handle, '#8B8D94']; const m = igMediaFor(r); const isLate = late.includes(r); const sc = SCHED_COLOR[r.status] || '#8B8D94';
+    const when = `${cap(d(r.at).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' }))} · ${d(r.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`;
+    return `<button class="post-tile${isLate ? ' late' : ''}" data-act="schedopen" data-id="${r.id}" style="--c:${bc}" aria-label="${esc(`${bn}, ${r.format}, ${when} : ${r.title}`)}">
+      <span class="post-thumb">${m?.img ? `<img src="${esc(m.img)}" alt="" loading="lazy">` : `<svg viewBox="0 0 24 24" aria-hidden="true">${POST_ICON[r.format] || POST_ICON.Post}</svg>`}<span class="post-fmt">${esc(r.format)}</span></span>
+      <span class="post-brand"><span class="dot" style="background:${bc}"></span>${esc(bn)}</span>
+      <span class="post-when${isLate ? ' warn' : ''}">${esc(when)}</span>
+      <span class="post-title">${esc(r.title)}</span>
+      <span class="post-st" style="--s:${sc}">${esc(r.status)}</span></button>`;
+  };
+  const head = `<div class="card-head flat"><h2>Prochaines publications</h2>${late.length ? pill(`${late.length} pas encore vu${late.length > 1 ? 's' : ''} en ligne`, '#F5A524') : ''}${compact ? `<button class="link-btn" ${jump('apps', 'apps-sched')}>Tout le programme</button>` : ''}</div>`;
+  const body = S.posts === undefined && !S.apps?.sched ? '<div class="lbl">Chargement du programme…</div>'
+    : list.length ? `<div class="post-strip">${list.map(tile).join('')}</div>` : '<div class="lbl">Rien de programmé pour l\'instant.</div>';
+  return `<div class="card posts-card">${head}${body}</div>`;
+}
 const SCHED_FORMATS = ['Carrousel', 'Reel', "Reel d'essai", 'Story', 'Post'];
 const SCHED_STATUSES = ['À créer', 'Prêt', 'Programmé', 'Publié'];
-async function reloadSched() {
+// Programme de publication : chargé directement (sans attendre les statistiques des apps).
+function postsQuery() {
   const from = new Date(Date.now() - 14 * 864e5).toISOString(), to = new Date(Date.now() + 28 * 864e5).toISOString();
-  const { data } = await sb.from('ig_schedule').select('id,handle,at,format,title,status,ref,post_url').gte('at', from).lte('at', to).order('at');
+  return sb.from('ig_schedule').select('id,handle,at,format,title,status,ref,post_url').gte('at', from).lte('at', to).order('at');
+}
+const postRows = () => (S.posts?.length ? S.posts : S.apps?.sched?.rows || []);
+const findPost = (id) => postRows().find((x) => String(x.id) === String(id)) || (S.apps?.sched?.rows || []).find((x) => String(x.id) === String(id));
+async function reloadSched() {
+  const { data } = await postsQuery();
+  if (data) S.posts = data;
   const { data: todo } = await sb.from('ig_schedule').select('id,handle,at,title').eq('status', 'À créer').order('at');
   if (S.apps?.sched) Object.assign(S.apps.sched, { rows: data || [], todo: todo || [] });
 }
@@ -2058,7 +2089,9 @@ function appsPage() {
   const A = S.apps; const base = A?.base?.ok ? A.base : null; const store = A?.store?.ok ? A.store : null; const site = A?.site?.ok ? A.site : null;
   const when = A?.cached || A?.at;
   const right = `<button class="btn" data-act="appsrefresh" ${S.appsLoading ? 'disabled' : ''}>${S.appsLoading ? 'Chargement…' : 'Actualiser'}</button>`;
-  if (!A) return `${header('Comment vont tes apps, tes comptes et ton site', 'Marques', right)}<div class="card"><div class="empty">Chargement des statistiques…</div></div>`;
+  const tab = S.appsTab || 'summary';
+  const tabs = `<div class="tabs-bar" role="tablist">${[['summary', 'Résumé'], ['apps', 'Apps'], ['pubs', 'Publications'], ['site', 'Site']].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="appsTab:${k}">${l}</button>`).join('')}</div>`;
+  if (!A) return `${header('Comment vont tes apps, tes comptes et ton site', 'Marques', right)}${tabs}<div class="tab-body" key="${tab}">${tab === 'pubs' ? `${postsCard(false)}<div id="apps-sched">${schedSection()}</div>` : '<div class="card"><div class="empty">Chargement des statistiques…</div></div>'}</div>`;
   const dl30 = store ? store.apps.reduce((a, x) => a + x.downloads, 0) : null;
   const proc30 = store ? store.apps.reduce((o, x) => { Object.entries(x.proceeds).forEach(([c, v]) => { o[c] = (o[c] || 0) + v; }); return o; }, {}) : null;
   const tiles = `<div class="grid">
@@ -2080,13 +2113,11 @@ function appsPage() {
   const siteCard = site ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>minimalistbelgium.com · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites · ${nfmt(site.days.reduce((a, x) => a + x.views, 0))} pages vues</span></div>
     ${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}
     <div class="site-cols"><div><div class="sub-h" style="padding-left:0">Pages les plus vues</div>${topList(site.pages, (k) => (k === '/' ? 'Accueil' : k))}</div><div><div class="sub-h" style="padding-left:0">Pays</div>${topList(site.countries)}</div><div><div class="sub-h" style="padding-left:0">Provenance</div>${topList(site.refs)}</div></div></div>` : '';
-  const tab = S.appsTab || 'summary';
-  const tabs = `<div class="tabs-bar" role="tablist">${[['summary', 'Résumé'], ['apps', 'Apps'], ['pubs', 'Publications'], ['site', 'Site']].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="appsTab:${k}">${l}</button>`).join('')}</div>`;
   const dlCard = store ? `<div class="card"><div class="card-head flat"><h2>Téléchargements · 30 jours</h2><span class="lbl">${nfmt(dl30)} au total${store.lastDay ? ` · dernier rapport Apple : ${esc(dshort(fromYmd(store.lastDay)))}` : ''}</span></div>${miniBars(store.daily, (x) => x.n, (x) => `${x.d} : ${x.n} téléchargement${x.n > 1 ? 's' : ''}`)}</div>` : '';
   const visCard = site ? `<div class="card"><div class="card-head flat"><h2>Visites du site · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites</span></div>${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}</div>` : '';
   let body;
   if (tab === 'apps') body = `${apps}${subsCard()}${revenue}`;
-  else if (tab === 'pubs') body = `<div id="apps-sched">${schedSection()}</div><div id="apps-ig">${igSection()}</div>`;
+  else if (tab === 'pubs') body = `${postsCard(false)}<div id="apps-sched">${schedSection()}</div><div id="apps-ig">${igSection()}</div>`;
   else if (tab === 'site') body = siteCard || `<div class="card"><div class="empty">Le site n'est pas encore connecté.</div><button class="btn" ${jump('apps', 'apps-connect')}>Ouvrir les connexions</button></div>`;
   else body = `${tiles}<div class="ana-grid" style="margin-top:16px">${dlCard}${visCard}</div>`;
   return `${header(`Comment vont tes apps, tes comptes et ton site${when ? ` · à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Marques', right)}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
@@ -2162,14 +2193,15 @@ const ACTIONS = {
   schedopen(t) { openSheet({ type: 'post', id: t.dataset.id }); },
   schednew() { openSheet({ type: 'post', id: null }); },
   async scheddel(t) {
-    const r = (S.apps?.sched?.rows || []).find((x) => String(x.id) === t.dataset.id); if (!r) return;
+    const r = findPost(t.dataset.id); if (!r) return;
     if (!(await dialog({ title: 'Supprimer cette publication du programme ?', body: r.title, ok: 'Supprimer', danger: true }))) return;
     fail(await sb.from('ig_schedule').delete().eq('id', r.id));
     closeSheet(); await reloadSched(); render(); toast('Publication retirée du programme.');
   },
   async schedst(t) {
-    const r = S.apps?.sched?.rows?.find((x) => String(x.id) === t.dataset.id); if (!r) return;
-    const next = SCHED_NEXT[r.status] || 'Prêt'; r.status = next; render();
+    const r = findPost(t.dataset.id); if (!r) return;
+    const next = SCHED_NEXT[r.status] || 'Prêt';
+    [...(S.posts || []), ...(S.apps?.sched?.rows || [])].filter((x) => String(x.id) === String(r.id)).forEach((x) => { x.status = next; }); render();
     fail(await sb.from('ig_schedule').update({ status: next, updated_at: new Date().toISOString() }).eq('id', r.id));
   },
   schedspan() { S.schedDays = (S.schedDays || 7) === 7 ? 28 : 7; render(); },

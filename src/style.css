@@ -856,3 +856,18 @@ input.in[type=date],input.in[type=datetime-local]{width:100%}
 .post-strip{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);padding-right:22px}
 :root[data-theme="light"] .post-thumb svg{stroke:color-mix(in srgb,var(--c) 85%,#000)}
 :root[data-theme="light"] .post-thumb{border-color:color-mix(in srgb,var(--c) 30%,transparent)}
+
+/* ---------- Fiche post : ce qu'il faut pour poster ---------- */
+.kit h2{margin:0 0 4px}
+.kit-sec{padding:12px 0;border-top:1px solid var(--line)}
+.kit-sec:first-of-type{border-top:0}
+.kit-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kit-h label.btn{text-transform:none;letter-spacing:0}
+.kit-file{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 0}
+.kit-file .grow{flex:1;min-width:0}
+.kit-file b{display:block;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kit-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:var(--card2);font-size:15px;flex-shrink:0}
+.kit-btns{display:flex;gap:8px;flex-wrap:wrap}
+.kit-cap{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;padding:12px 14px;border-radius:12px;background:var(--card2);max-height:220px;overflow-y:auto;user-select:text;-webkit-user-select:text}
+.kit-snd{font-size:14.5px;font-weight:500}
+@media (max-width:640px){.kit-btns{width:100%}.kit-btns .btn{flex:1;justify-content:center}}

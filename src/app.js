@@ -20,6 +20,7 @@ const S = {
   view: store.get('msAgendaView'), agDate: new Date(), agDay: ymd(new Date()), agEditor: '', agClient: '',
   sheet: null, openId: null, hash: '', pending: false,
   deepLink: new URLSearchParams(location.search).get('m'),
+  deepPost: new URLSearchParams(location.search).get('post'),
   deepRoute: new URLSearchParams(location.search).get('r'),
 };
 const app = document.getElementById('app');
@@ -2051,7 +2052,7 @@ const SCHED_STATUSES = ['À créer', 'Prêt', 'Programmé', 'Publié'];
 // Programme de publication : chargé directement (sans attendre les statistiques des apps).
 function postsQuery() {
   const from = new Date(Date.now() - 14 * 864e5).toISOString(), to = new Date(Date.now() + 28 * 864e5).toISOString();
-  return sb.from('ig_schedule').select('id,handle,at,format,title,status,ref,post_url').gte('at', from).lte('at', to).order('at');
+  return sb.from('ig_schedule').select('id,handle,at,format,title,status,ref,post_url,caption,sound,files').gte('at', from).lte('at', to).order('at');
 }
 const postRows = () => (S.posts?.length ? S.posts : S.apps?.sched?.rows || []);
 const findPost = (id) => postRows().find((x) => String(x.id) === String(id)) || (S.apps?.sched?.rows || []).find((x) => String(x.id) === String(id));
@@ -2066,6 +2067,49 @@ function igMediaFor(r) {
   for (const a of S.apps?.ig?.accounts || []) for (const m of a.media || []) if (m.url === r.post_url) return m;
   return null;
 }
+// Ouvre la fiche d'un post depuis une notification (même s'il sort de la période chargée).
+async function openPostLink(id) {
+  if (!findPost(id)) { const { data } = await sb.from('ig_schedule').select('id,handle,at,format,title,status,ref,post_url,caption,sound,files').eq('id', id).maybeSingle(); if (data) (S.posts ||= []).push(data); }
+  if (findPost(id)) { S.route = 'apps'; S.appsTab = 'pubs'; render(true); openSheet({ type: 'post', id }); } else toast('Cette publication n\'existe plus.');
+}
+// Fichiers à poster : liens signés, et fichiers préchargés pour « Enregistrer dans Photos » (le partage iOS doit partir tout de suite au toucher).
+const postBlobs = {};
+async function prepPostFiles(r) {
+  for (const f of r?.files || []) {
+    if (postBlobs[f.path]) continue;
+    postBlobs[f.path] = { loading: true };
+    try {
+      const { data, error } = await sb.storage.from('posts').createSignedUrl(f.path, 3600, { download: f.name });
+      if (error) throw error;
+      postBlobs[f.path] = { url: data.signedUrl };
+      if ((f.size || 0) < 150 * 1024 * 1024) {
+        const blob = await (await fetch(data.signedUrl)).blob();
+        postBlobs[f.path] = { url: data.signedUrl, file: new File([blob], f.name, { type: f.type || blob.type }) };
+      }
+    } catch (e) { postBlobs[f.path] = { error: String(e.message || e) }; }
+    if (S.sheet?.type === 'post' && String(S.sheet.id) === String(r.id)) renderSheet(true);
+  }
+}
+const fsize = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`);
+function postKit(r) {
+  if (!r) return '';
+  const files = r.files || []; prepPostFiles(r);
+  const fileRows = files.map((f, i) => {
+    const b = postBlobs[f.path] || {}; const vid = /^video/.test(f.type || '') || /\.(mp4|mov)$/i.test(f.name);
+    return `<div class="kit-file"><span class="kit-ic">${vid ? '▶' : '◻'}</span><div class="grow"><b>${esc(f.name)}</b><div class="lbl">${f.size ? fsize(f.size) : ''}${b.loading ? ' · préparation…' : b.error ? ' · indisponible' : ''}</div></div>
+      <div class="kit-btns"><button class="btn sm pri" data-act="postsave" data-i="${i}" ${b.file || b.url ? '' : 'disabled'}>${vid ? 'Enregistrer la vidéo' : 'Enregistrer'}</button>${b.url ? `<a class="btn sm" href="${esc(b.url)}" target="_blank" rel="noopener">Ouvrir</a>` : ''}</div></div>`;
+  }).join('');
+  const cap = (r.caption || '').trim(); const snd = (r.sound || '').trim();
+  return `<div class="card kit">
+    <h2>À poster</h2>
+    <div class="kit-sec"><div class="kit-h"><span>Fichier</span><label class="btn sm">${files.length ? 'Remplacer' : 'Ajouter le fichier'}<input type="file" id="post-upload" data-id="${r.id}" accept="image/*,video/*" multiple hidden></label></div>
+      ${fileRows || `<div class="lbl">${r.ref ? `Pas encore envoyé. Minima Studio sur ton Mac l'envoie tout seul depuis Publications Instagram (${esc(r.ref)}) dans les 3 jours avant le post.` : 'Aucun fichier. Ajoute-le ici ou indique le lot et le numéro dans « Fichier » plus bas.'}</div>`}</div>
+    <div class="kit-sec"><div class="kit-h"><span>Description</span>${cap ? '<button class="btn sm" data-act="postcopy" data-k="caption">Copier</button>' : ''}</div>
+      ${cap ? `<div class="kit-cap">${esc(cap)}</div>` : '<div class="lbl">Pas encore de description. Écris-la dans le formulaire plus bas.</div>'}</div>
+    <div class="kit-sec"><div class="kit-h"><span>Son conseillé</span>${snd ? '<button class="btn sm" data-act="postcopy" data-k="sound">Copier</button>' : ''}</div>
+      <div class="${snd ? 'kit-snd' : 'lbl'}">${snd ? esc(snd) : 'Pas de son indiqué. Dans Instagram, choisis un son marqué d\'une flèche ↗ (en tendance).'}</div></div>
+  </div>`;
+}
 function schedForm(r) {
   const at = r ? d(r.at) : (() => { const x = new Date(); x.setDate(x.getDate() + 1); x.setHours(19, 0, 0, 0); return x; })();
   const handles = [...new Set([...Object.keys(IG_BRAND), ...(S.igAccounts || []).map((a) => a.handle)])];
@@ -2073,13 +2117,15 @@ function schedForm(r) {
   const preview = m ? `<a class="sched-prev" href="${esc(m.url)}" target="_blank" rel="noopener"><img src="${esc(m.img || '')}" alt=""><div><b>Publié sur Instagram</b><div class="lbl">♥ ${nfmt(m.likes)} · ${nfmt(m.comments)} commentaires${m.at ? ` · ${esc(ago(m.at))}` : ''}</div><div class="lbl" style="margin-top:4px">Ouvrir le post ↗</div></div></a>`
     : r?.post_url ? `<a class="btn full" href="${esc(r.post_url)}" target="_blank" rel="noopener">Ouvrir le post sur Instagram ↗</a>` : '';
   const opt = (list, cur, lbl = (x) => x) => list.map((x) => `<option value="${esc(x)}" ${x === cur ? 'selected' : ''}>${esc(lbl(x))}</option>`).join('');
-  return `${preview}<form class="card" id="sched-form" data-id="${r?.id || ''}" style="${preview ? 'margin-top:14px' : ''}">
+  return `${postKit(r)}${preview}<form class="card" id="sched-form" data-id="${r?.id || ''}" style="${preview || r ? 'margin-top:14px' : ''}">
     <label class="f" for="sc-title" style="margin-top:0">Contenu</label><textarea class="in" id="sc-title" name="title" rows="2" required maxlength="300">${esc(r?.title || '')}</textarea>
     <div class="form-dates"><div><label class="f" for="sc-handle">Compte</label><select class="in" id="sc-handle" name="handle">${opt(handles, r?.handle || 'fastsign.app', (h) => `${IG_BRAND[h]?.[0] || h} · @${h}`)}</select></div>
       <div><label class="f" for="sc-format">Format</label><select class="in" id="sc-format" name="format">${opt(SCHED_FORMATS, r?.format || 'Carrousel')}</select></div></div>
     <div class="form-dates"><div><label class="f" for="sc-date">Date</label><input class="in" type="date" id="sc-date" name="date" required value="${ymd(at)}"></div>
       <div><label class="f" for="sc-time">Heure</label><input class="in" type="time" id="sc-time" name="time" required value="${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}"></div></div>
     <label class="f">Statut</label><div class="sched-stpick">${SCHED_STATUSES.map((x) => `<label style="--c:${SCHED_COLOR[x]}"><input type="radio" name="status" value="${esc(x)}" ${x === (r?.status || 'Prêt') ? 'checked' : ''}><span>${esc(x)}</span></label>`).join('')}</div>
+    <label class="f" for="sc-cap">Description</label><textarea class="in" id="sc-cap" name="caption" rows="5" maxlength="2200" placeholder="Texte, hashtags, mentions…">${esc(r?.caption || '')}</textarea>
+    <label class="f" for="sc-snd">Son conseillé</label><input class="in" id="sc-snd" name="sound" maxlength="200" value="${esc(r?.sound || '')}" placeholder="Titre · artiste">
     <label class="f" for="sc-ref">Fichier</label><input class="in" id="sc-ref" name="ref" maxlength="120" value="${esc(r?.ref || '')}" placeholder="Lot 01 · n°001">
     <label class="f" for="sc-url">Lien du post</label><input class="in" type="url" id="sc-url" name="post_url" maxlength="300" value="${esc(r?.post_url || '')}" placeholder="https://www.instagram.com/p/…">
     <div class="row" style="margin-top:20px;flex-wrap:wrap"><button class="btn pri" type="submit" style="flex:2">${r ? 'Enregistrer' : 'Ajouter au programme'}</button>
@@ -2191,6 +2237,12 @@ const ACTIONS = {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('Fichier CSV téléchargé.');
   },
   schedopen(t) { openSheet({ type: 'post', id: t.dataset.id }); },
+  async postcopy(t) { const r = findPost(S.sheet?.id); const v = r?.[t.dataset.k] || ''; try { await navigator.clipboard.writeText(v); toast(t.dataset.k === 'caption' ? 'Description copiée' : 'Son copié'); } catch { toast('Copie impossible : sélectionne le texte.'); } },
+  async postsave(t) {
+    const r = findPost(S.sheet?.id); const f = r?.files?.[+t.dataset.i]; if (!f) return; const b = postBlobs[f.path] || {};
+    if (b.file && navigator.canShare && navigator.canShare({ files: [b.file] })) { try { await navigator.share({ files: [b.file] }); } catch (e) { if (e.name !== 'AbortError') toast('Partage impossible : utilise « Ouvrir ».'); } return; }
+    if (b.url) { const a = document.createElement('a'); a.href = b.url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); }
+  },
   schednew() { openSheet({ type: 'post', id: null }); },
   async scheddel(t) {
     const r = findPost(t.dataset.id); if (!r) return;
@@ -2409,6 +2461,25 @@ document.addEventListener('focusout', () => { if (S.pending) setTimeout(softRend
 
 document.addEventListener('change', async (e) => {
   const sel = e.target;
+  if (sel.id === 'post-upload') {
+    const r = findPost(sel.dataset.id); const list = [...(sel.files || [])]; if (!r || !list.length) return;
+    toast(`Envoi de ${list.length > 1 ? `${list.length} fichiers` : 'du fichier'}…`);
+    try {
+      const old = r.files || []; const files = [];
+      for (const [i, file] of list.entries()) {
+        const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const path = `${r.id}/${Date.now()}-${i}.${ext}`;
+        const up = await sb.storage.from('posts').upload(path, file, { contentType: file.type || undefined, upsert: true });
+        if (up.error) throw up.error;
+        files.push({ path, name: file.name, type: file.type, size: file.size });
+      }
+      fail(await sb.from('ig_schedule').update({ files, updated_at: new Date().toISOString() }).eq('id', r.id));
+      if (old.length) await sb.storage.from('posts').remove(old.map((x) => x.path));
+      [...(S.posts || []), ...(S.apps?.sched?.rows || [])].filter((x) => String(x.id) === String(r.id)).forEach((x) => { x.files = files; });
+      renderSheet(true); toast('Fichier prêt pour le rappel.');
+    } catch (err) { toast('Envoi impossible : ' + (err.message || err)); }
+    return;
+  }
   if (sel.id === 'nm-client') { document.getElementById('nm-newclient').style.display = sel.value === '__new' ? 'block' : 'none'; renderPriceSuggest(); return; }
   if (sel.id === 'iv-role') { document.getElementById('iv-client-wrap').style.display = sel.value === 'client' ? '' : 'none'; return; }
   if (sel.id === 'mb-role') { document.getElementById('mb-client-wrap').style.display = sel.value === 'client' ? '' : 'none'; return; }
@@ -2423,7 +2494,7 @@ document.addEventListener('submit', async (e) => {
       const at = new Date(`${f.date.value}T${f.time.value}`);
       if (isNaN(at)) { toast('Date ou heure invalide.'); return; }
       const row = { handle: f.handle.value, format: f.format.value, title: f.title.value.trim(), at: at.toISOString(), status: f.querySelector('[name=status]:checked')?.value || 'Prêt',
-        ref: f.ref.value.trim() || null, post_url: f.post_url.value.trim() || null, updated_at: new Date().toISOString() };
+        ref: f.ref.value.trim() || null, post_url: f.post_url.value.trim() || null, caption: f.caption.value.trim() || null, sound: f.sound.value.trim() || null, updated_at: new Date().toISOString() };
       if (!row.title) { toast('Écris le contenu de la publication.'); return; }
       const id = f.dataset.id;
       const res = id ? await sb.from('ig_schedule').update(row).eq('id', id) : await sb.from('ig_schedule').insert(row);
@@ -2641,6 +2712,7 @@ async function boot() {
   S.loading = false; render(true); window.dispatchEvent(new Event('ms-refresh'));
   if (ok) goLive();
   if (S.deepLink && S.me) { const id = S.deepLink; S.deepLink = null; history.replaceState(null, '', '/'); if (mission(id)) { openMission(id); markRead(id); } }
+  if (S.deepPost && S.me) { const id = S.deepPost; S.deepPost = null; history.replaceState(null, '', '/'); if (isAdmin()) openPostLink(id); }
   if (S.deepRoute && S.me) { const r = S.deepRoute; S.deepRoute = null; history.replaceState(null, '', '/'); if (r === 'apps' && isAdmin()) { S.route = 'apps'; render(true); } }
 }
 

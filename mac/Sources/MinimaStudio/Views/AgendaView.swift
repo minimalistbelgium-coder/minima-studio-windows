@@ -153,7 +153,7 @@ struct AgendaView: View {
         let map = byDay
         let rel = releasesByDay
         Page {
-            PageHeader(kicker: kicker, title: app.isClient ? "Calendrier" : "Agenda") {
+            PageHeader(kicker: kicker, title: app.isClient ? "Calendrier" : app.isAdmin ? "Missions" : "Mes missions") {
                 ChipPicker(selection: $mode, options: [
                     ChipPicker<String>.Option(value: "month", label: "Mois"),
                     ChipPicker<String>.Option(value: "week", label: "Semaine"),

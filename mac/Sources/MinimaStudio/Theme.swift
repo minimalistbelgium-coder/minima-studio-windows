@@ -335,6 +335,8 @@ struct PageHeader<Trailing: View>: View {
     let title: String
     @ViewBuilder var trailing: () -> Trailing
     @Environment(\.layoutWidth) private var width
+    /// Onglets posés par la page parente (Liste / Calendrier, Équipe / Clients…).
+    @Environment(\.pageTabs) private var tabs
 
     var body: some View {
         // Le titre prend la place restante (deux lignes au besoin), les boutons gardent leur taille.
@@ -342,9 +344,12 @@ struct PageHeader<Trailing: View>: View {
         let layout = stacked
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
             : AnyLayout(HStackLayout(alignment: .bottom, spacing: 16))
-        layout {
-            heading.frame(maxWidth: .infinity, alignment: .leading)
-            trailing().layoutPriority(1)
+        VStack(alignment: .leading, spacing: 18) {
+            if let tabs { tabs }
+            layout {
+                heading.frame(maxWidth: .infinity, alignment: .leading)
+                trailing().layoutPriority(1)
+            }
         }
     }
 

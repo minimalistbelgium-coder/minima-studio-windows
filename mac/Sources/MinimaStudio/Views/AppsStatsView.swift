@@ -10,6 +10,9 @@ struct AppsStatsView: View {
     @State private var error: String? = nil
     @State private var schedDays = 7
     @State private var editing: PostDraft? = nil
+    @State private var tab = "summary"
+    /// Dans Réglages : seulement le bloc des connexions.
+    var connectionsOnly = false
 
     private var base: [String: Any]? { ok(stats?["base"]) }
     private var store: [String: Any]? { ok(stats?["store"]) }
@@ -17,7 +20,7 @@ struct AppsStatsView: View {
 
     var body: some View {
         Page {
-            PageHeader(kicker: updatedLabel, title: "Apps et site") {
+            PageHeader(kicker: connectionsOnly ? "Tes clés sont enregistrées côté serveur" : updatedLabel, title: connectionsOnly ? "Connexions" : "Marques") {
                 Button { Task { await load(refresh: true) } } label: { Label(loading ? "Chargement…" : "Actualiser", systemImage: "arrow.clockwise") }
                     .buttonStyle(SecondaryButton()).disabled(loading)
             }
@@ -27,14 +30,30 @@ struct AppsStatsView: View {
                 }
                 .frame(maxWidth: .infinity).padding(30).glassCard()
             } else {
-                tiles
-                appCards
-                if let sub = ok(stats?["subs"]) { subsCard(sub) }
-                if let st = store { storeCard(st) }
-                scheduleSection
-                instagramSection
-                if let s = site { siteCard(s) }
-                connections
+                if connectionsOnly {
+                    connections
+                } else {
+                    ChipPicker(selection: $tab, options: [
+                        .init(value: "summary", label: "Résumé"),
+                        .init(value: "apps", label: "Apps"),
+                        .init(value: "pubs", label: "Publications"),
+                        .init(value: "site", label: "Site"),
+                    ])
+                    switch tab {
+                    case "apps":
+                        appCards
+                        if let sub = ok(stats?["subs"]) { subsCard(sub) }
+                        if let st = store { storeCard(st) }
+                    case "pubs":
+                        scheduleSection
+                        instagramSection
+                    case "site":
+                        if let s = site { siteCard(s) } else { EmptyHint(text: "Le site n'est pas encore connecté. Ouvre Réglages, puis Connexions.") }
+                    default:
+                        tiles
+                        if let st = store { storeCard(st) }
+                    }
+                }
             }
         }
         .task { await load(refresh: false) }

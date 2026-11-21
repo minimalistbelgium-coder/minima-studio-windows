@@ -29,7 +29,7 @@ struct FinancesView: View {
     @EnvironmentObject var data: DataStore
     @State private var month: Date
     @State private var wideScope = false
-    @State private var tab: FinanceTab = .overview
+    @State private var tab: FinanceTab = .missions
     @State private var onlyToInvoice = false
     @EnvironmentObject var presenter: Presenter
     @Environment(\.pageScroller) private var scroller
@@ -62,7 +62,7 @@ struct FinancesView: View {
         let shown = onlyToInvoice && !toInvoice.isEmpty ? toInvoice : inMonth
 
         Page {
-            PageHeader(kicker: "Visible uniquement par toi", title: "Finances") {
+            PageHeader(kicker: "Qui te doit, à qui tu dois · visible uniquement par toi", title: "Finances") {
                 HStack(spacing: 8) {
                     Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton()).help("Mois précédent")
                     Text(monthKey(month)).font(.system(size: 14, weight: .medium)).lineLimit(1).minimumScaleFactor(0.85).frame(width: 140)
@@ -71,10 +71,11 @@ struct FinancesView: View {
             }
 
             ChipPicker(selection: $tab, options: [
-                .init(value: FinanceTab.overview, label: "Résumé"),
-                .init(value: FinanceTab.missions, label: "Missions", count: toInvoice.isEmpty ? nil : toInvoice.count),
-                .init(value: FinanceTab.payouts, label: "Monteurs"),
+                .init(value: FinanceTab.missions, label: "À facturer", count: toInvoice.isEmpty ? nil : toInvoice.count),
+                .init(value: FinanceTab.payouts, label: "À payer"),
+                .init(value: FinanceTab.overview, label: "Bilan"),
                 .init(value: FinanceTab.charts, label: "Graphiques"),
+                .init(value: FinanceTab.analysis, label: "Analyse"),
             ])
 
             switch tab {
@@ -160,6 +161,8 @@ struct FinancesView: View {
                     }
                 }
                 .card(padding: 0)
+            case .analysis:
+                FinanceAnalysis(month: month)
             case .payouts:
                 EditorPayoutsSection(month: month, showCash: false)
             case .charts:
@@ -333,7 +336,7 @@ struct TimeView: View {
         let byMission = Dictionary(grouping: sessions, by: \.mission_id)
 
         Page {
-            PageHeader(kicker: "Temps mesuré dans Premiere Pro", title: "Analyse du temps")
+            PageHeader(kicker: "Temps mesuré dans Premiere Pro", title: "Temps de montage")
 
             if loaded && sessions.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {

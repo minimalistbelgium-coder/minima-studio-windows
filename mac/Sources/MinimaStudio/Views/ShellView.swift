@@ -49,7 +49,13 @@ struct ShellView: View {
         .overlay { PanelHost() }
         .onAppear { route = initialRoute ?? defaultRoute }
         .onChange(of: presenter.navTick) { _ in
-            if let r = presenter.navRoute, r != route { route = r }
+            if var r = presenter.navRoute {
+                // Les anciennes pages sont devenues des onglets : on ouvre la page qui les contient.
+                if r == .agenda { UserDefaults.standard.set("cal", forKey: "missionsLayout"); r = app.isAdmin ? .missions : app.isClient ? .clientProjects : .myMissions }
+                if r == .clients || r == .updates { r = .team }
+                if r == .time { r = .finances }
+                if r != route { route = r }
+            }
             presenter.navRoute = nil
         }
         .onChange(of: app.profile?.role) { _ in route = defaultRoute }
@@ -70,25 +76,17 @@ struct ShellView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if app.isAdmin {
             switch route {
-            case .missions: MissionsView()
-            case .agenda: AgendaView()
-            case .clients: ClientsView()
-            case .team: TeamView()
-            case .finances: FinancesView()
-            case .time: TimeView()
+            case .missions, .agenda: MissionsHub { MissionsView() }
+            case .team, .clients, .updates: SettingsHub()
+            case .finances, .time: FinancesHub()
             case .apps: AppsStatsView()
-            case .updates: UpdatesView()
             default: TodayView()
             }
         } else if app.isClient {
-            switch route {
-            case .agenda: AgendaView()
-            default: ClientProjectsView()
-            }
+            MissionsHub { ClientProjectsView() }
         } else {
             switch route {
-            case .myMissions: MyMissionsView()
-            case .agenda: AgendaView()
+            case .myMissions, .agenda: MissionsHub { MyMissionsView() }
             case .myFinances: MyFinancesView()
             default: MyDashboardView()
             }
@@ -278,24 +276,17 @@ private struct Sidebar: View {
 
     @ViewBuilder private var items: some View {
             if app.isAdmin {
-                item("Aujourd'hui", "sun.max", .today, live: data.liveSessions.count)
+                item("Accueil", "house", .today, live: data.liveSessions.count)
                 item("Missions", "film.stack", .missions, badge: data.missions.filter(\.isOpen).count)
-                item("Agenda", "calendar", .agenda)
-                item("Clients", "person.2", .clients)
-                item("Équipe", "person.3", .team)
-                section("Admin")
                 item("Finances", "eurosign.circle", .finances)
-                item("Analyse du temps", "clock", .time)
-                item("Apps et site", "square.grid.2x2", .apps)
-                item("Mises à jour", "arrow.down.circle", .updates)
+                item("Marques", "square.grid.2x2", .apps)
+                item("Réglages", "gearshape", .team)
             } else if app.isClient {
-                item("Mes projets", "film.stack", .clientProjects)
-                item("Calendrier", "calendar", .agenda)
+                item("Projets", "film.stack", .clientProjects)
             } else {
-                item("Tableau de bord", "chart.bar", .myDashboard)
-                item("Mes missions", "film.stack", .myMissions, badge: data.missions.filter(\.isOpen).count)
-                item("Agenda", "calendar", .agenda)
-                item("Finances", "eurosign.circle", .myFinances)
+                item("Accueil", "house", .myDashboard)
+                item("Missions", "film.stack", .myMissions, badge: data.missions.filter(\.isOpen).count)
+                item("Revenus", "eurosign.circle", .myFinances)
             }
 
     }

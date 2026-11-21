@@ -37,7 +37,7 @@ final class Presenter: ObservableObject {
 }
 
 /// Onglets de la page Finances (admin).
-enum FinanceTab: String, Hashable { case overview, missions, payouts, charts }
+enum FinanceTab: String, Hashable { case overview, missions, payouts, charts, analysis }
 
 /// Récupère la NSWindow qui contient une vue SwiftUI.
 struct WindowAccessor: NSViewRepresentable {

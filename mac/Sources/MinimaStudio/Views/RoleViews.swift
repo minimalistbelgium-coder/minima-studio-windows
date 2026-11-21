@@ -231,7 +231,7 @@ struct MyFinancesView: View {
         let label = monthLabel(month)
 
         Page {
-            PageHeader(kicker: "Ce que tu factures chaque mois", title: "Finances") {
+            PageHeader(kicker: "Ce que tu factures chaque mois", title: "Mes revenus") {
                 HStack(spacing: 8) {
                     Button { shift(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(SecondaryButton())
                     Text(label).font(.system(size: 14, weight: .medium)).lineLimit(1).frame(width: 136)

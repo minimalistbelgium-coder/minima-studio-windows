@@ -194,7 +194,13 @@ final class Tracker: ObservableObject {
 
     // MARK: Boucle principale
 
+    private var ticking = false
+
     private func tick() async {
+        // Un tick à la fois : si Premiere répond lentement, on saute ce passage au lieu d'empiler.
+        guard !ticking else { return }
+        ticking = true
+        defer { ticking = false }
         let now = Date()
         var dt = now.timeIntervalSince(lastTick)
         lastTick = now
@@ -437,6 +443,7 @@ final class Tracker: ObservableObject {
     nonisolated static func windowTexts(pid: pid_t) -> [String] {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 1.0)
+        AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 1.0)
         var titles: [String] = []
 
         for attr in [kAXFocusedWindowAttribute, kAXMainWindowAttribute] {

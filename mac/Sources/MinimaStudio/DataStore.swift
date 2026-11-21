@@ -54,8 +54,11 @@ final class DataStore: ObservableObject {
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard NSApp.isActive else { return }
-                await self?.refreshLight()
+                guard let self, NSApp.isActive else { return }
+                // Toutes les 5 min : rechargement complet (temps, versions, paiements…). Sinon : le léger.
+                self.lightTicks += 1
+                if self.lightTicks >= 10 { self.lightTicks = 0; await self.reload() }
+                else { await self.refreshLight() }
             }
         }
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
@@ -73,12 +76,17 @@ final class DataStore: ObservableObject {
         guard loaded, !refreshing else { return }
         refreshing = true
         defer { refreshing = false }
+        let admin = isAdmin
         async let m: [Mission]? = try? supa.from("missions").select().order("deadline", ascending: true).execute().value
         async let mm: [MissionMember]? = try? supa.from("mission_members").select().execute().value
-        async let live: [WorkSession]? = isAdmin ? fetchLive() : nil
-        async let split: [MySplitRow]? = isAdmin ? nil : (try? supa.rpc("my_split").execute().value)
+        async let live: [WorkSession]? = admin ? fetchLive() : nil
+        async let split: [MySplitRow]? = admin ? nil : (try? supa.rpc("my_split").execute().value)
         async let notifs: [AppNotification]? = fetchNotifications()
-        if let v = await m, !(v.isEmpty && !isAdmin) { put(\.missions, v) }
+        if var v = await m {
+            // Comptes client : leurs projets passent par client_projects() (budgets masqués)
+            if !admin && v.isEmpty, let cp: [Mission] = try? await supa.rpc("client_projects").execute().value { v = cp }
+            put(\.missions, v)
+        }
         if let v = await mm { put(\.members, v) }
         if let v = await live { put(\.liveSessions, v) }
         if let rows = await split {
@@ -91,6 +99,7 @@ final class DataStore: ObservableObject {
     }
 
     private var refreshing = false
+    private var lightTicks = 0
 
     /// Chargement complet : tout part en parallèle, rien n'est republié s'il n'a pas changé.
     func load(admin: Bool) async {

@@ -26,18 +26,21 @@ struct SchedPost: Codable, Identifiable, Hashable {
 enum PostThumbs {
     private static let cache = NSCache<NSString, NSImage>()
     private static let none = NSImage()
+    /// Dossier de chaque marque dans Bureau › PROJET › Publications Instagram (comme PostEditor.folders).
+    private static let folders: [String: String] = ["fastsign.app": "FastSign", "agora.app.be": "Agora", "agenceimage.be": "Agence Image"]
 
     static func image(handle: String, ref: String?) async -> NSImage? {
         guard let ref, !ref.isEmpty else { return nil }
         let key = "\(handle)|\(ref)" as NSString
         if let hit = cache.object(forKey: key) { return hit === none ? nil : hit }
-        let img = await Task.detached(priority: .utility) { load(handle: handle, ref: ref) }.value
+        let cg = await Task.detached(priority: .utility) { load(handle: handle, ref: ref) }.value
+        let img = cg.map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
         cache.setObject(img ?? none, forKey: key)
         return img
     }
 
-    private nonisolated static func load(handle: String, ref: String) -> NSImage? {
-        guard let folder = PostEditor.folders[handle],
+    private static func load(handle: String, ref: String) -> CGImage? {
+        guard let folder = folders[handle],
               let lot = ref.range(of: #"Lot\s*(\d+)"#, options: .regularExpression).map({ String(ref[$0]).filter(\.isNumber) }),
               let num = ref.range(of: #"n°\s*(\d+)"#, options: .regularExpression).map({ String(ref[$0]).filter(\.isNumber) }) else { return nil }
         let fm = FileManager.default
@@ -61,8 +64,7 @@ enum PostThumbs {
         // Miniature réduite : on ne charge jamais l'image en pleine taille.
         let opts: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
                                      kCGImageSourceThumbnailMaxPixelSize: 480]
-        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
-        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        return CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
     }
 }
 

@@ -207,22 +207,31 @@ final class Tracker: ObservableObject {
         }
         dt = min(dt, 15)
 
-        axTrusted = AXIsProcessTrusted()
+        let trusted = AXIsProcessTrusted()
+        if axTrusted != trusted { axTrusted = trusted }
         let ws = NSWorkspace.shared
         let prem = ws.runningApplications.first { ($0.bundleIdentifier ?? "").hasPrefix("com.adobe.PremierePro") }
-        premiereOpen = prem != nil
-        premiereBundle = prem?.bundleIdentifier
-        premiereFront = (ws.frontmostApplication?.bundleIdentifier ?? "").hasPrefix("com.adobe.PremierePro")
+        let isOpen = prem != nil
+        if premiereOpen != isOpen { premiereOpen = isOpen }
+        if premiereBundle != prem?.bundleIdentifier { premiereBundle = prem?.bundleIdentifier }
+        let isFront = (ws.frontmostApplication?.bundleIdentifier ?? "").hasPrefix("com.adobe.PremierePro")
+        if premiereFront != isFront { premiereFront = isFront }
 
         if let prem, axTrusted {
-            seenTitles = Self.windowTexts(pid: prem.processIdentifier)
-            if let found = Self.premiereProject(pid: prem.processIdentifier) {
-                projectPath = found.path
-                projectName = found.name
+            // La lecture des fenêtres de Premiere (accessibilité) peut bloquer : jamais sur le thread principal.
+            let pid = prem.processIdentifier
+            let read = await Task.detached(priority: .utility) { () -> ([String], (path: String?, name: String)?) in
+                let t = Tracker.windowTexts(pid: pid)
+                return (t, Tracker.projectFrom(titles: t))
+            }.value
+            if seenTitles != read.0 { seenTitles = read.0 }
+            if let found = read.1 {
+                if projectPath != found.path { projectPath = found.path }
+                if projectName != found.name { projectName = found.name }
             }
         } else if prem == nil {
-            projectPath = nil
-            projectName = nil
+            if projectPath != nil { projectPath = nil }
+            if projectName != nil { projectName = nil }
         }
 
         // Mission visée
@@ -410,7 +419,10 @@ final class Tracker: ObservableObject {
 
     /// Lit le titre des fenêtres de Premiere pour trouver le projet ouvert (n'importe quel disque).
     static func premiereProject(pid: pid_t) -> (path: String?, name: String)? {
-        let titles = windowTexts(pid: pid)
+        projectFrom(titles: windowTexts(pid: pid))
+    }
+
+    nonisolated static func projectFrom(titles: [String]) -> (path: String?, name: String)? {
         for t in titles {
             if let r = parse(title: t) { return r }
         }
@@ -422,8 +434,9 @@ final class Tracker: ObservableObject {
     }
 
     /// Titres et documents de toutes les fenêtres de Premiere.
-    static func windowTexts(pid: pid_t) -> [String] {
+    nonisolated static func windowTexts(pid: pid_t) -> [String] {
         let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 1.0)
         var titles: [String] = []
 
         for attr in [kAXFocusedWindowAttribute, kAXMainWindowAttribute] {
@@ -448,7 +461,7 @@ final class Tracker: ObservableObject {
     }
 
     /// « Adobe Premiere Pro 2025 - Mon projet * » ou « Mon projet - Adobe Premiere Pro » → nom du projet.
-    static func parseLoose(title: String) -> (path: String?, name: String)? {
+    nonisolated static func parseLoose(title: String) -> (path: String?, name: String)? {
         var parts = title.components(separatedBy: " - ").map { $0.trimmingCharacters(in: .whitespaces) }
         parts.removeAll { $0.isEmpty || $0.lowercased().hasPrefix("adobe premiere") || $0.lowercased().hasPrefix("premiere pro") }
         guard var name = parts.first else { return nil }
@@ -482,7 +495,7 @@ final class Tracker: ObservableObject {
     }
 
     /// Chemin du document de la fenêtre (attribut AXDocument), si Premiere le fournit.
-    private static func document(of el: AXUIElement) -> String? {
+    nonisolated private static func document(of el: AXUIElement) -> String? {
         var d: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, kAXDocumentAttribute as CFString, &d) == .success,
               let s = d as? String else { return nil }
@@ -490,14 +503,14 @@ final class Tracker: ObservableObject {
         return s.removingPercentEncoding ?? s
     }
 
-    private static func title(of el: AXUIElement) -> String? {
+    nonisolated private static func title(of el: AXUIElement) -> String? {
         var t: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, kAXTitleAttribute as CFString, &t) == .success else { return nil }
         return t as? String
     }
 
     /// « Adobe Premiere Pro 2025 - /Volumes/T7/Projet.prproj * » → chemin + nom
-    static func parse(title: String) -> (path: String?, name: String)? {
+    nonisolated static func parse(title: String) -> (path: String?, name: String)? {
         guard let ext = title.range(of: ".prproj", options: [.caseInsensitive, .backwards]) else { return nil }
         let head = title[..<ext.upperBound]
         if let slash = head.firstIndex(of: "/") {

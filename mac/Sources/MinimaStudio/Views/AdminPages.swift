@@ -45,6 +45,8 @@ struct TodayView: View {
                          action: { presenter.go(.missions) })
             }
 
+            ScheduledPostsCard(compact: true)
+
             Columns(minLeft: 460, rightWidth: 320) {
                 WeekAgenda(missions: data.missions)
             } right: {

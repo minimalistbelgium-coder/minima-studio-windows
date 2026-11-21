@@ -48,14 +48,51 @@ final class DataStore: ObservableObject {
     private var isAdmin = false
     private var refreshTimer: Timer?
 
-    /// Rafraîchit missions et sessions en direct toutes les 30 s.
+    /// Rafraîchit en direct toutes les 30 s, seulement quand l'app est au premier plan,
+    /// et seulement les données qui bougent (missions, sessions en direct, notifications).
     func startAutoRefresh() {
         guard refreshTimer == nil else { return }
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.reload() }
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard NSApp.isActive else { return }
+                await self?.refreshLight()
+            }
+        }
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.refreshLight() }
         }
     }
 
+    /// N'écrit que si la valeur a changé : évite de redessiner toute l'interface pour rien.
+    private func put<T: Equatable>(_ kp: ReferenceWritableKeyPath<DataStore, T>, _ v: T) {
+        if self[keyPath: kp] != v { self[keyPath: kp] = v }
+    }
+
+    /// Mise à jour légère : le strict nécessaire pour voir les changements en direct.
+    func refreshLight() async {
+        guard loaded, !refreshing else { return }
+        refreshing = true
+        defer { refreshing = false }
+        async let m: [Mission]? = try? supa.from("missions").select().order("deadline", ascending: true).execute().value
+        async let mm: [MissionMember]? = try? supa.from("mission_members").select().execute().value
+        async let live: [WorkSession]? = isAdmin ? fetchLive() : nil
+        async let split: [MySplitRow]? = isAdmin ? nil : (try? supa.rpc("my_split").execute().value)
+        async let notifs: [AppNotification]? = fetchNotifications()
+        if let v = await m, !(v.isEmpty && !isAdmin) { put(\.missions, v) }
+        if let v = await mm { put(\.members, v) }
+        if let v = await live { put(\.liveSessions, v) }
+        if let rows = await split {
+            put(\.mySplit, Dictionary(rows.map { ($0.mission_id, $0) }, uniquingKeysWith: { a, _ in a }))
+        }
+        if let list = await notifs {
+            put(\.notifications, list)
+            SystemNotifier.post(list.filter { !$0.isRead })
+        }
+    }
+
+    private var refreshing = false
+
+    /// Chargement complet : tout part en parallèle, rien n'est republié s'il n'a pas changé.
     func load(admin: Bool) async {
         isAdmin = admin
         do {
@@ -64,51 +101,62 @@ final class DataStore: ObservableObject {
             async let m: [Mission] = supa.from("missions").select().order("deadline", ascending: true).execute().value
             async let mm: [MissionMember] = supa.from("mission_members").select().execute().value
             async let p: [Profile] = supa.from("profiles").select().order("created_at").execute().value
-            clients = try await c
-            series = try await s
-            missions = try await m
-            members = try await mm
-            profiles = try await p
-            if !admin && missions.isEmpty {
+            // Le reste part en même temps (au lieu d'attendre les requêtes une à une).
+            async let fin: [MissionFinance]? = admin ? (try? supa.from("mission_finance").select().execute().value) : nil
+            async let live: [WorkSession]? = admin ? fetchLive() : nil
+            async let split: [MySplitRow]? = admin ? nil : (try? supa.rpc("my_split").execute().value)
+            async let sess: [WorkSession]? = try? supa.from("sessions").select()
+                .order("started_at", ascending: false).limit(4000).execute().value
+            async let vis: [VisibleSplitRow]? = try? supa.rpc("visible_splits").execute().value
+            async let notifs: [AppNotification]? = fetchNotifications()
+            async let st: [AppSetting]? = try? supa.from("app_settings").select().execute().value
+            async let hist: [FinanceHistory]? = admin ? (try? supa.from("finance_history").select().order("doc_date").execute().value) : nil
+            async let vers: [MissionVersion]? = try? supa.from("mission_versions").select()
+                .order("created_at", ascending: true).execute().value
+            async let ai: [AIWork]? = try? supa.from("ai_work").select().order("ended_at", ascending: false).execute().value
+            async let pay: [EditorPayment]? = try? supa.from("editor_payments").select().order("month", ascending: false).execute().value
+            async let inv: [EditorInvoice]? = try? supa.from("editor_invoices").select().execute().value
+
+            put(\.clients, try await c)
+            put(\.series, try await s)
+            var missionList = try await m
+            put(\.members, try await mm)
+            put(\.profiles, try await p)
+            if !admin && missionList.isEmpty {
                 // Comptes client : leurs projets passent par client_projects() (budgets masqués)
-                missions = (try? await supa.rpc("client_projects").execute().value) ?? []
+                missionList = (try? await supa.rpc("client_projects").execute().value) ?? []
             }
-            if admin {
-                let f: [MissionFinance] = try await supa.from("mission_finance").select().execute().value
-                finances = Dictionary(uniqueKeysWithValues: f.map { ($0.mission_id, $0) })
-                await loadLive()
-            } else {
-                let rows: [MySplitRow] = (try? await supa.rpc("my_split").execute().value) ?? []
-                mySplit = Dictionary(rows.map { ($0.mission_id, $0) }, uniquingKeysWith: { a, _ in a })
+            put(\.missions, missionList)
+
+            if let f = await fin { put(\.finances, Dictionary(uniqueKeysWithValues: f.map { ($0.mission_id, $0) })) }
+            if let l = await live { put(\.liveSessions, l) }
+            if let rows = await split {
+                put(\.mySplit, Dictionary(rows.map { ($0.mission_id, $0) }, uniquingKeysWith: { a, _ in a }))
             }
-            sessions = (try? await supa.from("sessions").select()
-                .order("started_at", ascending: false).limit(4000).execute().value) ?? []
-            do {
-                let vs: [VisibleSplitRow] = (try? await supa.rpc("visible_splits").execute().value) ?? []
-                serverSplits = Dictionary(grouping: vs, by: \.mission_id).mapValues { rows in
+            if let v = await sess { put(\.sessions, v) }
+            if let vs = await vis {
+                put(\.serverSplits, Dictionary(grouping: vs, by: \.mission_id).mapValues { rows in
                     rows.map { SplitRow(user_id: $0.user_id, seconds: $0.seconds, weighted: nil, percent: $0.percent, amount: $0.amount) }
-                }
+                })
             }
-            await loadNotifications()
-            let st: [AppSetting] = (try? await supa.from("app_settings").select().execute().value) ?? []
-            deliveryLink = st.first { $0.key == "delivery_link" }?.value
-            invoiceLink = st.first { $0.key == "invoice_link" }?.value
-            historyUntil = st.first { $0.key == "history_until" }?.value.flatMap(BillMonth.parse)
-            if admin {
-                history = (try? await supa.from("finance_history").select().order("doc_date").execute().value) ?? []
+            if let list = await notifs {
+                put(\.notifications, list)
+                SystemNotifier.post(list.filter { !$0.isRead })
             }
-            versions = (try? await supa.from("mission_versions").select()
-                .order("created_at", ascending: true).execute().value) ?? []
-            aiWork = (try? await supa.from("ai_work").select()
-                .order("ended_at", ascending: false).execute().value) ?? []
-            payments = (try? await supa.from("editor_payments").select()
-                .order("month", ascending: false).execute().value) ?? []
-            invoices = (try? await supa.from("editor_invoices").select().execute().value) ?? []
-            lastError = nil
+            let settings = await st ?? []
+            put(\.deliveryLink, settings.first { $0.key == "delivery_link" }?.value)
+            put(\.invoiceLink, settings.first { $0.key == "invoice_link" }?.value)
+            put(\.historyUntil, settings.first { $0.key == "history_until" }?.value.flatMap(BillMonth.parse))
+            if let h = await hist { put(\.history, h) }
+            if let v = await vers { put(\.versions, v) }
+            if let v = await ai { put(\.aiWork, v) }
+            if let v = await pay { put(\.payments, v) }
+            if let v = await inv { put(\.invoices, v) }
+            put(\.lastError, nil)
         } catch {
             lastError = error.localizedDescription
         }
-        loaded = true
+        if !loaded { loaded = true }
     }
 
     func reload() async { await load(admin: isAdmin) }
@@ -236,11 +284,15 @@ final class DataStore: ObservableObject {
 
     // MARK: suivi en direct
 
-    func loadLive() async {
+    func fetchLive() async -> [WorkSession]? {
         let since = DateFmt.iso(Date().addingTimeInterval(-120))
-        let rows: [WorkSession] = (try? await supa.from("sessions").select()
-            .eq("live", value: true).gte("ended_at", value: since).execute().value) ?? []
-        liveSessions = rows.filter(\.isLiveNow)
+        guard let rows: [WorkSession] = try? await supa.from("sessions").select()
+            .eq("live", value: true).gte("ended_at", value: since).execute().value else { return nil }
+        return rows.filter(\.isLiveNow)
+    }
+
+    func loadLive() async {
+        if let l = await fetchLive() { put(\.liveSessions, l) }
     }
 
     func liveSession(for missionId: String) -> [WorkSession] {
@@ -553,10 +605,14 @@ final class DataStore: ObservableObject {
         await loadNotifications()
     }
 
+    func fetchNotifications() async -> [AppNotification]? {
+        try? await supa.from("notifications").select()
+            .order("created_at", ascending: false).limit(50).execute().value
+    }
+
     func loadNotifications() async {
-        let list: [AppNotification] = (try? await supa.from("notifications").select()
-            .order("created_at", ascending: false).limit(50).execute().value) ?? []
-        notifications = list
+        guard let list = await fetchNotifications() else { return }
+        put(\.notifications, list)
         SystemNotifier.post(list.filter { !$0.isRead })
     }
 

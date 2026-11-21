@@ -45,6 +45,7 @@ struct AppsStatsView: View {
                         if let sub = ok(stats?["subs"]) { subsCard(sub) }
                         if let st = store { storeCard(st) }
                     case "pubs":
+                        ScheduledPostsCard()
                         scheduleSection
                         instagramSection
                     case "site":

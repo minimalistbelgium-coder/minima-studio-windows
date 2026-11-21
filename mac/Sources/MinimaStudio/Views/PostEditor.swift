@@ -17,6 +17,10 @@ struct PostDraft: Identifiable {
         c.hour = 19
         return Calendar.current.date(from: c) ?? Date()
     }()
+    var caption = ""
+    var sound = ""
+    /// Description et son lus en base (sinon on les recharge avant d'enregistrer, pour ne rien effacer).
+    var extrasLoaded = false
 }
 
 /// Fiche d'une publication : aperçu (post publié ou fichier du dossier de publication) et modification.
@@ -77,6 +81,12 @@ struct PostEditor: View {
                         Picker("", selection: $draft.status) { ForEach(Self.statuses, id: \.self) { Text($0).tag($0) } }
                             .pickerStyle(.segmented).labelsHidden()
                     }
+                    FormField(label: "Description", hint: "Texte à coller sous le post (hashtags compris). Il apparaît dans le rappel sur ton téléphone.") {
+                        TextField("Texte, hashtags, mentions…", text: $draft.caption, axis: .vertical).lineLimit(4...10).input()
+                    }
+                    FormField(label: "Son conseillé") {
+                        TextField("Titre · artiste", text: $draft.sound).input()
+                    }
                     FormField(label: "Fichier", hint: "Numéro du lot et du fichier dans Bureau › PROJET › Publications Instagram.") {
                         TextField("Lot 01 · n°001", text: $draft.ref).input()
                     }
@@ -95,7 +105,7 @@ struct PostEditor: View {
                 Spacer()
                 Button("Annuler") { dismiss() }.buttonStyle(SecondaryButton())
                 Button(saving ? "Enregistrement…" : (draft.rowId == nil ? "Ajouter au programme" : "Enregistrer")) { Task { await save() } }
-                    .buttonStyle(PrimaryButton()).disabled(saving || draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .buttonStyle(PrimaryButton()).disabled(saving || (draft.rowId != nil && !draft.extrasLoaded) || draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .keyboardShortcut(.defaultAction)
             }
             .padding(16)
@@ -103,6 +113,7 @@ struct PostEditor: View {
         .frame(width: 560, height: 680)
         .background(Theme.bg)
         .task(id: draft.ref + draft.handle) { findLocalFile() }
+        .task { await loadExtras() }
         .confirmationDialog("Supprimer cette publication du programme ?", isPresented: $askDelete) {
             Button("Supprimer", role: .destructive) { Task { await remove() } }
         } message: { Text(draft.title) }
@@ -185,7 +196,20 @@ struct PostEditor: View {
         let at: String
         let ref: String?
         let post_url: String?
+        let caption: String?
+        let sound: String?
         let updated_at: String
+    }
+
+    private struct Extras: Decodable { let caption: String?; let sound: String? }
+
+    private func loadExtras() async {
+        guard let id = draft.rowId, !draft.extrasLoaded else { draft.extrasLoaded = true; return }
+        if let e: Extras = try? await supa.from("ig_schedule").select("caption,sound").eq("id", value: id).single().execute().value {
+            if draft.caption.isEmpty { draft.caption = e.caption ?? "" }
+            if draft.sound.isEmpty { draft.sound = e.sound ?? "" }
+            draft.extrasLoaded = true
+        } else { error = "Description et son non chargés : réessaie." }
     }
 
     private func save() async {
@@ -193,6 +217,8 @@ struct PostEditor: View {
         let iso = ISO8601DateFormatter()
         let row = Row(handle: draft.handle, format: draft.format, title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines), status: draft.status,
                       at: iso.string(from: draft.at), ref: draft.ref.isEmpty ? nil : draft.ref, post_url: draft.url.isEmpty ? nil : draft.url,
+                      caption: draft.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : draft.caption.trimmingCharacters(in: .whitespacesAndNewlines),
+                      sound: draft.sound.trimmingCharacters(in: .whitespaces).isEmpty ? nil : draft.sound.trimmingCharacters(in: .whitespaces),
                       updated_at: iso.string(from: Date()))
         do {
             if let id = draft.rowId { try await supa.from("ig_schedule").update(row).eq("id", value: id).execute() }

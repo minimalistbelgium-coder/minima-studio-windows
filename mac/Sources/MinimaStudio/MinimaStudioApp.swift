@@ -106,5 +106,7 @@ struct RootView: View {
         data.startAutoRefresh()
         tracker.configure(data: data, userId: p.id, isAdmin: app.isAdmin, enabled: app.isTeam)
         updater.start()
+        // Fichiers des publications à poster : envoyés pour les rappels sur téléphone.
+        if app.isAdmin { PostUploader.start() }
     }
 }

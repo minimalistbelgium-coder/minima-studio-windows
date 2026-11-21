@@ -12,12 +12,14 @@ struct SchedPost: Codable, Identifiable, Hashable {
     let status: String
     let ref: String?
     let post_url: String?
+    var caption: String? = nil
+    var sound: String? = nil
 
     var date: Date { DateFmt.parse(at) ?? .distantFuture }
 
     var draft: PostDraft {
         PostDraft(rowId: id, handle: handle, format: format, title: title, status: status,
-                  ref: ref ?? "", url: post_url ?? "", at: date)
+                  ref: ref ?? "", url: post_url ?? "", at: date, caption: caption ?? "", sound: sound ?? "", extrasLoaded: true)
     }
 }
 
@@ -39,7 +41,19 @@ enum PostThumbs {
         return img
     }
 
-    private static func load(handle: String, ref: String) -> CGImage? {
+    /// Fichiers à poster : toutes les images d'un carrousel, la vidéo d'un reel ou d'une story, ou l'image seule.
+    static func localFiles(handle: String, ref: String) -> [URL] {
+        guard let found = locate(handle: handle, ref: ref) else { return [] }
+        let main = found.0
+        let fm = FileManager.default
+        let isImg: (URL) -> Bool = { ["jpg", "jpeg", "png", "heic"].contains($0.pathExtension.lowercased()) }
+        if main.hasDirectoryPath {
+            return ((try? fm.contentsOfDirectory(at: main, includingPropertiesForKeys: nil)) ?? []).filter(isImg).sorted { $0.lastPathComponent < $1.lastPathComponent }
+        }
+        return [main]
+    }
+
+    private static func locate(handle: String, ref: String) -> (URL, [URL])? {
         guard let folder = folders[handle],
               let lot = ref.range(of: #"Lot\s*(\d+)"#, options: .regularExpression).map({ String(ref[$0]).filter(\.isNumber) }),
               let num = ref.range(of: #"n°\s*(\d+)"#, options: .regularExpression).map({ String(ref[$0]).filter(\.isNumber) }) else { return nil }
@@ -49,8 +63,14 @@ enum PostThumbs {
               let lotDir = lots.first(where: { $0.lastPathComponent.hasPrefix("Lot \(lot)") }),
               let items = try? fm.contentsOfDirectory(at: lotDir, includingPropertiesForKeys: [.isDirectoryKey]) else { return nil }
         let mine = items.filter { $0.lastPathComponent.hasPrefix("\(num) ·") || $0.lastPathComponent.hasPrefix("\(num) ") }
-        let main = mine.first { $0.hasDirectoryPath } ?? mine.first { ["mp4", "mov"].contains($0.pathExtension.lowercased()) } ?? mine.first
-        guard let main else { return nil }
+        guard let main = mine.first(where: { $0.hasDirectoryPath }) ?? mine.first(where: { ["mp4", "mov"].contains($0.pathExtension.lowercased()) }) ?? mine.first else { return nil }
+        return (main, mine)
+    }
+
+    private static func load(handle: String, ref: String) -> CGImage? {
+        guard let found = locate(handle: handle, ref: ref) else { return nil }
+        let (main, mine) = found
+        let fm = FileManager.default
         let isImg: (URL) -> Bool = { ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased()) }
         var img: URL?
         if main.hasDirectoryPath {
@@ -135,7 +155,7 @@ struct ScheduledPostsCard: View {
         let iso = ISO8601DateFormatter()
         do {
             let list: [SchedPost] = try await supa.from("ig_schedule")
-                .select("id,handle,at,format,title,status,ref,post_url")
+                .select("id,handle,at,format,title,status,ref,post_url,caption,sound")
                 .gte("at", value: iso.string(from: start)).lte("at", value: iso.string(from: end))
                 .order("at").execute().value
             rows = list; failed = false
@@ -203,5 +223,68 @@ private struct PostTile: View {
         .animation(.easeOut(duration: 0.12), value: hover)
         .help("Afficher et modifier")
         .task(id: post.ref ?? "") { image = await PostThumbs.image(handle: post.handle, ref: post.ref) }
+    }
+}
+
+
+/// Envoie au serveur les fichiers des publications à poster soi-même (3 prochains jours),
+/// pour que le rappel sur téléphone propose de les enregistrer. Nettoie ensuite les anciens.
+@MainActor
+enum PostUploader {
+    private static var running = false
+    private static var timer: Timer?
+
+    struct PostFile: Codable { let path: String; let name: String; let type: String?; let size: Int? }
+    private struct Row: Decodable { let id: Int; let handle: String; let ref: String?; let status: String; let at: String; let files: [PostFile]? }
+    private struct FilesUpdate: Encodable { let files: [PostFile]; let updated_at: String }
+
+    static func start() {
+        guard timer == nil else { return }
+        Task { await run() }
+        timer = Timer.scheduledTimer(withTimeInterval: 600, repeats: true) { _ in Task { @MainActor in await run() } }
+    }
+
+    private static func mime(_ ext: String) -> String {
+        switch ext { case "mp4": return "video/mp4"; case "mov": return "video/quicktime"; case "png": return "image/png"; case "heic": return "image/heic"; default: return "image/jpeg" }
+    }
+
+    static func run() async {
+        guard !running, !SnapshotMode.on else { return }
+        running = true
+        defer { running = false }
+        let iso = ISO8601DateFormatter()
+        let now = Date()
+        guard let rows: [Row] = try? await supa.from("ig_schedule").select("id,handle,ref,status,at,files")
+            .gte("at", value: iso.string(from: now.addingTimeInterval(-30 * 86400)))
+            .lte("at", value: iso.string(from: now.addingTimeInterval(3 * 86400)))
+            .execute().value else { return }
+        let bucket = supa.storage.from("posts")
+        for r in rows {
+            let at = DateFmt.parse(r.at) ?? now
+            let files = r.files ?? []
+            // Nettoyage : publié, ou passé depuis plus de 3 jours
+            if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+                _ = try? await bucket.remove(paths: files.map(\.path))
+                try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+                continue
+            }
+            guard files.isEmpty, at > now.addingTimeInterval(-3600), ["Prêt", "À créer"].contains(r.status),
+                  let ref = r.ref, !ref.isEmpty else { continue }
+            let handle = r.handle
+            let local = await Task.detached(priority: .utility) { PostThumbs.localFiles(handle: handle, ref: ref) }.value
+            guard !local.isEmpty else { continue }
+            var up: [PostFile] = []
+            var failed = false
+            for (i, u) in local.enumerated() {
+                let ext = u.pathExtension.lowercased()
+                let path = "\(r.id)/mac-\(Int(now.timeIntervalSince1970))-\(i).\(ext)"
+                do { try await bucket.upload(path, fileURL: u, options: FileOptions(contentType: mime(ext), upsert: true)) }
+                catch { failed = true; break }
+                let size = (try? u.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                up.append(PostFile(path: path, name: u.lastPathComponent, type: mime(ext), size: size))
+            }
+            if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+            try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+        }
     }
 }

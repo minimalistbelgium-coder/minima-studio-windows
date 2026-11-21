@@ -311,11 +311,11 @@ const unread = () => S.notifs.filter((n) => !n.read_at).length;
 function routesFor() {
   if (isAdmin()) {
     const req = S.missions.filter((m) => m.status === 'requested').length;
-    return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1],
-      ['finance', 'Finances', I.euro, 0, 0, 1], ['team', 'Équipe', I.team, 0, 0, 1], ['apps', 'Apps et site', I.apps, 0, 0, 0], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
+    return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1],
+      ['finance', 'Finances', I.euro, 0, 0, 1], ['apps', 'Marques', I.apps, 0, 0, 1], ['team', 'Réglages', I.team, 0, 0, 1]];
   }
-  if (isClient()) return [['projects', 'Mes projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ['agenda', 'Calendrier', I.cal, 0, 0, 1], ['new', 'Nouveau', I.plus, 0, 0, 1], ...(S.me.client_sees_prices ? [['billing', 'Dépenses', I.euro, 0, 0, 1]] : []), ['notifs', 'Activité', I.bell, 0, unread(), 0]];
-  return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['agenda', 'Agenda', I.cal, 0, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1], ['notifs', 'Activité', I.bell, 0, unread(), 0]];
+  if (isClient()) return [['projects', 'Projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ...(S.me.client_sees_prices ? [['billing', 'Dépenses', I.euro, 0, 0, 1]] : [])];
+  return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1]];
 }
 
 // ---------- thème clair / sombre ----------
@@ -709,7 +709,8 @@ function render(anim = false) {
   if (!S.me || S.me.role === 'none' || !S.me.active) return renderPending();
   S.hash = digest();
   const routes = routesFor();
-  if (!S.route || !routes.some((r) => r[0] === S.route)) S.route = routes[0][0];
+  if (S.route === 'agenda') { S.route = 'projects'; S.projView = 'cal'; }
+  if (!S.route || !(routes.some((r) => r[0] === S.route) || S.route === 'notifs' || (S.route === 'new' && isClient()))) S.route = routes[0][0];
   const nav = routes.map(([k, t, ic, count, badge]) => `<button class="nav ${S.route === k ? 'on' : ''}" data-go="${k}">${ic}${t}${badge ? `<span class="badge">${badge}</span>` : count ? `<span class="count">${count}</span>` : ''}</button>`).join('');
   const tabs = routes.filter((r) => r[5]).map(([k, t, ic, , badge]) => `<button class="${S.route === k ? 'on' : ''}" data-go="${k}" aria-label="${t}">${ic}<span>${t}</span>${badge ? `<span class="badge">${badge}</span>` : ''}</button>`).join('');
   const role = isAdmin() ? 'Admin' : isClient() ? esc(myClientLabel() || 'Client') : 'Monteur';
@@ -736,7 +737,7 @@ function render(anim = false) {
 function page() {
   switch (S.route) {
     case 'home': return isAdmin() ? homeAdmin() : homeEditor();
-    case 'projects': return isClient() ? clientHome() : projectsPage();
+    case 'projects': return S.projView === 'cal' ? agendaPage() : isClient() ? clientHome() : projectsPage();
     case 'agenda': return agendaPage();
     case 'finance': return financePage();
     case 'earnings': return earningsPage();
@@ -749,7 +750,12 @@ function page() {
   }
 }
 function header(kicker, title, right = '') {
-  return `<div class="top"><div><div class="lbl">${esc(kicker)}</div><h1>${esc(title)}</h1></div>${right}</div>`;
+  const bell = S.route === 'notifs' ? '' : `<button class="bell top-bell" data-go="notifs" aria-label="Activité" title="Activité">${I.bell}${unread() ? `<span class="badge">${unread()}</span>` : ''}</button>`;
+  return `<div class="top"><div><div class="lbl">${esc(kicker)}</div><h1>${esc(title)}</h1></div><div class="top-r">${right}${bell}</div></div>`;
+}
+// Missions : même contenu en liste ou en calendrier
+function viewSeg() {
+  return `<div class="seg"><button class="${S.projView === 'cal' ? '' : 'on'}" data-set="projView:list">Liste</button><button class="${S.projView === 'cal' ? 'on' : ''}" data-set="projView:cal">Calendrier</button></div>`;
 }
 // Toutes les cartes ont la même structure (libellé, valeur, pied), même quand le pied est vide : hauteurs et lignes alignées.
 // nav : attributs de navigation (jump(), data-open…) qui rendent la carte cliquable
@@ -766,7 +772,9 @@ function doJump(D) {
   if (D.jfilter) { S.filter = D.jfilter; S.search = ''; }
   if (D.jclient !== undefined) S.clientFilter = D.jclient;
   S.finToBill = D.jtobill ? '1' : '';
-  if (route === 'finance') S.finTab = !anchor ? S.finTab : anchor === 'fin-missions' || anchor === 'fin-compta' ? 'missions' : anchor.startsWith('payout') ? 'payouts' : anchor === 'fin-charts' ? 'charts' : 'overview';
+  if (route === 'finance') S.finTab = !anchor ? S.finTab : anchor === 'fin-missions' || anchor === 'fin-compta' ? 'missions' : anchor.startsWith('payout') ? 'payouts' : 'overview';
+  if (route === 'apps' && anchor === 'apps-connect') { D = { ...D, jump: 'team#apps-connect' }; return (S.teamTab = 'connect', doJump(D)); }
+  if (route === 'apps') S.appsTab = anchor === 'apps-ig' || anchor === 'apps-sched' ? 'pubs' : S.appsTab;
   const same = S.route === route; S.route = route; render(!same);
   requestAnimationFrame(() => {
     const el = anchor && (document.getElementById(anchor) || (anchor.startsWith('payout-') && document.getElementById('payouts')));
@@ -826,7 +834,7 @@ function homeAdmin() {
   </div>
   <div class="cols">
     <div class="wide stack">${todoCard(todo)}</div>
-    <div class="narrow stack">${upcomingCard(3)}</div>
+    <div class="narrow stack">${upcomingCard(7)}</div>
   </div>
   ${teamFold()}`;
 }
@@ -890,7 +898,7 @@ function upcomingCard(days = 7) {
   const list = S.missions.filter((m) => { const x = d(m.deadline); return x && x >= from && x < to && isOpen(m) && m.status !== 'requested'; });
   const byDay = {}; list.forEach((m) => { (byDay[ymd(d(m.deadline))] ||= []).push(m); });
   const rows = Object.keys(byDay).sort().map((k) => `<div class="day-h">${esc(dayName(fromYmd(k)))}</div>${byDay[k].sort((a, b) => d(a.deadline) - d(b.deadline)).map((m) => evRow(m, true)).join('')}`).join('');
-  return `<div class="card"><div class="card-head"><h2>${days === 3 ? 'Les 3 prochains jours' : `${days} prochains jours`}</h2><button class="btn sm" data-go="agenda">Agenda</button></div>${rows || '<div class="empty" style="padding:6px 0">Aucune deadline cette semaine.</div>'}</div>`;
+  return `<div class="card"><div class="card-head"><h2>${days === 3 ? 'Les 3 prochains jours' : `${days} prochains jours`}</h2><button class="btn sm" data-go="agenda">Calendrier</button></div>${rows || '<div class="empty" style="padding:6px 0">Aucune deadline cette semaine.</div>'}</div>`;
 }
 function dayName(x) {
   if (isToday(x)) return "Aujourd'hui";
@@ -1033,8 +1041,8 @@ function projectsPage() {
   const eds = isAdmin() ? team().filter((p) => g[S.filter].some((m) => memberIds(m.id).includes(p.id))) : [];
   const edChips = eds.length > 1 || (eds.length && g[S.filter].some((m) => m.claude_editor)) ? `<div class="f-row"><span class="f-lbl">Monteur</span><div class="f-scroll"><button class="chip ${!S.edFilter ? 'on' : ''}" data-edf="">Tous</button>${eds.map((p) => `<button class="chip ${S.edFilter === p.id ? 'on' : ''}" data-edf="${p.id}">${avatar(p, 18)}${esc(p.id === S.me.id ? 'Moi' : firstName(p))}</button>`).join('')}${g[S.filter].some((m) => m.claude_editor) ? `<button class="chip ${S.edFilter === 'claude' ? 'on' : ''}" data-edf="claude">${claudeAvatar(18)}Claude</button>` : ''}</div></div>` : '';
   const sorts = `<div class="f-row"><span class="f-lbl">Trier par</span><div class="f-scroll">${SORTS.filter(([k]) => k !== 'editor' || !isEditor()).map(([k, t]) => `<button class="chip ${S.sort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`).join('')}</div></div>`;
-  return `${header(`${g.open.length} en cours · ${g.delivered.length} livrées`, isEditor() ? 'Mes missions' : 'Missions', isAdmin() ? NEW_BTN : '')}
-  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label></div><div class="filters">${sorts}${chips}${edChips}</div>
+  return `${header(`${g.open.length} en cours · ${g.delivered.length} livrées`, isEditor() ? 'Mes missions' : 'Missions', `${viewSeg()}${isAdmin() ? NEW_BTN : ''}`)}
+  <div class="toolbar"><div class="seg">${seg}</div><label class="search">${I.search}<input id="proj-search" type="search" placeholder="Rechercher une mission, un client…" value="${esc(S.search)}" aria-label="Rechercher"></label><button class="btn ${S.showFilters ? 'on' : ''}" data-set="showFilters:${S.showFilters ? '' : '1'}" aria-expanded="${!!S.showFilters}">Filtrer${S.clientFilter || S.edFilter ? ' · actif' : ''}</button></div>${S.showFilters || S.clientFilter || S.edFilter ? `<div class="filters">${sorts}${chips}${edChips}</div>` : ''}
   <div class="card flush"><div class="list" id="proj-list">${projectRows()}</div></div>
   ${S.filter === 'requests' ? '<p class="lbl" style="margin-top:14px">Ouvre une demande pour fixer le budget, le prix et le monteur, puis accepte-la. Le client est prévenu automatiquement.</p>' : ''}`;
 }
@@ -1126,7 +1134,7 @@ function agendaPage() {
   const clients = !isClient() && cl.length > 1 ? `${people ? '<span class="chip-sep"></span>' : ''}<button class="chip ${!S.agClient ? 'on' : ''}" data-ag-client="">Tous les clients</button>${cl.map((c) => clientChip(c, S.agClient === c.id, 'data-ag-client')).join('')}` : '';
   const late = inRange.filter(isLate).length;
   const kicker = view === 'list' ? `${dated.filter(isOpen).length} deadline${dated.filter(isOpen).length > 1 ? 's' : ''} à venir` : `${inRange.length} deadline${inRange.length > 1 ? 's' : ''}${late ? ` · ${late} en retard` : ''} · ${inRange.filter((m) => !isOpen(m)).length} terminée${inRange.filter((m) => !isOpen(m)).length > 1 ? 's' : ''}`;
-  return `${header(kicker, isClient() ? 'Calendrier' : 'Agenda', `<div class="seg">${views}</div>`)}
+  return `${header(kicker, isClient() ? 'Calendrier' : isEditor() ? 'Mes missions' : 'Missions', `${viewSeg()}<div class="seg">${views}</div>`)}
   ${nav}${people || clients ? `<div class="chips">${people}${clients}</div>` : ''}${body}
   <div class="legend"><span><i class="lg" style="background:var(--red)"></i>En retard</span><span><i class="lg" style="background:var(--muted);opacity:.5"></i>Terminée</span>${isAdmin() ? '<span><i class="lg dash"></i>Demande client</span>' : ''}<span>La couleur est celle du client.</span></div>`;
 }
@@ -1151,8 +1159,8 @@ function financePage() {
       ${p ? `<button class="btn sm ${f.invoiced ? 'ok' : ''}" data-act="invoice" data-id="${m.id}" aria-pressed="${!!f.invoiced}">${f.invoiced ? `${small(I.check)}<span class="lg-only">Client facturé</span><span class="sm-only">Facturé</span>` : 'Facturer<span class="lg-only"> le client</span>'}</button>` : ''}</div>`;
   };
   const rows = (only ? toBill : list).map(finRow).join('') + (!only && carry.length ? `<div class="sub-h" style="color:#F5A524">Validées avant ${esc(monthName(mo))}, toujours à facturer</div>${carry.map(finRow).join('')}` : '');
-  const tab = S.finTab || 'overview';
-  const TABS = [['overview', 'Résumé', ''], ['missions', 'Missions', toBill.length ? `<span class="tb-n" title="${toBill.length} à facturer">${toBill.length}</span>` : ''], ['payouts', 'Monteurs', ''], ['charts', 'Graphiques', '']];
+  const tab = S.finTab === 'charts' ? 'overview' : S.finTab || 'missions';
+  const TABS = [['missions', 'À facturer', toBill.length ? `<span class="tb-n" title="${toBill.length} à facturer">${toBill.length}</span>` : ''], ['payouts', 'À payer', ''], ['overview', 'Bilan', ''], ['analysis', 'Analyse', '']];
   const tabs = `<div class="tabs-bar" role="tablist">${TABS.map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="finTab:${k}">${esc(l)}${n}</button>`).join('')}</div>`;
   let body = '';
   if (tab === 'overview') body = `<div class="grid">
@@ -1160,16 +1168,112 @@ function financePage() {
     ${stat('Pour les monteurs', eur(Math.round(payout)), billed ? `${Math.round((payout / billed) * 100)} % du facturé` : '', undefined, jump('finance', 'payouts'))}
     ${stat('Ta marge', eur(Math.round(billed - payout)), billed ? `${Math.round(((billed - payout) / billed) * 100)} % du facturé` : '', 'var(--green)', jump('finance', 'fin-charts'))}
     ${hist ? stat('Pas encore payé', eur(Math.round(hist.unpaid.reduce((a, h) => a + Number(h.amount), 0))), hist.unpaid.length ? `${hist.unpaid.length} facture${hist.unpaid.length > 1 ? 's' : ''} en attente` : 'Tout est encaissé', hist.unpaid.length ? '#F5A524' : 'var(--green)', jump('finance', 'fin-compta')) : stat('À facturer', String(toBill.length), toBill.length ? `${eur(toBill.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0))}${carry.length ? ` · dont ${carry.length} d'avant` : ''}` : 'Tout est facturé', undefined, jump('finance', 'fin-missions', { toBill: toBill.length > 0 }))}
-  </div>${unbilledCard()}${hist ? '' : cashCard(mo)}${financeCharts(mo, list, 'evo')}`;
-  else if (tab === 'missions') body = (hist ? histCard(mo, hist) : '') + `<div class="card flush" id="fin-missions"><div class="card-head"><div><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${hist ? '<div class="lbl" style="margin-top:3px">Suivies dans l\'app, pas comptées dans les totaux de ce mois (la compta fait foi).</div>' : ''}</div>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
+  </div>${hist ? '' : cashCard(mo)}${financeCharts(mo, list, 'evo')}${financeCharts(mo, list, 'split')}`;
+  else if (tab === 'missions') body = unbilledCard() + (hist ? histCard(mo, hist) : '') + `<div class="card flush" id="fin-missions"><div class="card-head"><div><h2>${only ? 'À facturer' : 'Missions'} · ${esc(mo.toLocaleDateString('fr-BE', { month: 'long' }))}</h2>${hist ? '<div class="lbl" style="margin-top:3px">Suivies dans l\'app, pas comptées dans les totaux de ce mois (la compta fait foi).</div>' : ''}</div>${only ? '<button class="btn sm" data-set="finToBill:">Tout afficher</button>' : toBill.length ? `<button class="btn sm" data-set="finToBill:1">Seulement à facturer (${toBill.length})</button>` : '<span class="lbl">Marge</span>'}</div><div class="list">${rows || '<div class="empty">Aucune mission ce mois-ci.</div>'}</div></div>`;
   else if (tab === 'payouts') body = payoutsSection(mo);
-  else body = financeCharts(mo, list, 'split');
-  return `${header('Visible uniquement par toi', 'Finances', monthSeg(mo))}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
+  else body = financeAnalysis(mo);
+  return `${header('Qui te doit, à qui tu dois · visible uniquement par toi', 'Finances', monthSeg(mo))}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
 }
 // Le suivi « à facturer » commence après le dernier mois repris de la compta (octobre 2026) :
 // jusque-là, tout est déjà facturé dans la compta.
 const unbilledFrom = () => { const u = histUntil(); return u ? new Date(u.getFullYear(), u.getMonth() + 1, 1) : new Date(2026, 10, 1); };
 // Ce qui n'est pas encore facturé, depuis la fin de la compta.
+// ---------- Finances › Analyse : rentabilité détaillée sur le mois, le trimestre, l'année ou 12 mois ----------
+const ANA_SPANS = [['m', 'Mois'], ['q', 'Trimestre'], ['y', 'Année'], ['12', '12 mois']];
+function anaRange(mo) {
+  const sp = S.anaSpan || 'm'; const y = mo.getFullYear(), m = mo.getMonth();
+  if (sp === 'q') { const q = Math.floor(m / 3) * 3; return [0, 1, 2].map((i) => new Date(y, q + i, 1)); }
+  if (sp === 'y') return Array.from({ length: 12 }, (_, i) => new Date(y, i, 1));
+  if (sp === '12') return Array.from({ length: 12 }, (_, i) => new Date(y, m - 11 + i, 1));
+  return [new Date(y, m, 1)];
+}
+function anaData(mo) {
+  const months = anaRange(mo); const key = (x) => `${x.getFullYear()}-${x.getMonth()}`; const keys = new Set(months.map(key));
+  const list = S.missions.filter((m) => { if (m.status === 'requested') return false; const x = workMonth(m); return x && keys.has(key(x)); });
+  const sum = (arr, k) => arr.reduce((a, o) => a + o[k], 0);
+  const cur = financeMonths(months[months.length - 1], months.length);
+  const first = months[0];
+  const prev = financeMonths(new Date(first.getFullYear(), first.getMonth() - 1, 1), months.length);
+  const last = months[months.length - 1];
+  const yoy = financeMonths(new Date(last.getFullYear() - 1, last.getMonth(), 1), months.length);
+  const secs = (m) => missionSessions(m.id).reduce((a, x) => a + (x.duration_sec || 0), 0);
+  const tot = (arr) => ({ billed: sum(arr, 'billed'), payout: sum(arr, 'payout'), margin: sum(arr, 'margin'), n: sum(arr, 'n') });
+  return { months, list, cur: tot(cur), prev: tot(prev), yoy: tot(yoy), secs, hist: cur.some((o) => o.hist) };
+}
+function anaLabel(mo) {
+  const r = anaRange(mo); const sp = S.anaSpan || 'm';
+  if (sp === 'm') return cap(monthName(mo));
+  if (sp === 'q') return `${cap(r[0].toLocaleDateString('fr-BE', { month: 'long' }))} à ${r[2].toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' })}`;
+  if (sp === 'y') return `Année ${mo.getFullYear()}`;
+  return `12 mois jusqu'à ${monthName(mo)}`;
+}
+function anaBars(items, val, fmt, color) {
+  const max = Math.max(1, ...items.map(val));
+  return `<div class="ana-bars">${items.map((o) => `<div class="ab" tabindex="0" data-tip="${esc(`${cap(monthName(o.mo))} : ${fmt(val(o))}`)}"><i style="height:${Math.max(2, (100 * Math.max(0, val(o))) / max).toFixed(1)}%;background:${color}"></i><span>${esc(o.mo.toLocaleDateString('fr-BE', { month: 'narrow' }).toUpperCase())}</span></div>`).join('')}</div>`;
+}
+function financeAnalysis(mo) {
+  const A = anaData(mo); const { cur, prev, yoy, list } = A;
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const delta = (a, b) => (b > 0 ? `${a >= b ? '+ ' : '− '}${Math.abs(Math.round(((a - b) / b) * 100))} % vs période précédente` : 'pas de période précédente');
+  const dcol = (a, b) => (b > 0 ? (a >= b ? 'var(--green)' : 'var(--red)') : 'var(--muted)');
+  const hours = list.reduce((a, m) => a + A.secs(m), 0);
+  const open = list.filter(isOpen); const openSum = open.reduce((a, m) => a + (S.finances[m.id]?.client_price || 0), 0);
+  const yM = financeMonths(new Date(mo.getFullYear(), 11, 1), 12); const yB = yM.reduce((a, o) => a + o.billed, 0); const yMa = yM.reduce((a, o) => a + o.margin, 0);
+  const lead = list.filter((m) => m.v1_delivered_at && m.created_at).map((m) => (d(m.v1_delivered_at) - d(m.created_at)) / 86400000).filter((x) => x >= 0);
+  const leadAvg = lead.length ? lead.reduce((a, x) => a + x, 0) / lead.length : null;
+  const seg = `<div class="seg">${ANA_SPANS.map(([k, t]) => `<button class="${(S.anaSpan || 'm') === k ? 'on' : ''}" data-set="anaSpan:${k}">${t}</button>`).join('')}</div>`;
+  const tiles = `<div class="grid">
+    ${stat('Chiffre d\'affaires', eur(Math.round(cur.billed)), delta(cur.billed, prev.billed), dcol(cur.billed, prev.billed))}
+    ${stat('Marge nette', eur(Math.round(cur.margin)), cur.billed ? `${pct(cur.margin, cur.billed)} % du facturé${prev.billed ? ` · ${pct(cur.margin, cur.billed) - pct(prev.margin, prev.billed) >= 0 ? '+' : '−'} ${Math.abs(pct(cur.margin, cur.billed) - pct(prev.margin, prev.billed))} pt` : ''}` : '', cur.margin >= 0 ? 'var(--green)' : 'var(--red)')}
+    ${stat('Prix moyen par mission', cur.n ? eur(Math.round(cur.billed / cur.n)) : '–', `${cur.n} mission${cur.n > 1 ? 's' : ''}`)}
+    ${stat('Coût monteur moyen', cur.n ? eur(Math.round(cur.payout / cur.n)) : '–', cur.billed ? `${pct(cur.payout, cur.billed)} % du facturé` : '')}
+    ${stat('Marge par heure montée', hours >= 1800 ? `${Math.round(cur.margin / (hours / 3600))} €/h` : '–', hours >= 1800 ? `${hm(hours)} suivies par le chrono` : 'pas assez d\'heures suivies')}
+    ${stat(`Cumul ${mo.getFullYear()}`, eur(Math.round(yB)), `marge ${eur(Math.round(yMa))}${yB ? ` · ${pct(yMa, yB)} %` : ''}`)}
+    ${stat('Encore en cours', eur(Math.round(openSum)), open.length ? `${open.length} mission${open.length > 1 ? 's' : ''} pas encore livrée${open.length > 1 ? 's' : ''}` : 'tout est livré', open.length ? '#F5A524' : 'var(--green)')}
+    ${stat('Délai moyen jusqu\'à la V1', leadAvg == null ? '–' : `${leadAvg.toFixed(1).replace('.', ',')} j`, lead.length ? `sur ${lead.length} mission${lead.length > 1 ? 's' : ''} livrée${lead.length > 1 ? 's' : ''}` : 'aucune livraison sur la période')}
+  </div>`;
+  // Graphiques sur 12 mois (toujours 12 mois, pour garder la tendance sous les yeux)
+  const M = financeMonths(mo, 12); const avg = M.reduce((a, o) => a + o.billed, 0) / 12; const best = M.slice().sort((a, b) => b.billed - a.billed)[0];
+  const charts = `<div class="ana-grid">
+    <div class="card"><div class="card-head flat"><h2>Chiffre d'affaires · 12 mois</h2><span class="lbl">moyenne ${eur(Math.round(avg))}${best?.billed ? ` · meilleur mois : ${esc(monthName(best.mo))}` : ''}</span></div>${anaBars(M, (o) => o.billed, (v) => eur(Math.round(v)), 'var(--s1)')}</div>
+    <div class="card"><div class="card-head flat"><h2>Taux de marge · 12 mois</h2><span class="lbl">en % du facturé</span></div>${anaBars(M, (o) => (o.billed ? (o.margin / o.billed) * 100 : 0), (v) => `${Math.round(v)} %`, 'var(--s3)')}</div>
+    <div class="card"><div class="card-head flat"><h2>Missions par mois</h2><span class="lbl">volume de production</span></div>${anaBars(M, (o) => o.n, (v) => `${v} mission${v > 1 ? 's' : ''}`, 'var(--violet)')}</div>
+    <div class="card"><div class="card-head flat"><h2>Payé aux monteurs · 12 mois</h2><span class="lbl">ce que tu leur verses</span></div>${anaBars(M, (o) => o.payout, (v) => eur(Math.round(v)), 'var(--s2)')}</div>
+  </div>`;
+  // Rentabilité par client et par monteur
+  const bd = financeBreakdown(list);
+  const cl = Object.entries(bd.byClient).map(([id, o]) => ({ c: client(id), ...o, margin: o.billed - o.payout })).filter((o) => o.billed || o.payout).sort((a, b) => b.billed - a.billed);
+  const totB = cl.reduce((a, o) => a + o.billed, 0);
+  const top = cl[0]; const dep = top && cl.length > 1 && totB && top.billed / totB >= 0.4;
+  const clRows = cl.map((o, i) => barRow({ i, lead: `<span class="dot" style="background:${clientColor(o.c)}"></span>`, name: o.c?.name || 'Sans client', sub: `${o.n} mission${o.n > 1 ? 's' : ''} · coût ${eur(Math.round(o.payout))} · marge ${eur(Math.round(o.margin))} (${pct(o.margin, o.billed)} %)`, value: eur(Math.round(o.billed)), small: totB ? ` ${pct(o.billed, totB)} % du CA` : '', pct: totB ? (o.billed / totB) * 100 : 0, color: clientColor(o.c), tip: esc(`${o.c?.name || 'Sans client'} : ${eur(Math.round(o.billed))} facturés, marge ${eur(Math.round(o.margin))}`) })).join('');
+  const ed = Object.entries(bd.byEditor).map(([u, o]) => ({ p: profile(u), ...o })).sort((a, b) => b.amount - a.amount);
+  const edMax = Math.max(1, ...ed.map((o) => o.amount));
+  const edRows = ed.map((o, i) => barRow({ i, lead: o.p ? avatar(o.p, 20) : '', name: o.p ? (o.p.full_name || firstName(o.p)) : 'Monteur', sub: `${o.n} mission${o.n > 1 ? 's' : ''}${o.secs ? ` · ${hm(o.secs)}` : ' · pas de chrono'}`, value: eur(Math.round(o.amount)), small: o.secs >= 1800 ? ` ${Math.round(o.amount / (o.secs / 3600))} €/h` : '', pct: (o.amount / edMax) * 100, color: 'var(--s2)', tip: esc(`${o.p ? firstName(o.p) : 'Monteur'} : ${eur(Math.round(o.amount))}`) })).join('');
+  // Missions les plus et les moins rentables (marge par heure de montage suivie)
+  const perH = list.map((m) => { const p = S.finances[m.id]?.client_price; const sec = A.secs(m); return p && sec >= 1800 ? { m, sec, margin: p - editorPayout(m), rate: (p - editorPayout(m)) / (sec / 3600) } : null; }).filter(Boolean).sort((a, b) => b.rate - a.rate);
+  const rRow = (o) => `<div class="item" role="button" tabindex="0" data-open="${o.m.id}"><span class="dot" style="background:${clientColor(client(o.m.client_id))}"></span><div class="grow"><div class="t">${esc(o.m.title)}</div><div class="s">${esc(client(o.m.client_id)?.name || 'Sans client')} · ${hm(o.sec)} de montage · marge ${eur(Math.round(o.margin))}</div></div><div class="mono" style="flex-shrink:0;font-weight:600;color:${o.rate >= 0 ? 'var(--green)' : 'var(--red)'}">${Math.round(o.rate)} €/h</div></div>`;
+  const bestRows = perH.slice(0, 3); const worstRows = perH.length > 3 ? perH.slice(-Math.min(3, perH.length - 3)).reverse() : [];
+  const cmp = yoy.billed > 0 ? `<div class="card flush"><div class="card-head"><h2>Comparaison avec l'an dernier</h2><span class="lbl">même période, un an plus tôt</span></div><div class="list">
+      ${[['Chiffre d\'affaires', cur.billed, yoy.billed, eur], ['Marge', cur.margin, yoy.margin, eur], ['Missions', cur.n, yoy.n, (v) => String(v)]].map(([t, a, b, f]) => `<div class="item"><div class="grow"><div class="t">${t}</div><div class="s">${f(Math.round(b))} l'an dernier</div></div><div class="mono" style="font-weight:600;color:${a >= b ? 'var(--green)' : 'var(--red)'}">${f(Math.round(a))}${b ? ` · ${a >= b ? '+' : '−'} ${Math.abs(Math.round(((a - b) / b) * 100))} %` : ''}</div></div>`).join('')}</div></div>` : '';
+  const empty = '<div class="empty">Aucune mission suivie dans l\'app sur cette période.</div>';
+  return `<div class="toolbar ana-bar">${seg}<span class="lbl">${esc(anaLabel(mo))}</span><button class="btn" data-act="anacsv">Exporter en CSV</button></div>
+    ${A.hist ? '<p class="lbl" style="margin:0 0 12px">Cette période contient des mois clôturés : leurs totaux viennent de la compta, le détail par client et par monteur ne couvre que les missions suivies dans l\'app.</p>' : ''}
+    ${tiles}${charts}
+    <div class="card flush" style="margin-top:16px"><div class="card-head"><h2>Rentabilité par client</h2><span class="lbl" style="${dep ? 'color:#F5A524' : ''}">${dep ? `${esc(top.c?.name || 'Un client')} pèse ${pct(top.billed, totB)} % du chiffre : dépendance élevée` : 'facturé, coût monteurs, marge et part du chiffre'}</span></div><div class="bars pad">${clRows || empty}</div></div>
+    <div class="card flush" style="margin-top:16px"><div class="card-head"><h2>Coût par monteur</h2><span class="lbl">montant, heures suivies et coût horaire</span></div><div class="bars pad">${edRows || '<div class="empty">Aucun monteur payé sur cette période.</div>'}</div></div>
+    <div class="ana-grid" style="margin-top:16px">
+      <div class="card flush"><div class="card-head"><h2>Missions les plus rentables</h2><span class="lbl">marge par heure de montage</span></div><div class="list">${bestRows.map(rRow).join('') || '<div class="empty">Il faut au moins 30 min de chrono sur une mission facturée.</div>'}</div></div>
+      ${worstRows.length ? `<div class="card flush"><div class="card-head"><h2>Missions les moins rentables</h2><span class="lbl">à surveiller</span></div><div class="list">${worstRows.map(rRow).join('')}</div></div>` : ''}
+    </div>
+    ${cmp ? `<div style="margin-top:16px">${cmp}</div>` : ''}`;
+}
+function anaCsv(mo) {
+  const A = anaData(mo); const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [['Mois', 'Client', 'Mission', 'Statut', 'Prix client HTVA', 'Monteurs', 'Marge', 'Heures de montage']];
+  A.list.slice().sort((a, b) => workMonth(a) - workMonth(b)).forEach((m) => { const p = S.finances[m.id]?.client_price || 0; const pay = editorPayout(m);
+    rows.push([ymd(workMonth(m)).slice(0, 7), client(m.client_id)?.name || '', m.title, m.status, p, Math.round(pay * 100) / 100, Math.round((p - pay) * 100) / 100, (A.secs(m) / 3600).toFixed(2).replace('.', ',')]); });
+  return rows.map((r) => r.map(q).join(';')).join('\r\n');
+}
 function unbilledCard() {
   // « Client payé » veut dire facturé et encaissé : ces missions-là ne sont jamais « à facturer ».
   const left = S.missions.filter((m) => isDelivered(m) && m.status !== 'paid' && !S.finances[m.id]?.invoiced && workMonth(m) >= unbilledFrom());
@@ -1288,7 +1392,7 @@ function clientHome() {
   const c = { name: myClientLabel() };
   const ask = S.missions.filter((m) => awaitsClient(m) && m.delivery_url);
   const open = S.missions.filter((m) => isOpen(m) && !ask.includes(m)); const done = S.missions.filter((m) => !isOpen(m));
-  return `${header(c?.name || 'Espace client', `Bonjour ${firstName(S.me)}`, `<button class="btn pri" data-go="new">${small(I.plus)}Nouveau projet</button>`)}
+  return `${header(c?.name || 'Espace client', `Bonjour ${firstName(S.me)}`, `${viewSeg()}<button class="btn pri" data-go="new">${small(I.plus)}Nouveau projet</button>`)}
   ${ask.length ? `<h2 class="sec">À toi de jouer</h2><div class="pgrid">${ask.map(clientCard).join('')}</div>` : ''}
   <h2 class="sec">En cours</h2>${open.length ? `<div class="pgrid">${open.map(clientCard).join('')}</div>` : `<div class="card"><div class="empty" style="padding:4px 0">${ask.length ? 'Aucun autre projet en cours.' : 'Aucun projet en cours. Propose-en un avec « Nouveau projet ».'}</div></div>`}
   ${done.length ? `<h2 class="sec">Terminés</h2>${listCard(done.map((m) => missionRow(m)).join(''))}` : ''}`;
@@ -1343,12 +1447,17 @@ function notifsPage() {
 const ROLE_LABEL = { admin: 'Admin', editor: 'Monteur', client: 'Client', none: 'Sans accès' };
 const ROLE_COLOR = { admin: '#4C8DFF', editor: '#3DD68C', client: '#F472B6', none: '#8B8D94' };
 function teamPage() {
-  const tabs = [['members', 'Membres'], ['clients', 'Clients'], ['settings', 'Réglages']].map(([k, t]) => `<button class="${S.teamTab === k ? 'on' : ''}" data-teamtab="${k}">${t}</button>`).join('');
+  const tabs = [['members', 'Équipe'], ['clients', 'Clients'], ['settings', 'Liens'], ['connect', 'Connexions'], ['account', 'Mon compte']].map(([k, t]) => `<button role="tab" aria-selected="${(S.teamTab || 'members') === k}" class="${(S.teamTab || 'members') === k ? 'on' : ''}" data-teamtab="${k}">${t}</button>`).join('');
   let body = '';
   if (S.teamTab === 'clients') {
     body = `<div class="card flush"><div class="card-head"><h2>Clients</h2><button class="btn sm" data-act="newclient">${small(I.plus)}Ajouter</button></div><div class="list">
       ${S.clients.map((c) => { const ms = S.missions.filter((m) => m.client_id === c.id); const acc = S.profiles.filter((p) => p.role === 'client' && p.active && accessOf(p).includes(c.id)).length;
         return `<div class="item" role="button" tabindex="0" data-client-open="${c.id}"><span class="dot" style="background:${clientColor(c)};width:12px;height:12px"></span><div class="grow"><div class="t">${esc(c.name)}</div><div class="s">${ms.filter((m) => isOpen(m)).length} en cours · ${ms.length} au total · ${acc ? `${acc} accès à l'espace client` : "pas encore d'accès client"}</div></div><span class="lbl">Modifier</span></div>`; }).join('') || '<div class="empty">Aucun client.</div>'}</div></div>`;
+  } else if (S.teamTab === 'connect') {
+    if (!S.apps && !S.appsLoading) queueMicrotask(() => loadApps());
+    body = S.apps ? connectCard() : '<div class="card"><div class="empty">Chargement des connexions…</div></div>';
+  } else if (S.teamTab === 'account') {
+    body = `<div style="max-width:640px">${accountBody()}</div>`;
   } else if (S.teamTab === 'settings') {
     body = `<form class="card" id="settings-form" style="max-width:640px"><h2>Liens de dépôt</h2>
       <label class="f" for="st-del">Dépôt du montage (pour les monteurs)</label><input class="in" id="st-del" name="delivery_link" type="url" placeholder="https://" value="${esc(S.settings.delivery_link || '')}">
@@ -1374,7 +1483,7 @@ function teamPage() {
     </div></div>
     ${pending.length ? `<div class="card flush"><div class="card-head"><h2>Invitations en attente</h2></div><div class="list">${pending.map((i) => `<div class="item"><div class="grow"><div class="t">${esc(i.email)}</div><div class="s">${ROLE_LABEL[i.role] || ''}${i.client_id ? ` · ${esc(clientNames([i.client_id, ...(i.extra_client_ids || [])]))}` : ''}</div></div><button class="btn sm" data-uninvite="${esc(i.email)}">Annuler</button></div>`).join('')}</div></div>` : ''}`;
   }
-  return `${header(`${S.profiles.filter((p) => p.active && p.role !== 'none').length} personnes · ${S.clients.length} clients`, 'Équipe', `<div class="seg">${tabs}</div>`)}${body}`;
+  return `${header(`${S.profiles.filter((p) => p.active && p.role !== 'none').length} personnes · ${S.clients.length} clients`, 'Réglages')}<div class="tabs-bar" role="tablist">${tabs}</div><div class="tab-body" key="${S.teamTab || 'members'}">${body}</div>`;
 }
 
 // ---------- feuilles ----------
@@ -1753,7 +1862,6 @@ function accountBody() {
   return `<form class="card" id="account-form"><div class="row" style="gap:12px">${avatar(S.me, 48)}<div><b>${esc(S.me.full_name || firstName(S.me))}</b><div class="lbl">${esc(S.me.email)}</div></div></div>
     <label class="f" for="ac-name">Nom affiché</label><div class="row"><input class="in" id="ac-name" name="name" maxlength="60" value="${esc(S.me.full_name || '')}" placeholder="Prénom Nom"><button class="btn" type="submit">Enregistrer</button></div></form>
   ${pushable ? `<div class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>Notifications</b><div class="lbl" style="margin-top:4px">${S.pushOn && Notification.permission === 'granted' ? 'Activées sur cet appareil.' : Notification.permission === 'denied' ? 'Bloquées dans les réglages de ton navigateur.' : 'Reçois les nouvelles sur cet appareil.'}</div></div>${S.pushOn && Notification.permission === 'granted' ? pill('Actives', '#3DD68C') : Notification.permission === 'denied' ? '' : '<button class="btn pri" data-act="push">Activer</button>'}</div></div>` : ''}
-  ${isAdmin() ? `<button class="btn full" data-jump="apps" style="margin-top:14px">${small(I.apps)}Apps et site : statistiques</button>` : ''}
   ${isAdmin() || isEditor() ? premiereCard() : ''}
   <button class="btn full danger" data-act="logout" style="margin-top:14px">${small(I.out)}Se déconnecter</button>`;
 }
@@ -1950,7 +2058,7 @@ function appsPage() {
   const A = S.apps; const base = A?.base?.ok ? A.base : null; const store = A?.store?.ok ? A.store : null; const site = A?.site?.ok ? A.site : null;
   const when = A?.cached || A?.at;
   const right = `<button class="btn" data-act="appsrefresh" ${S.appsLoading ? 'disabled' : ''}>${S.appsLoading ? 'Chargement…' : 'Actualiser'}</button>`;
-  if (!A) return `${header('Statistiques de tes apps et de ton site', 'Apps et site', right)}<div class="card"><div class="empty">Chargement des statistiques…</div></div>`;
+  if (!A) return `${header('Comment vont tes apps, tes comptes et ton site', 'Marques', right)}<div class="card"><div class="empty">Chargement des statistiques…</div></div>`;
   const dl30 = store ? store.apps.reduce((a, x) => a + x.downloads, 0) : null;
   const proc30 = store ? store.apps.reduce((o, x) => { Object.entries(x.proceeds).forEach(([c, v]) => { o[c] = (o[c] || 0) + v; }); return o; }, {}) : null;
   const tiles = `<div class="grid">
@@ -1972,11 +2080,16 @@ function appsPage() {
   const siteCard = site ? `<div class="card" style="margin-top:16px"><div class="card-head" style="padding:0 0 10px"><h2>minimalistbelgium.com · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites · ${nfmt(site.days.reduce((a, x) => a + x.views, 0))} pages vues</span></div>
     ${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}
     <div class="site-cols"><div><div class="sub-h" style="padding-left:0">Pages les plus vues</div>${topList(site.pages, (k) => (k === '/' ? 'Accueil' : k))}</div><div><div class="sub-h" style="padding-left:0">Pays</div>${topList(site.countries)}</div><div><div class="sub-h" style="padding-left:0">Provenance</div>${topList(site.refs)}</div></div></div>` : '';
-  return `${header(`Statistiques${when ? ` · mises à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Apps et site', right)}${tiles}
-    <div class="sec-h"><h2>Apps</h2></div>${apps}${subsCard()}${revenue}
-    <div class="sec-h" id="apps-sched"><h2>Publications</h2></div>${schedSection()}
-    <div id="apps-ig">${igSection()}</div>
-    ${siteCard ? `<div class="sec-h"><h2>Site</h2></div>${siteCard}` : ''}${connectCard()}`;
+  const tab = S.appsTab || 'summary';
+  const tabs = `<div class="tabs-bar" role="tablist">${[['summary', 'Résumé'], ['apps', 'Apps'], ['pubs', 'Publications'], ['site', 'Site']].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-set="appsTab:${k}">${l}</button>`).join('')}</div>`;
+  const dlCard = store ? `<div class="card"><div class="card-head flat"><h2>Téléchargements · 30 jours</h2><span class="lbl">${nfmt(dl30)} au total${store.lastDay ? ` · dernier rapport Apple : ${esc(dshort(fromYmd(store.lastDay)))}` : ''}</span></div>${miniBars(store.daily, (x) => x.n, (x) => `${x.d} : ${x.n} téléchargement${x.n > 1 ? 's' : ''}`)}</div>` : '';
+  const visCard = site ? `<div class="card"><div class="card-head flat"><h2>Visites du site · 30 jours</h2><span class="lbl">${nfmt(site.days.reduce((a, x) => a + x.visits, 0))} visites</span></div>${miniBars(site.days, (x) => x.visits, (x) => `${x.d} : ${x.visits} visites`)}</div>` : '';
+  let body;
+  if (tab === 'apps') body = `${apps}${subsCard()}${revenue}`;
+  else if (tab === 'pubs') body = `<div id="apps-sched">${schedSection()}</div><div id="apps-ig">${igSection()}</div>`;
+  else if (tab === 'site') body = siteCard || `<div class="card"><div class="empty">Le site n'est pas encore connecté.</div><button class="btn" ${jump('apps', 'apps-connect')}>Ouvrir les connexions</button></div>`;
+  else body = `${tiles}<div class="ana-grid" style="margin-top:16px">${dlCard}${visCard}</div>`;
+  return `${header(`Comment vont tes apps, tes comptes et ton site${when ? ` · à jour à ${new Date(when).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}` : ''}`, 'Marques', right)}${tabs}<div class="tab-body" key="${tab}">${body}</div>`;
 }
 // Panneau Premiere : compte le temps même quand l'app est fermée (Premiere 25.6+).
 function premiereCard() {
@@ -2041,6 +2154,11 @@ const ACTIONS = {
   async copycode() { try { await navigator.clipboard.writeText(S.panelCode || ''); toast('Code copié'); } catch { toast('Sélectionne le code pour le copier'); } },
   editors(t) { openEditors(Number(t.dataset.i || 0)); },
   appsrefresh() { loadApps(true); },
+  anacsv() {
+    const blob = new Blob(['\ufeff' + anaCsv(S.month)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `minima-studio-analyse-${ymd(S.month).slice(0, 7)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('Fichier CSV téléchargé.');
+  },
   schedopen(t) { openSheet({ type: 'post', id: t.dataset.id }); },
   schednew() { openSheet({ type: 'post', id: null }); },
   async scheddel(t) {
@@ -2210,6 +2328,7 @@ document.addEventListener('click', async (e) => {
     else if (D.jump) doJump(D);
     else if (D.go) {
       const hadSheet = !!S.sheet; closeSheet(); S.finToBill = ''; if (D.gomonth) S.month = fromYmd(D.gomonth);
+      if (D.go === 'agenda') { D.go = 'projects'; S.projView = 'cal'; }
       const same = S.route === D.go; S.route = D.go; render(!same);
       // Re-toucher l'onglet de la page en cours remonte tout en haut (comme sur iOS).
       if (!same) window.scrollTo(0, 0); else if (!hadSheet && !D.gomonth) window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -2501,7 +2620,7 @@ boot();
 setInterval(() => { if (!document.hidden) sync(); }, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
 let wasMobile = isMobile();
-window.addEventListener('resize', debounce(() => { hideTip(); if (isMobile() !== wasMobile) { wasMobile = isMobile(); if (S.route === 'agenda' && S.me) return render(); } placeThumbs(false); }, 200));
+window.addEventListener('resize', debounce(() => { hideTip(); if (isMobile() !== wasMobile) { wasMobile = isMobile(); if (S.route === 'projects' && S.projView === 'cal' && S.me) return render(); } placeThumbs(false); }, 200));
 if (document.fonts?.ready) document.fonts.ready.then(() => placeThumbs(false)).catch(() => {});
 
 // Accès pour l'app Windows (desktop.js)

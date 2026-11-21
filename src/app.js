@@ -1801,7 +1801,27 @@ function appCard(name, color, storeName, u, activity) {
       ${tile('Activité 30 j', esc(activity[0]), activity[1])}
       ${tile('Note App Store', !st.length ? null : st[0].rating ? `★ ${st[0].rating.toFixed(1).replace('.', ',')}` : '–', !st.length ? null : st[0].ratings ? `${nfmt(st[0].ratings)} avis` : 'pas encore de note')}
       ${tile('Retéléch. et MAJ 30 j', store ? nfmt(st.reduce((a, x) => a + (x.redownloads || 0), 0)) : null, store ? `retéléch. · ${nfmt(st.reduce((a, x) => a + (x.updates || 0), 0))} mises à jour` : null)}
-    </div>${u?.note ? `<div class="lbl" style="margin-top:10px">${esc(u.note)}</div>` : ''}${!u ? '<div class="lbl" style="margin-top:10px">Utilisateurs non mesurés : l\'app ne remonte pas encore cette info.</div>' : ''}</div>`;
+    </div>${u?.note ? `<div class="lbl" style="margin-top:10px">${esc(u.note)}</div>` : ''}${!u ? '<div class="lbl" style="margin-top:10px">Utilisateurs non mesurés : l\'app ne remonte pas encore cette info.</div>' : ''}${phBlock(name)}</div>`;
+}
+// Utilisation réelle dans l'app, mesurée par PostHog
+const dur = (sec) => (sec < 60 ? `${Math.round(sec)} s` : `${Math.floor(sec / 60)} min ${String(Math.round(sec % 60)).padStart(2, '0')}`);
+function phBlock(name) {
+  const ph = S.apps?.ph;
+  if (!ph?.ok) return '';
+  const a = ph.apps?.[name];
+  if (!a || !a.events) return `<div class="ph-block"><div class="ph-head"><b>Dans l'app</b><span class="lbl">PostHog</span></div><div class="lbl">Aucune donnée reçue sur 30 jours. La version de l'app qui envoie les statistiques n'est pas encore utilisée.</div></div>`;
+  const tile = (l, v, sub) => `<div class="ak"><span class="lbl">${esc(l)}</span><b class="mono">${v}</b><span class="lbl">${esc(sub)}</span></div>`;
+  const ret = a.cohort ? `${Math.round((100 * a.back) / a.cohort)} %` : '–';
+  const list = (t, l) => (l.length ? `<div class="ph-list"><span class="lbl">${esc(t)}</span>${topList(l)}</div>` : '');
+  return `<div class="ph-block"><div class="ph-head"><b>Dans l'app</b><span class="lbl">PostHog · 30 jours</span></div>
+    <div class="app-kpis">
+      ${tile('Actifs aujourd\'hui', nfmt(a.d1), `${nfmt(a.d7)} sur 7 j · ${nfmt(a.d30)} sur 30 j`)}
+      ${tile('Sessions', nfmt(a.sessions), a.avgSession ? `${dur(a.avgSession)} en moyenne` : 'durée non mesurée')}
+      ${tile('Fidélité', ret, a.cohort ? `revenus après 7 j (${nfmt(a.back)} sur ${nfmt(a.cohort)})` : 'pas encore assez de recul')}
+      ${tile('Installations', nfmt(a.installs), 'premières ouvertures')}
+    </div>
+    ${a.days.length > 1 ? `<div class="lbl" style="margin:12px 0 4px">Utilisateurs actifs par jour</div>${miniBars(a.days, (x) => x.n, (x) => `${x.d} : ${x.n}`)}` : ''}
+    <div class="ph-lists">${list('Écrans les plus vus', a.screens)}${list('Actions', a.actions)}${list('Versions', a.versions.map((v) => ({ k: `v${v.k}`, n: v.n })))}</div></div>`;
 }
 function connectCard() {
   const s = S.appsSecrets || {};
@@ -1814,7 +1834,10 @@ function connectCard() {
       <form class="conn-form" data-secrets="asc"><input class="in" name="asc_issuer_id" placeholder="ID de l'émetteur (Issuer ID)${s.asc_issuer_id ? ' · enregistré' : ''}" autocomplete="off"><input class="in" name="asc_key_id" placeholder="ID de la clé (Key ID)${s.asc_key_id ? ' · enregistré' : ''}" autocomplete="off"><input class="in" name="asc_vendor_number" placeholder="Numéro de fournisseur${s.asc_vendor_number ? ' · enregistré' : ''}" autocomplete="off" inputmode="numeric"><textarea class="in" name="asc_private_key" rows="3" placeholder="-----BEGIN PRIVATE KEY----- …${s.asc_private_key ? ' (enregistrée)' : ''}" autocomplete="off" spellcheck="false"></textarea><button class="btn pri" type="submit">Enregistrer</button></form></details>
     <details class="conn" ${cfOk ? '' : 'open'}><summary><b>Cloudflare Web Analytics</b> ${cfOk ? pill('Connecté', '#3DD68C') : pill('À connecter', '#F5A524')}<span class="lbl"> · visites du site</span></summary>${err(S.apps?.site)}
       <ol class="steps-ol"><li>Le site minimalistbelgium.com est déjà suivi par Web Analytics, il ne manque que l'accès en lecture.</li><li>Sur <b>dash.cloudflare.com</b> : Mon profil, puis Jetons d'API, puis Créer un jeton, puis « Jeton personnalisé ». Donne-lui la permission <b>Compte · Account Analytics · Lecture</b>.</li><li>Colle le jeton ici.</li></ol>
-      <form class="conn-form" data-secrets="cf"><input class="in" name="cf_api_token" type="password" placeholder="Jeton d'API Cloudflare${s.cf_api_token ? ' · enregistré' : ''}" autocomplete="off">${s.cf_site_tag ? '' : '<input class="in" name="cf_site_tag" placeholder="Site tag Web Analytics" autocomplete="off">'}<button class="btn pri" type="submit">Enregistrer</button></form></details></div>`;
+      <form class="conn-form" data-secrets="cf"><input class="in" name="cf_api_token" type="password" placeholder="Jeton d'API Cloudflare${s.cf_api_token ? ' · enregistré' : ''}" autocomplete="off">${s.cf_site_tag ? '' : '<input class="in" name="cf_site_tag" placeholder="Site tag Web Analytics" autocomplete="off">'}<button class="btn pri" type="submit">Enregistrer</button></form></details>
+    <details class="conn" ${s.ph_api_key ? '' : 'open'}><summary><b>PostHog</b> ${s.ph_api_key ? pill('Connecté', '#3DD68C') : pill('À connecter', '#F5A524')}<span class="lbl"> · utilisation dans les apps</span></summary>${err(S.apps?.ph)}
+      <ol class="steps-ol"><li>Ouvre <b>eu.posthog.com/settings/user-api-keys</b> (Settings, puis Personal API keys) et clique sur <b>Create personal API key</b>.</li><li>Nomme-la « Minima Studio », limite-la au projet <b>Minimalist Apps</b> et coche seulement le droit <b>Query : Read</b>.</li><li>Copie la clé tout de suite (PostHog ne la réaffiche plus) et colle-la ici.</li></ol>
+      <form class="conn-form" data-secrets="ph"><input class="in" name="ph_api_key" type="password" placeholder="Clé API personnelle PostHog${s.ph_api_key ? ' · enregistrée' : ''}" autocomplete="off"><button class="btn pri" type="submit">Enregistrer</button></form></details></div>`;
 }
 const signed = (n) => (n == null ? '' : n > 0 ? `+ ${nfmt(n)}` : n < 0 ? `− ${nfmt(-n)}` : '±0');
 const ago = (iso) => { const h = Math.round((Date.now() - new Date(iso)) / 36e5); const dd = Math.round(h / 24); return h < 24 ? `il y a ${Math.max(1, h)} h` : dd < 31 ? `il y a ${dd} j` : dd < 365 ? `il y a ${Math.round(dd / 30.4)} mois` : `il y a ${Math.round(dd / 365)} an${dd >= 548 ? 's' : ''}`; };

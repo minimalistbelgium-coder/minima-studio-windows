@@ -1,6 +1,6 @@
 // Tableau « Apps et site » de Minima Studio (admin uniquement).
 // Rassemble : FastSign / MinimaClap / Agora (base FastSign, chiffres agrégés), App Store Connect
-// (téléchargements, revenus, abonnements), Instagram et Cloudflare Web Analytics. Résultat gardé 1 h en cache.
+// (téléchargements, revenus, abonnements), Instagram, Cloudflare Web Analytics et PostHog. Résultat gardé 1 h en cache.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { SignJWT, importPKCS8 } from 'npm:jose@5.9.6';
 
@@ -285,6 +285,51 @@ async function website(s: Record<string, string>) {
   };
 }
 
+
+// ---------- PostHog (utilisation réelle dans les apps) ----------
+// Chaque app est reconnue par $app_name / $app_namespace envoyés par le SDK mobile.
+const phApp = (raw: string) => {
+  const k = (raw || '').toLowerCase();
+  if (k.includes('fastsign')) return 'FastSign';
+  if (k.includes('agora')) return 'Agora';
+  if (k.includes('clap') || k.includes('minimatime') || k.includes('marker')) return 'MinimaClap';
+  return raw || 'Inconnue';
+};
+async function posthog(s: Record<string, string>) {
+  if (!s.ph_api_key) return { ok: false, missing: true };
+  const pid = s.ph_project_id || '343981';
+  const APP = "coalesce(nullIf(toString(properties.$app_name), ''), nullIf(toString(properties.$app_namespace), ''), 'Inconnue')";
+  const q = async (query: string) => {
+    const r = await fetch(`https://eu.posthog.com/api/projects/${pid}/query/`, {
+      method: 'POST', headers: { Authorization: `Bearer ${s.ph_api_key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: { kind: 'HogQLQuery', query } }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.detail || `PostHog ${r.status}`).toString().slice(0, 200));
+    return (j.results || []) as any[][];
+  };
+  const W = 'timestamp > now() - interval 30 day';
+  const [kpi, days, screens, actions, versions, sess, ret] = await Promise.all([
+    q(`select ${APP} as app, uniqIf(person_id, timestamp > now() - interval 1 day), uniqIf(person_id, timestamp > now() - interval 7 day), uniq(person_id), uniq(properties.$session_id), countIf(event = 'Application installed'), count() from events where ${W} group by app`),
+    q(`select ${APP} as app, toDate(timestamp) as d, uniq(person_id) from events where ${W} group by app, d order by d`),
+    q(`select ${APP} as app, toString(properties.$screen_name) as sc, count() as n from events where ${W} and event = '$screen' and sc != '' group by app, sc order by n desc limit 60`),
+    q(`select ${APP} as app, event, count() as n from events where ${W} and event not like '$%' and event not like 'Application %' and event != 'Deep link opened' group by app, event order by n desc limit 60`),
+    q(`select ${APP} as app, toString(properties.$app_version) as v, uniq(person_id) as n from events where ${W} and v != '' group by app, v order by n desc limit 30`),
+    q(`select app, avg(dur) from (select ${APP} as app, properties.$session_id as sid, dateDiff('second', min(timestamp), max(timestamp)) as dur from events where ${W} and sid is not null and sid != '' group by app, sid) group by app`),
+    q(`select app, countIf(f < now() - interval 7 day), countIf(f < now() - interval 7 day and l >= f + interval 7 day) from (select ${APP} as app, person_id, min(timestamp) as f, max(timestamp) as l from events where timestamp > now() - interval 60 day group by app, person_id) where f > now() - interval 37 day group by app`),
+  ]);
+  const apps: Record<string, any> = {};
+  const A = (raw: string) => (apps[phApp(raw)] ||= { d1: 0, d7: 0, d30: 0, sessions: 0, installs: 0, events: 0, avgSession: 0, days: [], screens: [], actions: [], versions: [], cohort: 0, back: 0 });
+  for (const [a, d1, d7, d30, se, ins, ev] of kpi) { const o = A(a); o.d1 += d1; o.d7 += d7; o.d30 += d30; o.sessions += se; o.installs += ins; o.events += ev; }
+  for (const [a, d, n] of days) A(a).days.push({ d, n });
+  for (const [a, k, n] of screens) { const o = A(a); if (o.screens.length < 6) o.screens.push({ k, n }); }
+  for (const [a, k, n] of actions) { const o = A(a); if (o.actions.length < 6) o.actions.push({ k, n }); }
+  for (const [a, k, n] of versions) { const o = A(a); if (o.versions.length < 4) o.versions.push({ k, n }); }
+  for (const [a, v] of sess) A(a).avgSession = Math.round(v || 0);
+  for (const [a, c, b] of ret) { const o = A(a); o.cohort += c; o.back += b; }
+  return { ok: true, apps };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   const mode = new URL(req.url).searchParams.get('mode');
@@ -306,15 +351,16 @@ Deno.serve(async (req) => {
     if (c && Date.now() - new Date(c.at).getTime() < 3600_000) return json({ ...c.data, sched: await schedule(), cached: c.at });
   }
   const s = await secrets();
-  const [base, store, site, ig, subs] = await Promise.all([
+  const [base, store, site, ig, subs, ph] = await Promise.all([
     fastsign(s.fastsign_stats_key).catch((e) => ({ ok: false, error: String(e) })),
     appStore(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
     website(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
     instagram(s.fastsign_stats_key).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
     subscriptions(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
+    posthog(s).catch((e) => ({ ok: false, error: String(e).slice(0, 200) })),
   ]);
   // Le programme se lit après Instagram (qui coche les posts publiés) et n'est jamais mis en cache
-  const out = { base, store, site, ig, subs, at: new Date().toISOString() };
+  const out = { base, store, site, ig, subs, ph, at: new Date().toISOString() };
   await sb.from('app_stats_cache').upsert({ key: 'all', data: out, at: out.at });
   return json({ ...out, sched: await schedule() });
 });

@@ -1197,7 +1197,7 @@ struct TeamPicker: View {
 struct DeadlinePicker: View {
     @Binding var date: Date
     @Binding var enabled: Bool
-    var accent: Color = Theme.blue
+    var accent: Color = Theme.lime
     var withTime = true
     var noneLabel = "Sans deadline"
     /// Raccourcis relatifs à cette date (ex. la remise, pour la date de sortie).
@@ -1217,7 +1217,7 @@ struct DeadlinePicker: View {
         return c
     }
 
-    init(date: Binding<Date>, enabled: Binding<Bool>, accent: Color = Theme.blue, withTime: Bool = true,
+    init(date: Binding<Date>, enabled: Binding<Bool>, accent: Color = Theme.lime, withTime: Bool = true,
          noneLabel: String = "Sans deadline", anchor: Date? = nil, anchorName: String = "la remise",
          marked: Date? = nil, markedColor: Color = Theme.blue) {
         _date = date

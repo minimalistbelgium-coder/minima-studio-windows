@@ -404,7 +404,7 @@ struct AgendaDayCell: View {
                 .font(.system(size: 12.5, weight: today ? .bold : .medium)).monospacedDigit()
                 .foregroundStyle(today ? Theme.onAccent : Theme.text2)
                 .frame(width: 24, height: 24)
-                .background(today ? Theme.blue : Color.clear, in: Circle())
+                .background(today ? Theme.lime : Color.clear, in: Circle())
             ForEach(rels) { m in AgendaReleaseChip(mission: m, showLabel: !narrow) }
             ForEach(Array(missions.prefix(room))) { m in AgendaChip(mission: m, showTime: !narrow) }
             if extra > 0 { Muted(narrow ? "+ \(extra)" : "+ \(extra) autre\(extra > 1 ? "s" : "")", size: 11).lineLimit(1).padding(.leading, 4) }

@@ -311,7 +311,7 @@ struct MiniButton: ButtonStyle {
             .foregroundStyle(primary ? Theme.onAccent : Theme.text)
             .lineLimit(1)
             .padding(.horizontal, 10).frame(height: 26)
-            .glassButton(tint: primary ? Theme.blue : nil, radius: 8, prominent: primary)
+            .glassButton(tint: primary ? Theme.lime : nil, radius: 8, prominent: primary)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(configuration.isPressed ? 0.8 : 1)
             .contentShape(Rectangle())

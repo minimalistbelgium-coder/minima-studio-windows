@@ -9,7 +9,7 @@ struct PostDraft: Identifiable {
     var handle = "fastsign.app"
     var format = "Carrousel"
     var title = ""
-    var status = "Prêt"
+    var status = "À poster"
     var ref = ""
     var url = ""
     var at: Date = {
@@ -39,7 +39,7 @@ struct PostEditor: View {
     @State private var preview: NSImage? = nil
 
     static let formats = ["Carrousel", "Reel", "Reel d'essai", "Story", "Post"]
-    static let statuses = ["À créer", "Prêt", "Programmé", "Publié"]
+    static let statuses = ["À créer", "À poster", "Programmé", "Publié"]
     static let brands: [String: (String, String)] = ["fastsign.app": ("FastSign", "4C8DFF"), "agora.app.be": ("Agora", "C084FC"),
                                                      "agenceimage.be": ("L'Agence Image", "F472B6"), "minimalist.belgium": ("Minimalist", "8B8D94")]
     /// Nom du dossier de chaque marque dans Bureau › PROJET › Publications Instagram.

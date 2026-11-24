@@ -174,7 +174,7 @@ private struct PostTile: View {
     private var brand: (String, String) { PostEditor.brands[post.handle] ?? (post.handle, "8B8D94") }
     private var statusColor: Color {
         switch post.status {
-        case "Prêt": return Theme.green
+        case "À poster", "Prêt": return Theme.green
         case "Programmé": return Color(hex: "4C8DFF")
         case "À créer": return Theme.amber
         default: return Theme.muted
@@ -268,7 +268,7 @@ enum PostUploader {
                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
                 continue
             }
-            guard files.isEmpty, at > now.addingTimeInterval(-3600), ["Prêt", "À créer"].contains(r.status),
+            guard files.isEmpty, at > now.addingTimeInterval(-3600), ["À poster", "Prêt", "À créer"].contains(r.status),
                   let ref = r.ref, !ref.isEmpty else { continue }
             let handle = r.handle
             let local = await Task.detached(priority: .utility) { PostThumbs.localFiles(handle: handle, ref: ref) }.value

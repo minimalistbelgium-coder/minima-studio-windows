@@ -50,9 +50,9 @@ enum ThemeMode: String, CaseIterable, Identifiable {
 // MARK: - Couleurs (toutes dynamiques : elles suivent le thème clair ou sombre)
 
 enum Theme {
-    static let bg = Color(light: "F1F2F6", dark: "0B0C0E")
-    static let card = Color(light: "FFFFFF", dark: "131417")
-    static let card2 = Color(light: "E8EAEF", dark: "1A1B1F")
+    static let bg = Color(light: "D3D7DD", dark: "1E2126")
+    static let card = Color(light: "F4F5F7", dark: "2B2F36")
+    static let card2 = Color(light: "E3E6EA", dark: "343941")
     /// Encre : blanc sur fond sombre, noir sur fond clair. À utiliser avec une opacité.
     static let ink = Color(light: "000000", dark: "FFFFFF")
     static let line = Color(light: "000000", dark: "FFFFFF", lightAlpha: 0.09, darkAlpha: 0.07)
@@ -61,16 +61,18 @@ enum Theme {
     /// Reflet du haut des surfaces en verre.
     static let rim = Color(light: "FFFFFF", dark: "FFFFFF", lightAlpha: 0.95, darkAlpha: 0.16)
     static let text = Color(light: "15171C", dark: "EDEEF0")
-    static let text2 = Color(light: "3A3E47", dark: "C9CBD1")
-    static let muted = Color(light: "666A74", dark: "8B8D94")
-    static let blue = Color(light: "2563EB", dark: "4C8DFF")
+    static let text2 = Color(light: "383D47", dark: "D3D6DC")
+    static let muted = Color(light: "555B67", dark: "A3A8B1")
+    static let blue = Color(light: "4F7300", dark: "C6FF00")
+    /// Jaune fluo de l'icône : boutons principaux (texte sombre dessus).
+    static let lime = Color(hex: "C6FF00")
     static let green = Color(light: "0B8A4E", dark: "3DD68C")
     static let amber = Color(light: "B26A00", dark: "F5A524")
     static let red = Color(light: "D63333", dark: "FF6B6B")
     static let violet = Color(light: "7C4DDB", dark: "A78BFA")
     static let pink = Color(light: "D6408F", dark: "F472B6")
     /// Texte posé sur un aplat bleu.
-    static let onAccent = Color(light: "FFFFFF", dark: "06101F")
+    static let onAccent = Color(light: "141A00", dark: "141A00")
     /// Texte d'un bouton « danger ».
     static let dangerText = Color(light: "C22B2B", dark: "FFA3A3")
     /// Voile posé sur la fenêtre quand une fiche est ouverte.
@@ -179,7 +181,7 @@ struct PrimaryButton: ButtonStyle {
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, small ? 12 : 16).frame(minHeight: small ? 28 : 36)
-                .glassButton(tint: Theme.blue, radius: small ? 8 : 10, prominent: true)
+                .glassButton(tint: Theme.lime, radius: small ? 8 : 10, prominent: true)
                 .brightness(hover && enabled ? 0.05 : 0)
                 .scaleEffect(configuration.isPressed ? 0.97 : 1)
                 .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)

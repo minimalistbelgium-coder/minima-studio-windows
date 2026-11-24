@@ -173,14 +173,19 @@ struct AmbientBackground: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         let dark = scheme == .dark
+        // Métal poli (comme l'icône) : dégradé gris, un reflet doux en diagonale, une lueur lime très légère.
         ZStack {
-            Theme.bg
-            RadialGradient(colors: [Theme.blue.opacity(dark ? 0.20 : 0.16), Theme.blue.opacity(0)],
-                           center: UnitPoint(x: 0.88, y: -0.05), startRadius: 0, endRadius: 620)
-            RadialGradient(colors: [Theme.violet.opacity(dark ? 0.13 : 0.12), Theme.violet.opacity(0)],
-                           center: UnitPoint(x: 0.12, y: 1.05), startRadius: 0, endRadius: 560)
-            RadialGradient(colors: [Theme.green.opacity(dark ? 0.06 : 0.07), Theme.green.opacity(0)],
-                           center: UnitPoint(x: 0.55, y: 0.6), startRadius: 0, endRadius: 480)
+            LinearGradient(colors: dark
+                           ? [Color(hex: "3A3F47"), Color(hex: "2A2E35"), Color(hex: "1D2025"), Color(hex: "272B31")]
+                           : [Color(hex: "EEF0F3"), Color(hex: "D6DAE0"), Color(hex: "C4C9D1"), Color(hex: "D9DDE2")],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(stops: [.init(color: .white.opacity(0), location: 0.22),
+                                   .init(color: .white.opacity(dark ? 0.055 : 0.5), location: 0.38),
+                                   .init(color: .white.opacity(dark ? 0.015 : 0.12), location: 0.47),
+                                   .init(color: .white.opacity(0), location: 0.58)],
+                           startPoint: UnitPoint(x: 0, y: 0.1), endPoint: UnitPoint(x: 1, y: 0.9))
+            RadialGradient(colors: [Theme.lime.opacity(dark ? 0.09 : 0.16), Theme.lime.opacity(0)],
+                           center: UnitPoint(x: 0.92, y: -0.1), startRadius: 0, endRadius: 640)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)

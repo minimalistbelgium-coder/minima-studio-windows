@@ -175,7 +175,7 @@ private struct PostTile: View {
     private var statusColor: Color {
         switch post.status {
         case "À poster", "Prêt": return Theme.green
-        case "Programmé": return Color(hex: "4C8DFF")
+        case "Programmé": return Color(hex: "A3A8B1")
         case "À créer": return Theme.amber
         default: return Theme.muted
         }

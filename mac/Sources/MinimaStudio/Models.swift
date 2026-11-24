@@ -45,7 +45,7 @@ enum Roles {
     }
     static func color(_ r: String) -> String {
         switch r {
-        case "admin": return "4C8DFF"
+        case "admin": return "C6FF00"
         case "editor": return "3DD68C"
         case "client": return "F472B6"
         default: return "8B8D94"
@@ -267,7 +267,7 @@ enum MissionStatus {
         switch s {
         case "requested": return "F472B6"
         case "assigned": return "8B8D94"
-        case "editing": return "4C8DFF"
+        case "editing": return "C6FF00"
         case "v1_delivered": return "A78BFA"
         case "revisions": return "F5A524"
         case "fix_delivered": return "C084FC"

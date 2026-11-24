@@ -335,7 +335,7 @@ struct AppsStatsView: View {
 
     private static let igBrand: [String: (String, String)] = ["fastsign.app": ("FastSign", "4C8DFF"), "agora.app.be": ("Agora", "C084FC"), "agenceimage.be": ("L'Agence Image", "F472B6"), "minimalist.belgium": ("Minimalist", "8B8D94")]
     private static let schedNext: [String: String] = ["À poster": "Programmé", "Prêt": "Programmé", "Programmé": "Publié", "Publié": "À poster", "À créer": "À poster"]
-    private static func schedColor(_ s: String) -> Color { (s == "À poster" || s == "Prêt") ? Theme.green : s == "Programmé" ? Color(hex: "4C8DFF") : s == "À créer" ? Theme.amber : Theme.muted }
+    private static func schedColor(_ s: String) -> Color { (s == "À poster" || s == "Prêt") ? Theme.green : s == "Programmé" ? Color(hex: "A3A8B1") : s == "À créer" ? Theme.amber : Theme.muted }
 
     private struct SchedRow: Identifiable { let id: Int; let handle: String; let at: Date; let format: String; let title: String; let status: String; let url: String? }
 

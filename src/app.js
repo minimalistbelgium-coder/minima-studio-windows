@@ -1997,8 +1997,8 @@ function storeDetail(a) {
 }
 // ---------- Programme de publication Instagram ----------
 const IG_BRAND = { 'fastsign.app': ['FastSign', '#4C8DFF'], 'agora.app.be': ['Agora', '#C084FC'], 'agenceimage.be': ["L'Agence Image", '#F472B6'], 'minimalist.belgium': ['Minimalist', '#8B8D94'] };
-const SCHED_NEXT = { 'Prêt': 'Programmé', 'Programmé': 'Publié', 'Publié': 'Prêt', 'À créer': 'Prêt' };
-const SCHED_COLOR = { 'Prêt': '#3DD68C', 'Programmé': '#4C8DFF', 'Publié': '#8B8D94', 'À créer': '#F5A524' };
+const SCHED_NEXT = { 'À poster': 'Programmé', 'Prêt': 'Programmé', 'Programmé': 'Publié', 'Publié': 'À poster', 'À créer': 'À poster' };
+const SCHED_COLOR = { 'À poster': '#3DD68C', 'Prêt': '#3DD68C', 'Programmé': '#4C8DFF', 'Publié': '#8B8D94', 'À créer': '#F5A524' };
 function schedSection() {
   const sc = S.apps?.sched?.ok ? S.apps.sched : S.posts ? { ok: true, rows: S.posts, todo: S.posts.filter((r) => r.status === 'À créer') } : S.apps?.sched;
   if (!sc?.ok) return sc?.error ? `<div class="card"><div class="lbl">${esc(sc.error)}</div></div>` : '';
@@ -2048,7 +2048,7 @@ function postsCard(compact) {
   return `<div class="card posts-card">${head}${body}</div>`;
 }
 const SCHED_FORMATS = ['Carrousel', 'Reel', "Reel d'essai", 'Story', 'Post'];
-const SCHED_STATUSES = ['À créer', 'Prêt', 'Programmé', 'Publié'];
+const SCHED_STATUSES = ['À créer', 'À poster', 'Programmé', 'Publié'];
 // Programme de publication : chargé directement (sans attendre les statistiques des apps).
 function postsQuery() {
   const from = new Date(Date.now() - 14 * 864e5).toISOString(), to = new Date(Date.now() + 28 * 864e5).toISOString();
@@ -2123,7 +2123,7 @@ function schedForm(r) {
       <div><label class="f" for="sc-format">Format</label><select class="in" id="sc-format" name="format">${opt(SCHED_FORMATS, r?.format || 'Carrousel')}</select></div></div>
     <div class="form-dates"><div><label class="f" for="sc-date">Date</label><input class="in" type="date" id="sc-date" name="date" required value="${ymd(at)}"></div>
       <div><label class="f" for="sc-time">Heure</label><input class="in" type="time" id="sc-time" name="time" required value="${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}"></div></div>
-    <label class="f">Statut</label><div class="sched-stpick">${SCHED_STATUSES.map((x) => `<label style="--c:${SCHED_COLOR[x]}"><input type="radio" name="status" value="${esc(x)}" ${x === (r?.status || 'Prêt') ? 'checked' : ''}><span>${esc(x)}</span></label>`).join('')}</div>
+    <label class="f">Statut</label><div class="sched-stpick">${SCHED_STATUSES.map((x) => `<label style="--c:${SCHED_COLOR[x]}"><input type="radio" name="status" value="${esc(x)}" ${x === ((r?.status === 'Prêt' ? 'À poster' : r?.status) || 'À poster') ? 'checked' : ''}><span>${esc(x)}</span></label>`).join('')}</div>
     <label class="f" for="sc-cap">Description</label><textarea class="in" id="sc-cap" name="caption" rows="5" maxlength="2200" placeholder="Texte, hashtags, mentions…">${esc(r?.caption || '')}</textarea>
     <label class="f" for="sc-snd">Son conseillé</label><input class="in" id="sc-snd" name="sound" maxlength="200" value="${esc(r?.sound || '')}" placeholder="Titre · artiste">
     <label class="f" for="sc-ref">Fichier</label><input class="in" id="sc-ref" name="ref" maxlength="120" value="${esc(r?.ref || '')}" placeholder="Lot 01 · n°001">
@@ -2252,7 +2252,7 @@ const ACTIONS = {
   },
   async schedst(t) {
     const r = findPost(t.dataset.id); if (!r) return;
-    const next = SCHED_NEXT[r.status] || 'Prêt';
+    const next = SCHED_NEXT[r.status] || 'À poster';
     [...(S.posts || []), ...(S.apps?.sched?.rows || [])].filter((x) => String(x.id) === String(r.id)).forEach((x) => { x.status = next; }); render();
     fail(await sb.from('ig_schedule').update({ status: next, updated_at: new Date().toISOString() }).eq('id', r.id));
   },
@@ -2493,7 +2493,7 @@ document.addEventListener('submit', async (e) => {
     if (f.id === 'sched-form') {
       const at = new Date(`${f.date.value}T${f.time.value}`);
       if (isNaN(at)) { toast('Date ou heure invalide.'); return; }
-      const row = { handle: f.handle.value, format: f.format.value, title: f.title.value.trim(), at: at.toISOString(), status: f.querySelector('[name=status]:checked')?.value || 'Prêt',
+      const row = { handle: f.handle.value, format: f.format.value, title: f.title.value.trim(), at: at.toISOString(), status: f.querySelector('[name=status]:checked')?.value || 'À poster',
         ref: f.ref.value.trim() || null, post_url: f.post_url.value.trim() || null, caption: f.caption.value.trim() || null, sound: f.sound.value.trim() || null, updated_at: new Date().toISOString() };
       if (!row.title) { toast('Écris le contenu de la publication.'); return; }
       const id = f.dataset.id;

@@ -79,8 +79,8 @@ function dialog({ title, body = '', ok = 'Confirmer', cancel = 'Annuler', danger
 }
 
 const STATUS = {
-  requested: ['Demande', '#F472B6'], assigned: ['Assignée', '#8B8D94'], editing: ['En montage', '#4C8DFF'],
-  v1_delivered: ['V1 livrée', '#3DD68C'], revisions: ['Retouches', '#F5A524'], fix_delivered: ['Corrections livrées', '#C084FC'],
+  requested: ['Demande', '#F472B6'], assigned: ['Assignée', '#8B8D94'], editing: ['En montage', '#C6FF00'],
+  v1_delivered: ['V1 livrée', '#2DD4BF'], revisions: ['Retouches', '#F5A524'], fix_delivered: ['Corrections livrées', '#C084FC'],
   validated: ['Validée', '#3DD68C'], paid: ['Client payé', '#8B8D94'],
 };
 const CLIENT_STATUS = {
@@ -213,7 +213,7 @@ function renderPriceSuggest() {
   const f = document.getElementById('mission-form'); const box = document.getElementById('nm-sug'); if (!f || !box) return;
   const sg = priceSuggest(f.title.value, f.client.value, f.dataset.id);
   const same = sg && (!sg.budget || Number(f.budget.value) === sg.budget) && (!sg.price || Number(f.price.value) === sg.price);
-  box.innerHTML = sg && !same ? `<div class="card next" style="--c:#4C8DFF;margin:14px 0 0;padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><div><b>Prix habituel pour ${esc(sg.key)}</b><div class="lbl" style="margin-top:2px">${[sg.budget ? `${eur(sg.budget)} montage` : '', sg.price ? `${eur(sg.price)} client` : ''].filter(Boolean).join(' · ')} · d'après les ${sg.count} dernières</div></div><button type="button" class="btn sm pri" data-act="usesug" data-b="${sg.budget || ''}" data-p="${sg.price || ''}">Utiliser</button></div></div>` : '';
+  box.innerHTML = sg && !same ? `<div class="card next" style="--c:#C6FF00;margin:14px 0 0;padding:12px 14px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><div><b>Prix habituel pour ${esc(sg.key)}</b><div class="lbl" style="margin-top:2px">${[sg.budget ? `${eur(sg.budget)} montage` : '', sg.price ? `${eur(sg.price)} client` : ''].filter(Boolean).join(' · ')} · d'après les ${sg.count} dernières</div></div><button type="button" class="btn sm pri" data-act="usesug" data-b="${sg.budget || ''}" data-p="${sg.price || ''}">Utiliser</button></div></div>` : '';
 }
 const releaseLabel = (m) => (m.release_on ? `Sortie le ${fromYmd(m.release_on).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' })}` : '');
 // « d'octobre », « de mai »
@@ -838,10 +838,10 @@ function adminTodo() {
     const f = S.finances[m.id]; const dl = d(m.deadline);
     if (m.status === 'requested') add(0, '#F472B6', 'Demande à valider', m);
     else if (isLate(m)) add(1, '#FF6B6B', 'En retard', m);
-    else if (awaitsClient(m)) add(2, '#3DD68C', m.status === 'v1_delivered' ? 'V1 livrée : à vérifier et envoyer au client' : 'Corrections livrées : à vérifier et envoyer', m);
+    else if (awaitsClient(m)) add(2, '#2DD4BF', m.status === 'v1_delivered' ? 'V1 livrée : à vérifier et envoyer au client' : 'Corrections livrées : à vérifier et envoyer', m);
     else if (isOpen(m) && !memberIds(m.id).length) add(3, '#F5A524', 'Aucun monteur assigné', m);
     else if (isOpen(m) && isToday(dl)) add(4, '#F5A524', "Deadline aujourd'hui", m);
-    else if (m.status === 'assigned' && !m.rushes_url) add(5, '#4C8DFF', 'Rushes manquants', m);
+    else if (m.status === 'assigned' && !m.rushes_url) add(5, '#C6FF00', 'Rushes manquants', m);
     if (m.status === 'validated' && f?.client_price && !f.invoiced) add(6, '#A78BFA', `À facturer · ${eur(f.client_price)}`, m);
   });
   return out.sort((a, b) => a.rank - b.rank);
@@ -982,7 +982,7 @@ function hoursCard(people, title) {
 // --- Accueil monteur
 function editorTodo() {
   const rank = (m) => (m.status === 'revisions' ? 0 : isLate(m) ? 1 : isToday(d(m.deadline)) ? 2 : m.status === 'editing' ? 3 : m.status === 'assigned' ? 4 : 9);
-  const label = (m) => (m.status === 'revisions' ? ['Retours à traiter', '#F5A524'] : isLate(m) ? ['En retard', '#FF6B6B'] : isToday(d(m.deadline)) ? ["À livrer aujourd'hui", '#F5A524'] : m.status === 'editing' ? ['En montage', '#4C8DFF'] : ['À commencer', '#8B8D94']);
+  const label = (m) => (m.status === 'revisions' ? ['Retours à traiter', '#F5A524'] : isLate(m) ? ['En retard', '#FF6B6B'] : isToday(d(m.deadline)) ? ["À livrer aujourd'hui", '#F5A524'] : m.status === 'editing' ? ['En montage', '#C6FF00'] : ['À commencer', '#8B8D94']);
   return S.missions.filter((m) => isOpen(m) && !awaitsClient(m) && isMine(m)).sort((a, b) => rank(a) - rank(b) || (d(a.deadline) || 9e15) - (d(b.deadline) || 9e15))
     .map((m) => ({ m, label: label(m)[0], color: label(m)[1] }));
 }
@@ -1394,7 +1394,7 @@ const checkedClients = (f) => [...f.querySelectorAll('input[name=clients]:checke
 const billOf = (id) => (S.billing || []).find((b) => b.mission_id === id);
 function billState(b) {
   if (b.paid) return ['Payée', b.paid_at ? `le ${dshort(d(b.paid_at))}` : '', '#3DD68C'];
-  if (b.invoiced) return ['Facture envoyée', b.invoiced_at ? `le ${dshort(d(b.invoiced_at))}` : '', '#4C8DFF'];
+  if (b.invoiced) return ['Facture envoyée', b.invoiced_at ? `le ${dshort(d(b.invoiced_at))}` : '', '#C6FF00'];
   if (b.delivered) return ['Facture à venir', 'Livrée', '#F5A524'];
   return ['En cours', 'Prix prévu', '#8A8F98'];
 }
@@ -1468,7 +1468,7 @@ function pushCard() {
   if (Notification.permission === 'denied') return '<div class="card" style="margin-bottom:16px"><b>Notifications bloquées</b><div class="lbl" style="margin-top:6px">Autorise-les dans les réglages de ton navigateur ou de ton iPhone pour Minima Studio.</div></div>';
   return '<div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>Recevoir les notifications</b><div class="lbl" style="margin-top:4px">Nouvelle demande, V1 livrée, retours… directement sur ton téléphone.</div></div><button class="btn pri" data-act="push">Activer</button></div>';
 }
-const KIND_COLOR = { request: '#F472B6', comment: '#4C8DFF', client: '#3DD68C', deadline: '#F5A524', rushes: '#2DD4BF', brief: '#A78BFA', status: '#8B8D94', member: '#A78BFA', payment: '#3DD68C', app: '#C084FC' };
+const KIND_COLOR = { request: '#F472B6', comment: '#C6FF00', client: '#3DD68C', deadline: '#F5A524', rushes: '#2DD4BF', brief: '#A78BFA', status: '#8B8D94', member: '#A78BFA', payment: '#3DD68C', app: '#C084FC' };
 function notifsPage() {
   const groups = {}; const t0 = new Date(); t0.setHours(0, 0, 0, 0);
   S.notifs.forEach((n) => { const x = d(n.created_at); const k = x >= t0 ? "Aujourd'hui" : x >= addDays(t0, -1) ? 'Hier' : x >= addDays(t0, -7) ? 'Cette semaine' : 'Plus tôt'; (groups[k] ||= []).push(n); });
@@ -1481,7 +1481,7 @@ function notifsPage() {
 
 // --- Équipe (admin)
 const ROLE_LABEL = { admin: 'Admin', editor: 'Monteur', client: 'Client', none: 'Sans accès' };
-const ROLE_COLOR = { admin: '#4C8DFF', editor: '#3DD68C', client: '#F472B6', none: '#8B8D94' };
+const ROLE_COLOR = { admin: '#C6FF00', editor: '#3DD68C', client: '#F472B6', none: '#8B8D94' };
 function teamPage() {
   const tabs = [['members', 'Équipe'], ['clients', 'Clients'], ['settings', 'Liens'], ['connect', 'Connexions'], ['account', 'Compte']].map(([k, t]) => `<button role="tab" aria-selected="${(S.teamTab || 'members') === k}" class="${(S.teamTab || 'members') === k ? 'on' : ''}" data-teamtab="${k}">${t}</button>`).join('');
   let body = '';
@@ -1687,7 +1687,7 @@ function clientDetail(m) {
       <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn green" type="submit" name="approve" value="1" style="flex:1">Valider la vidéo</button><button class="btn" type="submit" name="approve" value="0" style="flex:1">Envoyer mes retours</button></div></form>` : ''}
     ${vs.length > 1 ? `<div class="lbl" style="margin-top:16px">Versions précédentes</div>${versionsList(m, true)}` : ''}</div>` : '';
   return `<div class="stack">${top}${video}
-  <div class="cols" style="margin:0">${linkBlock('Tes rushes', m.rushes_url, 'Voir le lien', '#4C8DFF', true, 'client_rushes', dep ? `<a class="lnk" href="${esc(dep)}" target="_blank" rel="noopener">Ou déposer mes fichiers ici ↗</a>` : '')}</div>
+  <div class="cols" style="margin:0">${linkBlock('Tes rushes', m.rushes_url, 'Voir le lien', '#C6FF00', true, 'client_rushes', dep ? `<a class="lnk" href="${esc(dep)}" target="_blank" rel="noopener">Ou déposer mes fichiers ici ↗</a>` : '')}</div>
   ${m.brief ? `<div class="card"><h2 style="margin-bottom:10px">Brief</h2><div class="brief">${esc(m.brief)}</div></div>` : ''}
   ${m.status !== 'requested' ? commentsCard(m) : ''}</div>`;
 }
@@ -1769,7 +1769,7 @@ function timeStrip(m) {
   const cs = by.__claude ? claudeSaved(m) : null;
   const pal = ['#A78BFA', '#34D399', '#F5A524', '#F472B6', '#2DD4BF', '#FB7185'];
   const eds = rows.filter((r) => profile(r.u)?.role !== 'admin').map((r) => r.u);
-  const col = (u) => (u === '__claude' ? CLAUDE : profile(u)?.role === 'admin' ? '#4C8DFF' : pal[eds.filter((x) => x !== '__claude').indexOf(u) % pal.length]);
+  const col = (u) => (u === '__claude' ? CLAUDE : profile(u)?.role === 'admin' ? '#C6FF00' : pal[eds.filter((x) => x !== '__claude').indexOf(u) % pal.length]);
   const who = (u) => (u === '__claude' ? 'Claude' : u === S.me.id ? 'Toi' : profile(u) ? firstName(profile(u)) : 'Ancien membre');
   const last = (r) => (r.live ? 'en train de monter' : r.last ? (isToday(r.last) ? `dernière session aujourd'hui à ${fmtTime(r.last)}` : `dernière session ${relative(r.last)}`) : '');
   const entries = isAdmin() && m.claude_editor ? aiFor(m.id) : [];
@@ -1794,7 +1794,7 @@ function teamDetail(m) {
     : `<div class="lbl">Statut</div><div style="margin-top:8px">${statusPill(m.status)}</div>`;
   const me = rows.find((r) => r.u === S.me.id); const share = myShare(m);
   const right = isAdmin()
-    ? `<div class="card" style="border-color:rgba(76,141,255,.35)"><div class="card-head"><h2>Répartition</h2>${pill('Calcul auto', '#4C8DFF')}</div>
+    ? `<div class="card" style="border-color:rgba(198,255,0,.35)"><div class="card-head"><h2>Répartition</h2>${pill('Calcul auto', '#C6FF00')}</div>
         <div class="lbl">Budget montage</div><div class="big" style="margin:6px 0 14px">${eur(m.editor_budget)}</div>
         ${rows.length ? `<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:8px">${rows.map((r, i) => `<div style="width:${(100 * r.amount) / (rows.reduce((a, x) => a + x.amount, 0) || 1)}%;background:${profile(r.u)?.role === 'admin' ? '#4C8DFF' : AV[i % AV.length]}"></div>`).join('')}</div>` : '<div class="lbl">Pas encore de temps enregistré.</div>'}
         ${rows.map((r) => { const ps = profile(r.u)?.role !== 'admin' ? payState(m, r.u) : null; return `<div class="kv"><span>${esc(r.u === S.me.id ? 'Toi' : firstName(profile(r.u)))} · ${Math.round(r.pct)} % <span class="lbl">${hm(r.secs)}</span></span><span class="row" style="gap:6px">${ps && billMonth(m) ? pill(ps[0], ps[1]) : ''}<span class="mono" style="font-weight:600">${eur(Math.round(r.amount * 100) / 100)}</span></span></div>`; }).join('')}
@@ -1809,7 +1809,7 @@ function teamDetail(m) {
         ${(() => { const ps = payState(m, S.me.id); return ps ? `<div class="kv"><span>Paiement</span><span class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end">${pill(ps[0], ps[1])}<span class="lbl">${esc(ps[2])}</span></span></div>` : ''; })()}</div>`;
   const vs = S.versions[m.id] || [];
   const dep = S.settings.delivery_link;
-  const linksH = `    <div class="cols" style="margin:0">${linkBlock('Rushes', m.rushes_url, 'Télécharger les rushes', '#4C8DFF', isAdmin(), 'rushes')}
+  const linksH = `    <div class="cols" style="margin:0">${linkBlock('Rushes', m.rushes_url, 'Télécharger les rushes', '#C6FF00', isAdmin(), 'rushes')}
       <div class="card" style="flex:1 1 240px"><div class="card-head" style="margin-bottom:10px"><h2>Versions</h2><span class="lbl">${vs.length || ''}</span></div>
         ${versionsList(m) || '<div class="lbl" style="min-height:44px;display:flex;align-items:center">Aucune version livrée.</div>'}
         <form data-link="delivery" style="display:flex;gap:8px;margin-top:10px"><input class="in" name="url" type="url" placeholder="Lien d'une nouvelle version" aria-label="Lien d'une nouvelle version" style="min-height:40px"><button class="btn" type="submit" style="min-height:40px">OK</button></form>
@@ -2031,7 +2031,7 @@ function storeDetail(a) {
 // ---------- Programme de publication Instagram ----------
 const IG_BRAND = { 'fastsign.app': ['FastSign', '#4C8DFF'], 'agora.app.be': ['Agora', '#C084FC'], 'agenceimage.be': ["L'Agence Image", '#F472B6'], 'minimalist.belgium': ['Minimalist', '#8B8D94'] };
 const SCHED_NEXT = { 'À poster': 'Programmé', 'Prêt': 'Programmé', 'Programmé': 'Publié', 'Publié': 'À poster', 'À créer': 'À poster' };
-const SCHED_COLOR = { 'À poster': '#3DD68C', 'Prêt': '#3DD68C', 'Programmé': '#4C8DFF', 'Publié': '#8B8D94', 'À créer': '#F5A524' };
+const SCHED_COLOR = { 'À poster': '#3DD68C', 'Prêt': '#3DD68C', 'Programmé': '#A3A8B1', 'Publié': '#8B8D94', 'À créer': '#F5A524' };
 function schedSection() {
   const sc = S.apps?.sched?.ok ? S.apps.sched : S.posts ? { ok: true, rows: S.posts, todo: S.posts.filter((r) => r.status === 'À créer') } : S.apps?.sched;
   if (!sc?.ok) return sc?.error ? `<div class="card"><div class="lbl">${esc(sc.error)}</div></div>` : '';

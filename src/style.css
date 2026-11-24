@@ -897,3 +897,48 @@ input.in[type=date],input.in[type=datetime-local]{width:100%}
 /* Logo : la nouvelle icône (M lime sur acier poli) remplit toute la tuile */
 .logo:has(.logo-img){background:none;border:0;overflow:hidden}
 .logo .logo-img{width:100%;height:100%;display:block;border-radius:inherit}
+
+/* ============ Thème « Acier et lime » : fond gris métal poli, accent jaune fluo (comme l'icône) ============ */
+:root{
+  --bg:#1E2126;--solid:#2B2F36;--ring:#2B2F36;
+  --card:rgba(255,255,255,.055);--card2:rgba(255,255,255,.085);--card3:rgba(255,255,255,.12);
+  --glass:rgba(44,48,55,.58);--glass-hi:rgba(255,255,255,.14);--sheet:rgba(36,39,45,.9);--scrim:rgba(14,15,18,.55);
+  --line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.16);--hover:rgba(255,255,255,.06);--track:rgba(255,255,255,.10);
+  --text:#F1F3F5;--text2:#D3D6DC;--muted:#A3A8B1;--faint:rgba(255,255,255,.30);
+  --blue:#C6FF00;--link:#D9FF66;--on-blue:#141A00;
+  --s1:#C6FF00;
+  --spec:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 .5px rgba(255,255,255,.05);
+  --spec-hi:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -1px 0 rgba(255,255,255,.05);
+  --sh2:0 10px 30px rgba(0,0,0,.30);--sh3:0 30px 80px rgba(0,0,0,.5);
+  --glow1:rgba(198,255,0,.09);--glow2:rgba(255,255,255,.05);--glow3:rgba(198,255,0,.04);
+}
+:root[data-theme="light"]{
+  --bg:#D3D7DD;--solid:#F4F5F7;--ring:#F4F5F7;
+  --card:rgba(255,255,255,.58);--card2:rgba(255,255,255,.8);--card3:#FFFFFF;
+  --glass:rgba(240,242,245,.62);--glass-hi:rgba(255,255,255,.95);--sheet:rgba(232,234,238,.92);--scrim:rgba(170,176,186,.5);
+  --line:rgba(20,24,32,.10);--line2:rgba(20,24,32,.16);
+  --text:#14171C;--text2:#383D47;--muted:#555B67;
+  --blue:#4F7300;--link:#3F5F00;--on-blue:#141A00;
+  --s1:#6E9A00;
+  --glow1:rgba(198,255,0,.16);--glow2:rgba(255,255,255,.45);--glow3:rgba(198,255,0,.08);
+}
+/* Le fond : métal poli, un reflet doux en diagonale, une lueur lime très légère */
+html{background:var(--bg)}
+body::before{background:
+  linear-gradient(116deg,transparent 22%,rgba(255,255,255,.055) 38%,rgba(255,255,255,.015) 47%,transparent 58%),
+  radial-gradient(900px 600px at 92% -10%,var(--glow1),transparent 62%),
+  linear-gradient(158deg,#3A3F47 0%,#2A2E35 34%,#1D2025 68%,#272B31 100%)}
+:root[data-theme="light"] body::before{background:
+  linear-gradient(116deg,transparent 22%,rgba(255,255,255,.55) 38%,rgba(255,255,255,.12) 47%,transparent 58%),
+  radial-gradient(900px 600px at 92% -10%,var(--glow1),transparent 62%),
+  linear-gradient(158deg,#EEF0F3 0%,#D6DAE0 36%,#C4C9D1 70%,#D9DDE2 100%)}
+/* Boutons principaux : toujours le vrai jaune fluo, texte sombre, petite lueur */
+.btn.pri{background:linear-gradient(180deg,#EFFF6A,#C6FF00 60%,#A8E000);border-color:#93C400;color:#141A00;box-shadow:0 6px 18px rgba(198,255,0,.22),inset 0 1px 0 rgba(255,255,255,.6)}
+.btn.pri:hover{filter:brightness(1.04)}
+.cal-d.today .num,.tabs-bar button.on .tb-c{background:#C6FF00;color:#141A00}
+.ed-dots button.on{background:#C6FF00}
+.hcol>div{background:linear-gradient(#E4FF5C,rgba(198,255,0,.45))}
+.mini-bars span{background:linear-gradient(180deg,#C6FF00,rgba(198,255,0,.3))}
+:root[data-theme="light"] .hcol>div{background:linear-gradient(#B7EB00,rgba(150,200,0,.45))}
+:root[data-theme="light"] .mini-bars span{background:linear-gradient(180deg,#9BCC00,rgba(120,170,0,.3))}
+::selection{background:rgba(198,255,0,.35)}

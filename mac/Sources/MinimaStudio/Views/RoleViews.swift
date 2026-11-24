@@ -439,7 +439,7 @@ struct EarningsList: View {
                             }
                         }
                         .frame(width: 90, alignment: .trailing)
-                        StatusPill(status: m.status, flexible: true).frame(width: wide ? 132 : 104, alignment: .trailing)
+                        StatusMenu(mission: m, flexible: true).frame(width: wide ? 146 : 118, alignment: .trailing)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 11)
                     .contentShape(Rectangle())

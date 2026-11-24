@@ -67,6 +67,81 @@ struct StatusPill: View {
     var body: some View { Pill(text: MissionStatus.label(status), color: Color(hex: MissionStatus.color(status)), flexible: flexible) }
 }
 
+/// Statut modifiable directement depuis une liste (mêmes règles que la fiche de mission).
+struct StatusMenu: View {
+    let mission: Mission
+    var flexible = false
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var data: DataStore
+
+    private var options: [String] {
+        if app.isAdmin { return ["assigned", "editing", "v1_delivered", "revisions", "fix_delivered", "validated", "paid"] }
+        guard let me = app.profile?.id, data.memberIds(of: mission.id).contains(me),
+              !["validated", "paid", "requested"].contains(mission.status) else { return [] }
+        return ["editing", ["revisions", "fix_delivered"].contains(mission.status) ? "fix_delivered" : "v1_delivered"]
+    }
+
+    private func label(_ s: String) -> String {
+        if !app.isAdmin && s != mission.status {
+            if s == "v1_delivered" { return "Livrer la V1…" }
+            if s == "fix_delivered" { return "Livrer les corrections…" }
+        }
+        return MissionStatus.label(s)
+    }
+
+    var body: some View {
+        if options.isEmpty {
+            StatusPill(status: mission.status, flexible: flexible)
+        } else {
+            Menu {
+                Text(mission.title)
+                ForEach(options, id: \.self) { s in
+                    Button { choose(s) } label: {
+                        if s == mission.status { Label(label(s), systemImage: "checkmark") } else { Text(label(s)) }
+                    }
+                    .disabled(s == mission.status)
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    StatusPill(status: mission.status, flexible: flexible)
+                    Image(systemName: "chevron.down").font(.system(size: 8.5, weight: .bold)).foregroundStyle(Theme.muted)
+                }
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .help("Changer le statut")
+        }
+    }
+
+    private func choose(_ s: String) {
+        let m = mission
+        if !app.isAdmin && (s == "v1_delivered" || s == "fix_delivered") {
+            guard let url = askLink(fix: s == "fix_delivered") else { return }
+            Task { do { try await data.deliver(m, url: url); app.showToast("Livré, l'admin est prévenu") } catch { app.showToast("Livraison impossible : \(error.localizedDescription)") } }
+            return
+        }
+        Task {
+            do {
+                if app.isAdmin { try await data.setStatus(m, s) } else { try await data.editorSetStatus(m, s) }
+                app.showToast("Statut : \(MissionStatus.label(s))")
+            } catch { app.showToast("Changement impossible : \(error.localizedDescription)") }
+        }
+    }
+
+    private func askLink(fix: Bool) -> String? {
+        let alert = NSAlert()
+        alert.messageText = fix ? "Livrer les corrections" : "Livrer la V1"
+        alert.informativeText = "Colle le lien de la version à montrer (Frame.io, Drive, WeTransfer…)."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.placeholderString = "https://"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Livrer"); alert.addButton(withTitle: "Annuler")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let url = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return url.isEmpty ? nil : url
+    }
+}
+
 struct MemberStack: View {
     let profiles: [Profile]
     var size: CGFloat = 24
@@ -136,7 +211,7 @@ struct MissionRow: View {
                     }
                 }
                 .frame(width: 110, alignment: .trailing)
-                StatusPill(status: mission.status, flexible: true).frame(width: 116, alignment: .trailing)
+                StatusMenu(mission: mission, flexible: true).frame(width: 130, alignment: .trailing)
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
             .contentShape(Rectangle())

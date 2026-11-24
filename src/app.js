@@ -705,6 +705,7 @@ function statementText(u, mo) {
 }
 // ---------- rendu ----------
 function render(anim = false) {
+  closeStMenu();
   if (S.loading) return;
   hideTip();
   if (!S.session) return renderLogin();
@@ -785,6 +786,38 @@ function doJump(D) {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
   });
 }
+// Statuts qu'on peut choisir directement depuis la liste (mêmes règles que la fiche).
+function stOptions(m) {
+  if (isClient() || !m) return [];
+  if (isAdmin()) return ['assigned', 'editing', 'v1_delivered', 'revisions', 'fix_delivered', 'validated', 'paid'];
+  if (!isMine(m) || ['validated', 'paid', 'requested'].includes(m.status)) return [];
+  return ['editing', ['revisions', 'fix_delivered'].includes(m.status) ? 'fix_delivered' : 'v1_delivered'];
+}
+function statusBtn(m) {
+  const o = stOptions(m); if (!o.length) return pillFor(m);
+  const label = (STATUS[m.status] || [m.status])[0];
+  return `<button class="st-btn" data-act="stmenu" data-id="${m.id}" aria-haspopup="menu" aria-label="Statut : ${esc(label)}. Changer le statut">${pillFor(m).replace('</span>', '<svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></span>')}</button>`;
+}
+function closeStMenu() { document.getElementById('st-menu')?.remove(); document.removeEventListener('pointerdown', stMenuOutside, true); window.removeEventListener('scroll', closeStMenu, true); }
+function stMenuOutside(e) { if (!e.target.closest('#st-menu,[data-act="stmenu"]')) closeStMenu(); }
+function openStMenu(btn, m) {
+  const had = document.getElementById('st-menu')?.dataset.id === String(m.id); closeStMenu(); if (had) return;
+  const el = document.createElement('div'); el.id = 'st-menu'; el.className = 'st-menu'; el.setAttribute('role', 'menu'); el.dataset.id = m.id;
+  const deliverLabel = { v1_delivered: 'Livrer la V1…', fix_delivered: 'Livrer les corrections…' };
+  el.innerHTML = `<div class="st-menu-h">${esc(m.title)}</div>` + stOptions(m).map((x) => {
+    const cur = x === m.status; const lab = !isAdmin() && deliverLabel[x] && !cur ? deliverLabel[x] : STATUS[x][0];
+    return `<button role="menuitemradio" aria-checked="${cur}" class="${cur ? 'on' : ''}" data-act="stset" data-id="${m.id}" data-s="${x}" ${cur ? 'disabled' : ''}><span class="dot" style="background:${statusColor(x)}"></span><span class="grow">${esc(lab)}</span>${cur ? '<span class="st-ok" aria-hidden="true">✓</span>' : ''}</button>`;
+  }).join('');
+  document.body.appendChild(el);
+  const r = btn.getBoundingClientRect(); const w = el.offsetWidth; const h = el.offsetHeight; const vw = innerWidth; const vh = innerHeight;
+  el.style.left = `${Math.max(8, Math.min(vw - w - 8, r.right - w))}px`;
+  // En dessous si ça tient, sinon au-dessus, sinon collé en bas de l'écran (avec défilement si l'écran est trop petit).
+  if (h > vh - 16) { el.style.maxHeight = `${vh - 16}px`; el.style.overflowY = 'auto'; }
+  const hh = Math.min(h, vh - 16);
+  el.style.top = `${r.bottom + 6 + hh <= vh - 8 ? r.bottom + 6 : r.top - 6 - hh >= 8 ? r.top - 6 - hh : Math.max(8, vh - hh - 8)}px`;
+  el.querySelector('button:not([disabled])')?.focus({ preventScroll: true });
+  setTimeout(() => { document.addEventListener('pointerdown', stMenuOutside, true); window.addEventListener('scroll', closeStMenu, true); });
+}
 function missionRow(m, right) {
   const c = client(m.client_id);
   const people = memberIds(m.id).map(profile).filter(Boolean);
@@ -793,7 +826,7 @@ function missionRow(m, right) {
   const sub = [c?.name, isClient() ? null : names.join(' + ') || (m.status === 'requested' ? null : 'Personne'), deadlineLabel(m)].filter(Boolean).join(' · ');
   return `<div class="item" role="button" tabindex="0" data-open="${m.id}"><span class="dot" style="background:${clientColor(c)}"></span>
     <div class="grow"><div class="t">${esc(m.title)}${live ? ' <span class="dot pulse" style="background:var(--green);width:6px;height:6px;vertical-align:middle"></span>' : ''}</div><div class="s" style="${isLate(m) ? 'color:var(--red)' : ''}">${esc(sub)}</div></div>
-    ${right ?? pillFor(m)}</div>`;
+    ${right ?? statusBtn(m)}</div>`;
 }
 const listCard = (rows, empty) => `<div class="card flush"><div class="list">${rows || `<div class="empty">${empty}</div>`}</div></div>`;
 
@@ -2279,6 +2312,15 @@ const ACTIONS = {
   google: () => sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin } }),
   async logout() { if (await dialog({ title: 'Se déconnecter ?', ok: 'Se déconnecter' })) { await sb.auth.signOut(); location.reload(); } },
   async start(t) { fail(await sb.rpc('editor_set_status', { m: t.dataset.id, s: 'editing' })); await refresh(); toast('C\'est parti : mission en montage'); },
+  stmenu(t) { const m = mission(t.dataset.id); if (m) openStMenu(t, m); },
+  async stset(t) {
+    closeStMenu(); const m = mission(t.dataset.id); const s = t.dataset.s; if (!m || !s || s === m.status) return;
+    if (!isAdmin()) {
+      if (s === 'editing') { fail(await sb.rpc('editor_set_status', { m: m.id, s })); await refresh(); return toast('Statut : En montage'); }
+      return ACTIONS.deliver(t);
+    }
+    await setStatus(m, s);
+  },
   async deliver(t) {
     const m = mission(t.dataset.id); const fix = m.status === 'revisions';
     const url = await dialog({ title: fix ? 'Livrer les corrections' : 'Livrer la V1', body: 'Colle le lien de la version à montrer (Frame.io, Drive, WeTransfer…).', ok: 'Livrer', input: { type: 'url', placeholder: 'https://', required: true } });
@@ -2449,6 +2491,7 @@ document.addEventListener('click', async (e) => {
   } catch (err) { toast(err.message || String(err)); }
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('st-menu')) { const id = document.getElementById('st-menu').dataset.id; closeStMenu(); document.querySelector(`[data-act="stmenu"][data-id="${id}"]`)?.focus(); return; }
   if (e.key === 'Escape') { if (dialog.close) dialog.close(); else closeSheet(); }
   else if (S.sheet?.type === 'editors' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !typing(sheetRoot)) stepEditor(e.key === 'ArrowRight' ? 1 : -1);
   else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[role=button],tr[role=button]')) { e.preventDefault(); e.target.click(); }

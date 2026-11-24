@@ -4,7 +4,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = 'https://jkfighpoftczgszgoidp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_-DmB0APAPx5v6SnUdD8LMQ_jhyKFJUF';
 const VAPID_PUBLIC = 'BE4XpKacAUXegzud16JVWqGHPUF8Kh4tolfppRy76697dUafBLkg4V-RC5M6OnRP86fklC4WlumRei9QW7ouUIc';
-const LOGO = '<img class="logo-img" src="/logo.png" alt="Minimalist Belgium">';
+const LOGO = '<img class="logo-img" src="/logo.png?v=2" alt="Minima Studio">';
 const TAURI = !!window.__TAURI__;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },

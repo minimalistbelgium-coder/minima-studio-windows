@@ -893,3 +893,7 @@ input.in[type=date],input.in[type=datetime-local]{width:100%}
 :root[data-theme="light"] .st-menu{background:rgba(250,251,253,.97);box-shadow:0 18px 50px rgba(20,24,40,.18),inset 0 1px 0 #fff}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .st-menu{background:rgba(250,251,253,.97);box-shadow:0 18px 50px rgba(20,24,40,.18),inset 0 1px 0 #fff}}
 :root[data-theme="light"] .st-menu button:hover:not([disabled]),:root[data-theme="light"] .st-menu button:focus-visible{background:rgba(20,24,40,.06)}
+
+/* Logo : la nouvelle icône (M lime sur acier poli) remplit toute la tuile */
+.logo:has(.logo-img){background:none;border:0;overflow:hidden}
+.logo .logo-img{width:100%;height:100%;display:block;border-radius:inherit}

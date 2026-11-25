@@ -3,7 +3,7 @@ import Supabase
 
 enum Route: Hashable {
     // admin
-    case today, missions, agenda, clients, team, finances, time, apps, updates
+    case today, missions, agenda, clients, team, finances, time, apps, updates, derush
     // monteur
     case myDashboard, myMissions, myFinances
     // client
@@ -80,6 +80,7 @@ struct ShellView: View {
             case .team, .clients, .updates: SettingsHub()
             case .finances, .time: FinancesHub()
             case .apps: AppsStatsView()
+            case .derush: DerushView()
             default: TodayView()
             }
         } else if app.isClient {
@@ -88,6 +89,7 @@ struct ShellView: View {
             switch route {
             case .myMissions, .agenda: MissionsHub { MyMissionsView() }
             case .myFinances: MyFinancesView()
+            case .derush: DerushView()
             default: MyDashboardView()
             }
         }
@@ -280,6 +282,7 @@ private struct Sidebar: View {
                 item("Missions", "film.stack", .missions, badge: data.missions.filter(\.isOpen).count)
                 item("Finances", "eurosign.circle", .finances)
                 item("Marques", "square.grid.2x2", .apps)
+                item("Dérush", "scissors", .derush)
                 item("Réglages", "gearshape", .team)
             } else if app.isClient {
                 item("Projets", "film.stack", .clientProjects)
@@ -287,6 +290,7 @@ private struct Sidebar: View {
                 item("Accueil", "house", .myDashboard)
                 item("Missions", "film.stack", .myMissions, badge: data.missions.filter(\.isOpen).count)
                 item("Revenus", "eurosign.circle", .myFinances)
+                item("Dérush", "scissors", .derush)
             }
 
     }

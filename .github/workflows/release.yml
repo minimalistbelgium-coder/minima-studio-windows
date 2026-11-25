@@ -21,6 +21,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Moteur de dérush (hors ligne)
+        shell: bash
+        run: |
+          pip install -r derush/requirements.txt
+          python derush/build.py
+          mkdir -p src-tauri/derush
+          cp -r derush/dist/minima-derush src-tauri/derush/
       - name: Installer la CLI Tauri
         run: npm install
       - name: Compiler l'installeur

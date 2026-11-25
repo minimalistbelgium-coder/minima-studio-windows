@@ -288,6 +288,7 @@ async function loadMe() {
 // ---------- icônes ----------
 const svg = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const I = {
+  cut: svg('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/>'),
   home: svg('<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
   film: svg('<rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 5v5M16 5v5"/>'),
   cal: svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
@@ -314,11 +315,13 @@ function routesFor() {
   if (isAdmin()) {
     const req = S.missions.filter((m) => m.status === 'requested').length;
     return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter((m) => isOpen(m) && m.status !== 'requested').length, req, 1],
-      ['finance', 'Finances', I.euro, 0, 0, 1], ['apps', 'Marques', I.apps, 0, 0, 1], ['team', 'Réglages', I.team, 0, 0, 1]];
+      ['finance', 'Finances', I.euro, 0, 0, 1], ['apps', 'Marques', I.apps, 0, 0, 1], ...derushRoute(), ['team', 'Réglages', I.team, 0, 0, 1]];
   }
   if (isClient()) return [['projects', 'Projets', I.home, 0, S.missions.filter((m) => awaitsClient(m) && m.delivery_url).length, 1], ...(S.me.client_sees_prices ? [['billing', 'Dépenses', I.euro, 0, 0, 1]] : [])];
-  return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1]];
+  return [['home', 'Accueil', I.home, 0, 0, 1], ['projects', 'Missions', I.film, S.missions.filter(isOpen).length, 0, 1], ['earnings', 'Revenus', I.euro, 0, 0, 1], ...derushRoute()];
 }
+// Dérush : seulement dans l'app PC (le moteur tourne sur l'ordinateur)
+const derushRoute = () => (window.MSDerush ? [['derush', 'Dérush', I.cut, 0, 0, 0]] : []);
 
 // ---------- thème clair / sombre ----------
 const THEME_BG = { dark: '#0A0B0E', light: '#ECEEF3' };
@@ -748,6 +751,7 @@ function page() {
     case 'billing': return clientBillingPage();
     case 'notifs': return notifsPage();
     case 'team': return teamPage();
+    case 'derush': return window.MSDerush ? window.MSDerush.page() : '';
     case 'apps': if (!isAdmin()) return ''; if (!S.apps && !S.appsLoading) queueMicrotask(() => loadApps()); return appsPage();
     default: return '';
   }

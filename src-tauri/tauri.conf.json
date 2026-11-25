@@ -27,12 +27,18 @@
   },
   "plugins": {
     "deep-link": {
-      "desktop": { "schemes": ["minimastudio"] }
+      "desktop": {
+        "schemes": [
+          "minimastudio"
+        ]
+      }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "Minimalist Belgium",
     "copyright": "Minimalist Belgium",
     "category": "Productivity",
@@ -45,9 +51,14 @@
     ],
     "windows": {
       "nsis": {
-        "languages": ["French"],
+        "languages": [
+          "French"
+        ],
         "installMode": "currentUser"
       }
+    },
+    "resources": {
+      "derush/minima-derush/": "derush/minima-derush/"
     }
   }
 }

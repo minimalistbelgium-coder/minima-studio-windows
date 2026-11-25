@@ -1,0 +1,62 @@
+name: Moteur de dérush
+
+on:
+  push:
+    paths: ["derush/**", ".github/workflows/derush.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14        # Apple Silicon
+            name: mac-arm64
+          - os: macos-13        # Intel
+            name: mac-x64
+          - os: windows-latest
+            name: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dépendances
+        run: pip install -r derush/requirements.txt
+      - name: Test rapide du moteur
+        shell: bash
+        run: |
+          cd derush
+          python -c "import numpy; from minima_derush import sync, speakers, xmlgen, finalize, engine; print('import ok')"
+      - name: Construire
+        run: python derush/build.py
+      - name: Archiver
+        shell: bash
+        run: |
+          cd derush/dist
+          if [ "${{ runner.os }}" = "Windows" ]; then 7z a ../../minima-derush-${{ matrix.name }}.zip minima-derush; else zip -qry ../../minima-derush-${{ matrix.name }}.zip minima-derush; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minima-derush-${{ matrix.name }}
+          path: minima-derush-${{ matrix.name }}.zip
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+      - name: Publier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(python3 -c "import re;print(re.search(r'__version__ = \"([^\"]+)\"', open('derush/minima_derush/__init__.py').read()).group(1))")
+          TAG="derush-v$V"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "Moteur de dérush $V" --notes "Moteur de dérush hors ligne pour Minima Studio (Mac Apple Silicon, Mac Intel, Windows)." --prerelease
+          gh release upload "$TAG" art/*/*.zip --clobber

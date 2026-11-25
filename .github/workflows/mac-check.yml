@@ -2,7 +2,7 @@ name: Vérifier la compilation Mac
 
 on:
   push:
-    branches: [mac]
+    branches: [mac, mac-derush]
 
 permissions:
   contents: write

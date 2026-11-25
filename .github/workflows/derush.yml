@@ -17,7 +17,7 @@ jobs:
           - os: macos-26        # Apple Silicon
             name: mac-arm64
             arch: arm64
-          - os: macos-26        # Intel, Python x64 sous Rosetta
+          - os: macos-15-intel  # Intel natif
             name: mac-x64
             arch: x64
           - os: windows-latest
@@ -41,7 +41,11 @@ jobs:
         run: python derush/build.py
       - name: Vérifier l'architecture
         if: runner.os == 'macOS'
-        run: file derush/dist/minima-derush/minima-derush
+        shell: bash
+        run: |
+          file derush/dist/minima-derush/minima-derush
+          WANT=arm64; [ "${{ matrix.arch }}" = "x64" ] && WANT=x86_64
+          file derush/dist/minima-derush/minima-derush | grep -q "$WANT"
       - name: Archiver
         shell: bash
         run: |

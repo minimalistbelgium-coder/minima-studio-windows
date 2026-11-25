@@ -199,7 +199,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
         ))
-        .invoke_handler(tauri::generate_handler![premiere_state, show_mini, hide_mini, derush::derush_exec, derush::open_in_premiere])
+        .invoke_handler(tauri::generate_handler![premiere_state, show_mini, hide_mini, derush::derush_exec, derush::open_in_premiere, derush::derush_preview])
         // Fermer la fenêtre ne quitte pas : l'app reste en fond pour que le chrono Premiere continue.
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

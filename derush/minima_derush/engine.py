@@ -137,12 +137,19 @@ def analyse(cfg):
     return plan
 
 
-def write(plan, out_dir):
+def write(plan, out_dir, plan_dir=None):
+    """Le XML va à côté des rushes (il faut l'ouvrir dans Premiere) ; le plan, interne au moteur,
+    va dans le dossier de l'app, jamais dans le projet."""
+    import hashlib, time
+    from .preview import plans_dir
     os.makedirs(out_dir, exist_ok=True)
-    base = os.path.join(out_dir, plan['name'])
-    xml = xmlgen.build(plan)
-    with open(base + '.xml', 'w', encoding='utf-8') as f:
-        f.write(xml)
-    with open(base + '.minima.json', 'w', encoding='utf-8') as f:
+    xml_path = os.path.join(out_dir, plan['name'] + '.xml')
+    with open(xml_path, 'w', encoding='utf-8') as f:
+        f.write(xmlgen.build(plan))
+    pd = plan_dir or plans_dir()
+    os.makedirs(pd, exist_ok=True)
+    tag = hashlib.sha1(f'{os.path.abspath(xml_path)}|{time.time()}'.encode()).hexdigest()[:10]
+    pj = os.path.join(pd, f"{plan['name']}-{tag}.minima.json")
+    with open(pj, 'w', encoding='utf-8') as f:
         json.dump(plan, f, ensure_ascii=False, indent=1)
-    return base + '.xml', base + '.minima.json'
+    return xml_path, pj

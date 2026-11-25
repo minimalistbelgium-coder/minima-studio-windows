@@ -1,7 +1,7 @@
 """Ligne de commande appelée par Minima Studio.
 
   minima-derush scan <dossier>
-  minima-derush run <config.json>          -> écrit <nom>.xml et <nom>.minima.json
+  minima-derush run <config.json>          -> écrit <nom>.xml à côté des rushes (le plan reste dans le dossier de l'app)
   minima-derush finalize <projet.prproj> <nom>.minima.json
 """
 import sys, json, traceback, os
@@ -41,6 +41,16 @@ def main(argv=None):
                 if n < 0.1 * longest:
                     m['use'] = False
                 m['folder'] = os.path.basename(os.path.dirname(m['path']))
+            from . import preview
+            emit('step', step='preview', msg='Aperçus des micros et des caméras')
+            try:
+                preview.mic_clips([m for m in res['mics'] if 'error' not in m])
+            except Exception as e:
+                emit('warning', msg=f'Extraits audio indisponibles : {e}')
+            try:
+                preview.cam_thumbs(res['cams'])
+            except Exception as e:
+                emit('warning', msg=f'Images des caméras indisponibles : {e}')
             emit('result', **res); return 0
         if cmd == 'run':
             cfg = json.load(open(argv[1], encoding='utf-8'))

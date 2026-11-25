@@ -6,7 +6,9 @@ const D = {
   phase: 'idle',     // idle | scanning | config | running | done | finalizing | finalized | error
   folder: null, scan: null, name: '', cams: [], mics: [], wide: 'overlap',
   pct: 0, msg: '', logs: [], warnings: [], result: null, error: null, final: null,
+  prev: {},          // aperçus chargés : chemin -> data URL
 };
+let player = null, playing = null;
 
 function rerender() { if (window.MS && window.MS.S.route === 'derush') window.MS.render(); }
 function esc(s) { return window.MS.esc(s == null ? '' : String(s)); }
@@ -45,12 +47,42 @@ async function pickFolder() {
     const r = await engine(['scan', dir]);
     D.scan = r;
     const people = r.cams.filter((c) => c.role !== 'wide').map((c) => c.label);
-    D.cams = r.cams.map((c) => ({ label: c.label, files: c.files, role: c.role === 'wide' ? 'wide' : c.label }));
+    D.cams = r.cams.map((c) => ({ label: c.label, files: c.files, thumb: c.thumb, role: c.role === 'wide' ? 'wide' : c.label }));
     let k = 0;
-    D.mics = r.mics.map((m) => ({ label: m.label, folder: m.folder || '', path: m.path, use: !!m.use, duration: m.duration,
+    D.mics = r.mics.map((m) => ({ label: m.label, folder: m.folder || '', path: m.path, use: !!m.use, duration: m.duration, preview: m.preview,
       speaker: m.use ? (people[k++] || m.label) : m.label }));
     D.phase = 'config';
+    loadThumbs();
   } catch (e) { D.phase = 'error'; D.error = e.message; }
+  rerender();
+}
+
+// --- aperçus : images des caméras et extraits audio des micros
+async function loadPrev(path) {
+  if (!path) return null;
+  if (!D.prev[path]) D.prev[path] = await invoke('derush_preview', { path }).catch(() => null);
+  return D.prev[path];
+}
+async function loadThumbs() {
+  await Promise.all(D.cams.map((c) => loadPrev(c.thumb)));
+  rerender();
+}
+async function playMic(i) {
+  const m = D.mics[i];
+  if (player) { player.pause(); player = null; }
+  if (playing === i) { playing = null; rerender(); return; }
+  const url = await loadPrev(m.preview);
+  if (!url) return window.MS.toast("Pas d'extrait pour ce micro.");
+  player = new Audio(url); playing = i;
+  player.onended = () => { playing = null; player = null; rerender(); };
+  player.play().catch(() => { playing = null; });
+  rerender();
+}
+function swapMics() {
+  const used = D.mics.filter((m) => m.use);
+  if (used.length < 2) return;
+  const names = used.map((m) => m.speaker);
+  used.forEach((m, k) => { m.speaker = names[(k + 1) % names.length]; });
   rerender();
 }
 
@@ -94,11 +126,14 @@ async function finalize() {
 // --- rendu
 function camRow(c, i, speakers) {
   const opts = [...speakers.map((s) => [s, `Filme ${s}`]), ['wide', 'Plan large'], ['ignore', 'Ne pas utiliser']];
-  return `<div class="item"><div class="grow"><div class="t">${esc(c.label)}</div><div class="s">${c.files.length} fichier${c.files.length > 1 ? 's' : ''} · ${esc(c.files.map(base).join(', '))}</div></div>
+  const img = D.prev[c.thumb];
+  const th = `<div style="width:128px;height:72px;border-radius:8px;overflow:hidden;background:var(--card3);flex:none">${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover">` : ''}</div>`;
+  return `<div class="item" style="gap:12px">${th}<div class="grow"><div class="t">${esc(c.label)}</div><div class="s">${c.files.length} fichier${c.files.length > 1 ? 's' : ''} · ${esc(c.files.map(base).join(', '))}</div></div>
     <select class="in" style="width:auto" data-dr-cam="${i}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${c.role === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`;
 }
 function micRow(m, i) {
-  return `<div class="item"><label class="row" style="gap:10px;flex:1;min-width:0"><input type="checkbox" data-dr-use="${i}" ${m.use ? 'checked' : ''}>
+  const play = m.preview ? `<button class="btn sm" data-dr="play" data-i="${i}" title="Écouter un extrait">${playing === i ? '■ Stop' : '▶ Écouter'}</button>` : '';
+  return `<div class="item" style="gap:10px">${play}<label class="row" style="gap:10px;flex:1;min-width:0"><input type="checkbox" data-dr-use="${i}" ${m.use ? 'checked' : ''}>
     <div class="grow"><div class="t">${esc(m.label)}</div><div class="s">${esc(m.folder)}${m.duration ? ` · ${Math.round(m.duration / 60)} min` : ''}${m.use ? '' : ' · ignoré'}</div></div></label>
     <input class="in" style="width:180px" data-dr-spk="${i}" value="${esc(m.speaker)}" placeholder="Qui parle dans ce micro" ${m.use ? '' : 'disabled'}></div>`;
 }
@@ -113,7 +148,7 @@ function page() {
     const speakers = D.mics.filter((m) => m.use).map((m) => m.speaker.trim()).filter(Boolean);
     return `${hdr}<div class="card"><div class="card-head"><div><h2>${esc(base(D.folder))}</h2><div class="lbl" style="margin-top:3px">Vérifie qui filme qui et qui parle dans quel micro</div></div><button class="btn sm" data-dr="pick">Autre dossier</button></div>
       <div class="lbl" style="margin:4px 0 6px">Nom du projet</div><input class="in" data-dr-name value="${esc(D.name)}">
-      <div class="day-h" style="margin:18px 0 4px">Micros</div><div class="list">${D.mics.map(micRow).join('') || '<div class="empty">Aucun fichier son trouvé.</div>'}</div>
+      <div class="row" style="justify-content:space-between;align-items:center;margin:18px 0 4px"><div class="day-h" style="margin:0">Micros</div>${D.mics.filter((m) => m.use).length >= 2 ? '<button class="btn sm" data-dr="swap">⇄ Inverser les micros</button>' : ''}</div><div class="list">${D.mics.map(micRow).join('') || '<div class="empty">Aucun fichier son trouvé.</div>'}</div>
       <div class="day-h" style="margin:18px 0 4px">Caméras</div><div class="list">${D.cams.map((c, i) => camRow(c, i, speakers)).join('') || '<div class="empty">Aucune vidéo trouvée.</div>'}</div>
       <div class="day-h" style="margin:18px 0 4px">Plan large</div>
       <select class="in" data-dr-wide style="width:auto">${[['none', 'Jamais'], ['overlap', 'Quand ils parlent en même temps'], ['overlap+breath', 'Aussi toutes les 30 s dans les longues réponses']].map(([v, t]) => `<option value="${v}" ${D.wide === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -145,8 +180,10 @@ document.addEventListener('click', (e) => {
   else if (a === 'premiere') openPremiere();
   else if (a === 'finalize') finalize();
   else if (a === 'reopen') invoke('open_in_premiere', { path: D.final.file }).catch((x) => window.MS.toast(String(x)));
+  else if (a === 'play') playMic(+b.dataset.i);
+  else if (a === 'swap') swapMics();
   else if (a === 'back') { D.phase = 'config'; rerender(); }
-  else if (a === 'reset') { Object.assign(D, { phase: 'idle', folder: null, scan: null, result: null, final: null, error: null }); rerender(); }
+  else if (a === 'reset') { if (player) { player.pause(); player = null; playing = null; } Object.assign(D, { phase: 'idle', folder: null, scan: null, result: null, final: null, error: null, prev: {} }); rerender(); }
 });
 document.addEventListener('change', (e) => {
   const t = e.target;

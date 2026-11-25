@@ -88,3 +88,36 @@ pub fn open_in_premiere(path: String) -> Result<String, String> {
         Ok("open".into())
     }
 }
+
+/// Aperçu (extrait audio .m4a ou image .jpg) préparé par le moteur, renvoyé en data URL.
+/// Limité au dossier d'aperçus du moteur.
+#[tauri::command]
+pub fn derush_preview(path: String) -> Result<String, String> {
+    let p = PathBuf::from(&path);
+    let ok = p.components().any(|c| c.as_os_str() == ".minima-derush")
+        && p.parent().and_then(|d| d.file_name()).map(|n| n == "previews").unwrap_or(false);
+    if !ok {
+        return Err("Aperçu refusé.".into());
+    }
+    let mime = match p.extension().and_then(|e| e.to_str()).unwrap_or("") {
+        "jpg" | "jpeg" => "image/jpeg",
+        "m4a" => "audio/mp4",
+        "mp3" => "audio/mpeg",
+        _ => return Err("Type d'aperçu inconnu.".into()),
+    };
+    let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
+    Ok(format!("data:{};base64,{}", mime, b64(&bytes)))
+}
+
+fn b64(data: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut s = String::with_capacity(data.len() * 4 / 3 + 4);
+    for ch in data.chunks(3) {
+        let n = (ch[0] as u32) << 16 | (*ch.get(1).unwrap_or(&0) as u32) << 8 | *ch.get(2).unwrap_or(&0) as u32;
+        s.push(T[(n >> 18 & 63) as usize] as char);
+        s.push(T[(n >> 12 & 63) as usize] as char);
+        s.push(if ch.len() > 1 { T[(n >> 6 & 63) as usize] as char } else { '=' });
+        s.push(if ch.len() > 2 { T[(n & 63) as usize] as char } else { '=' });
+    }
+    s
+}

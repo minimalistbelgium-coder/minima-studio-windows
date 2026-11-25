@@ -44,7 +44,7 @@ compile_app() {
 }
 
 # Moteur de dérush hors ligne (Python + ffmpeg), compilé par GitHub pour chaque architecture.
-DERUSH_VERSION="0.1.0"
+DERUSH_VERSION="0.2.0"
 embed_derush() {
   local base="https://github.com/minimalistbelgium-coder/minima-studio-windows/releases/download/derush-v$DERUSH_VERSION"
   local cache=".build/derush-$DERUSH_VERSION"

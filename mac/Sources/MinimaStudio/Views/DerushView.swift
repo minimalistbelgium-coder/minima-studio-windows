@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVFoundation
 
 /// Dérush hors ligne : syncro des caméras sur les micros, multicam selon qui parle,
 /// micros coupés pendant que la personne écoute. Le moteur est livré dans l'app (Resources/derush).
@@ -7,8 +8,8 @@ import AppKit
 final class DerushModel: ObservableObject {
     enum Phase { case idle, scanning, config, running, done, finalizing, finalized, failed }
 
-    struct Cam: Identifiable { let id = UUID(); var label: String; var files: [String]; var role: String }
-    struct Mic: Identifiable { let id = UUID(); var label: String; var folder: String; var path: String; var use: Bool; var duration: Double; var speaker: String }
+    struct Cam: Identifiable { let id = UUID(); var label: String; var files: [String]; var role: String; var thumb: String? = nil }
+    struct Mic: Identifiable { let id = UUID(); var label: String; var folder: String; var path: String; var use: Bool; var duration: Double; var speaker: String; var preview: String? = nil }
 
     @Published var phase: Phase = .idle
     @Published var folder: URL?
@@ -26,6 +27,9 @@ final class DerushModel: ObservableObject {
     @Published var stats: [String: Any] = [:]
     @Published var finalText = ""
     @Published var finalFile: String?
+    @Published var playing: Int?
+    private var player: AVAudioPlayer?
+    private var playerDelegate: PlayerEnd?
 
     var speakers: [String] { mics.filter(\.use).map { $0.speaker.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
 
@@ -106,7 +110,7 @@ final class DerushModel: ObservableObject {
                 let rm = (r["mics"] as? [[String: Any]]) ?? []
                 let people = rc.filter { ($0["role"] as? String) != "wide" }.compactMap { $0["label"] as? String }
                 cams = rc.map { Cam(label: $0["label"] as? String ?? "", files: $0["files"] as? [String] ?? [],
-                                     role: ($0["role"] as? String) == "wide" ? "wide" : ($0["label"] as? String ?? "")) }
+                                     role: ($0["role"] as? String) == "wide" ? "wide" : ($0["label"] as? String ?? ""), thumb: $0["thumb"] as? String) }
                 var k = 0
                 mics = rm.map { m in
                     let use = m["use"] as? Bool ?? false
@@ -114,7 +118,7 @@ final class DerushModel: ObservableObject {
                     var spk = label
                     if use { spk = k < people.count ? people[k] : label; k += 1 }
                     return Mic(label: label, folder: m["folder"] as? String ?? "", path: m["path"] as? String ?? "", use: use,
-                               duration: m["duration"] as? Double ?? 0, speaker: spk)
+                               duration: m["duration"] as? Double ?? 0, speaker: spk, preview: m["preview"] as? String)
                 }
                 phase = .config
             } catch { self.error = error.localizedDescription; phase = .failed }
@@ -194,7 +198,25 @@ final class DerushModel: ObservableObject {
         }
     }
 
-    func reset() { phase = .idle; folder = nil; cams = []; mics = []; error = nil; xmlPath = nil; planPath = nil; finalFile = nil }
+    /// Écoute l'extrait du micro (préparé par le moteur) pour savoir qui parle dedans.
+    func togglePlay(_ i: Int) {
+        player?.stop(); player = nil
+        if playing == i { playing = nil; return }
+        guard let path = mics[i].preview, let p = try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: path)) else { playing = nil; return }
+        let d = PlayerEnd { [weak self] in Task { @MainActor in self?.playing = nil } }
+        p.delegate = d; playerDelegate = d
+        player = p; playing = i; p.play()
+    }
+
+    /// Fait tourner les noms entre les micros cochés (avec deux micros : les échange).
+    func swapMics() {
+        let idx = mics.indices.filter { mics[$0].use }
+        guard idx.count >= 2 else { return }
+        let names = idx.map { mics[$0].speaker }
+        for (k, i) in idx.enumerated() { mics[i].speaker = names[(k + 1) % names.count] }
+    }
+
+    func reset() { player?.stop(); player = nil; playing = nil; phase = .idle; folder = nil; cams = []; mics = []; error = nil; xmlPath = nil; planPath = nil; finalFile = nil }
 }
 
 struct DerushView: View {
@@ -261,10 +283,20 @@ struct DerushView: View {
                 Button("Autre dossier") { m.pickFolder() }.buttonStyle(SecondaryButton()).controlSize(.small)
             }
             FormField(label: "Nom du projet") { TextField("", text: $m.name).input() }
-            SectionTitle(text: "Micros")
+            HStack {
+                SectionTitle(text: "Micros")
+                Spacer()
+                if m.mics.filter(\.use).count >= 2 {
+                    Button("⇄ Inverser les micros") { m.swapMics() }.buttonStyle(SecondaryButton()).controlSize(.small)
+                }
+            }
             ForEach(m.mics.indices, id: \.self) { i in
                 HStack(spacing: 12) {
                     Toggle("", isOn: $m.mics[i].use).labelsHidden()
+                    if m.mics[i].preview != nil {
+                        Button(m.playing == i ? "■ Stop" : "▶ Écouter") { m.togglePlay(i) }
+                            .buttonStyle(SecondaryButton()).controlSize(.small).help("Écouter un extrait de ce micro")
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(m.mics[i].label).font(.system(size: 13.5, weight: .medium))
                         Muted("\(m.mics[i].folder)\(m.mics[i].duration > 0 ? " · \(Int(m.mics[i].duration / 60)) min" : "")\(m.mics[i].use ? "" : " · ignoré")")
@@ -277,6 +309,11 @@ struct DerushView: View {
             SectionTitle(text: "Caméras")
             ForEach(m.cams.indices, id: \.self) { i in
                 HStack(spacing: 12) {
+                    Group {
+                        if let t = m.cams[i].thumb, let img = NSImage(contentsOfFile: t) {
+                            Image(nsImage: img).resizable().aspectRatio(contentMode: .fill)
+                        } else { Color.gray.opacity(0.15) }
+                    }.frame(width: 128, height: 72).clipShape(RoundedRectangle(cornerRadius: 8))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(m.cams[i].label).font(.system(size: 13.5, weight: .medium))
                         Muted("\(m.cams[i].files.count) fichier\(m.cams[i].files.count > 1 ? "s" : "") · \(m.cams[i].files.map { ($0 as NSString).lastPathComponent }.joined(separator: ", "))")
@@ -322,4 +359,10 @@ struct DerushView: View {
             }
         }.card()
     }
+}
+
+final class PlayerEnd: NSObject, AVAudioPlayerDelegate {
+    let done: () -> Void
+    init(_ done: @escaping () -> Void) { self.done = done }
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) { done() }
 }

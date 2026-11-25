@@ -14,18 +14,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14        # Apple Silicon
+          - os: macos-26        # Apple Silicon
             name: mac-arm64
-          - os: macos-13        # Intel
+            arch: arm64
+          - os: macos-26        # Intel, Python x64 sous Rosetta
             name: mac-x64
+            arch: x64
           - os: windows-latest
             name: win-x64
+            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          architecture: ${{ matrix.arch }}
       - name: Dépendances
         run: pip install -r derush/requirements.txt
       - name: Test rapide du moteur
@@ -35,6 +39,9 @@ jobs:
           python -c "import numpy; from minima_derush import sync, speakers, xmlgen, finalize, engine; print('import ok')"
       - name: Construire
         run: python derush/build.py
+      - name: Vérifier l'architecture
+        if: runner.os == 'macOS'
+        run: file derush/dist/minima-derush/minima-derush
       - name: Archiver
         shell: bash
         run: |

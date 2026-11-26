@@ -1,0 +1,2026 @@
+Building for debugging...
+[0/26] Write sources
+[1/26] Copying PrivacyInfo.xcprivacy
+[1/26] Write sources
+[7/26] /Users/runner/work/minima-studio-windows/minima-studio-windows/mac/.build/arm64-apple-macosx/debug/MinimaStudioPackageTests.derived/runner.swift
+[9/26] Write sources
+[10/26] Write MinimaStudio-entitlement.plist
+[10/26] Write sources
+[20/26] Write swift-version-7974D3F7F03D5E95.txt
+[22/99] Emitting module Crypto
+[23/123] Emitting module HTTPTypes
+[24/126] Compiling Crypto Cipher.swift
+[25/126] Compiling Crypto Nonces.swift
+[26/126] Compiling Crypto ASN1.swift
+[27/126] Compiling Crypto AES-GCM.swift
+[28/126] Compiling Crypto AES-GCM_boring.swift
+[29/126] Compiling Crypto ChaChaPoly_boring.swift
+[30/126] Compiling Crypto ChaChaPoly.swift
+[31/126] Compiling HTTPTypes HTTPRequest+URL.swift
+[32/126] Compiling HTTPTypes HTTPRequest.swift
+[33/126] Compiling HTTPTypes HTTPResponse.swift
+[37/126] Compiling Crypto ASN1Identifier.swift
+[38/126] Compiling Crypto ASN1Integer.swift
+[39/126] Compiling Crypto ASN1Null.swift
+[40/126] Compiling Crypto ASN1OctetString.swift
+[41/126] Compiling Crypto ASN1Strings.swift
+[42/126] Emitting module IssueReporting
+[50/133] Compiling Crypto Insecure_HashFunctions.swift
+[51/133] Compiling Crypto MLKEM_boring.swift
+[52/133] Compiling Crypto MLKEM_wrapper.swift
+[53/133] Compiling Crypto XWing_boring.swift
+[54/133] Compiling Crypto KEM-Errors.swift
+[55/133] Compiling Crypto KEM.swift
+[56/133] Compiling Crypto MLKEM.swift
+[57/133] Compiling Crypto XWing.swift
+[58/133] Compiling Crypto ECDH_boring.swift
+[59/133] Compiling Crypto DH.swift
+[60/133] Compiling Crypto ECDH.swift
+[61/133] Compiling Crypto ANSIx963.swift
+[62/133] Compiling Crypto HKDF.swift
+[63/133] Compiling Crypto AESWrap.swift
+[64/133] Compiling Crypto AESWrap_boring.swift
+[65/133] Compiling Crypto Ed25519_boring.swift
+[66/133] Compiling Crypto NISTCurvesKeys_boring.swift
+[67/133] Compiling Crypto X25519Keys_boring.swift
+[68/133] Compiling Crypto Curve25519.swift
+[69/133] Compiling Crypto Ed25519Keys.swift
+[70/133] Compiling Crypto NISTCurvesKeys.swift
+[71/133] Compiling Crypto X25519Keys.swift
+[72/133] Compiling Crypto SymmetricKeys.swift
+[73/133] Compiling Crypto HMAC.swift
+[74/156] Compiling Crypto CryptoKitErrors.swift
+[75/156] Compiling Crypto Digest_boring.swift
+[76/156] Compiling Crypto Digest.swift
+[77/156] Compiling Crypto Digests.swift
+[78/156] Compiling Crypto HashFunctions.swift
+[79/156] Compiling Crypto HashFunctions_SHA2.swift
+[80/156] Compiling Crypto HashFunctions_SHA3.swift
+[81/156] Compiling Crypto Digest_xkcp.swift
+[82/156] Compiling Crypto HPKE-AEAD.swift
+[83/156] Compiling Crypto HPKE-Ciphersuite.swift
+[84/156] Compiling Crypto HPKE-KDF.swift
+[85/156] Compiling Crypto HPKE-KexKeyDerivation.swift
+[86/156] Compiling Crypto HPKE-LabeledExtract.swift
+[87/156] Compiling Crypto HPKE-Utils.swift
+[88/156] Compiling Crypto DHKEM.swift
+[89/156] Compiling Crypto HPKE-KEM-Curve25519.swift
+[90/156] Compiling Crypto HPKE-NIST-EC-KEMs.swift
+[91/156] Compiling Crypto HPKE-KEM.swift
+[92/156] Compiling Crypto HPKE-Errors.swift
+[93/156] Compiling Crypto HPKE.swift
+[94/156] Compiling Crypto HPKE-Context.swift
+[95/156] Compiling Crypto HPKE-KeySchedule.swift
+[96/156] Compiling Crypto HPKE-Modes.swift
+[97/156] Compiling Crypto Insecure.swift
+[113/156] Compiling IssueReporting IssueSeverity.swift
+[114/156] Compiling IssueReporting ReportIssue.swift
+[115/156] Compiling IssueReporting _Test.swift
+[116/156] Compiling IssueReporting TestContext.swift
+[117/156] Compiling IssueReporting Unimplemented.swift
+[118/156] Compiling IssueReporting WithExpectedIssue.swift
+[119/156] Compiling IssueReporting WithIssueContext.swift
+[120/156] Compiling Crypto SubjectPublicKeyInfo.swift
+[121/156] Compiling Crypto CryptoError_boring.swift
+[122/165] Compiling ConcurrencyExtras Locking.swift
+[123/165] Compiling ConcurrencyExtras UncheckedBox.swift
+[124/165] Compiling ConcurrencyExtras LockIsolated.swift
+[125/165] Compiling ConcurrencyExtras MainSerialExecutor.swift
+[126/168] Emitting module ConcurrencyExtras
+[127/168] Compiling ConcurrencyExtras ActorIsolated.swift
+[128/168] Compiling ConcurrencyExtras AnyHashableSendable.swift
+[129/168] Compiling ConcurrencyExtras AsyncStream.swift
+[130/168] Compiling ConcurrencyExtras AsyncThrowingStream.swift
+[131/168] Compiling ConcurrencyExtras Result.swift
+[132/168] Compiling ConcurrencyExtras Task.swift
+[133/168] Compiling ConcurrencyExtras UncheckedSendable.swift
+[134/168] Compiling Crypto MACFunctions.swift
+[135/168] Compiling Crypto MessageAuthenticationCode.swift
+[136/168] Compiling Crypto AES.swift
+[137/168] Compiling Crypto ECDSASignature_boring.swift
+[138/168] Compiling Crypto ECDSA_boring.swift
+[139/168] Compiling Crypto EdDSA_boring.swift
+[140/168] Compiling Crypto MLDSA_boring.swift
+[141/168] Compiling Crypto MLDSA_wrapper.swift
+[142/168] Compiling Crypto ECDSA.swift
+[143/168] Compiling Crypto Ed25519.swift
+[144/168] Compiling Crypto MLDSA.swift
+[145/168] Compiling Crypto Signature.swift
+[146/168] Compiling Crypto CryptoKitErrors_boring.swift
+[147/168] Compiling Crypto Optional+withUnsafeBytes_boring.swift
+[148/168] Compiling Crypto RNG_boring.swift
+[149/168] Compiling Crypto SafeCompare_boring.swift
+[150/168] Compiling Crypto Zeroization_boring.swift
+[151/168] Compiling Crypto _CryptoModuleAnchor.swift
+[152/168] Compiling Crypto PrettyBytes.swift
+[153/168] Compiling Crypto SafeCompare.swift
+[154/168] Compiling Crypto SecureBytes.swift
+[155/168] Compiling Crypto Zeroization.swift
+[156/168] Compiling Crypto resource_bundle_accessor.swift
+[164/178] Compiling XCTestDynamicOverlay Exports.swift
+[165/179] Compiling XCTestDynamicOverlay Fail.swift
+[166/179] Emitting module XCTestDynamicOverlay
+[167/179] Compiling XCTestDynamicOverlay Deprecations.swift
+[168/179] Compiling Clocks AnyClock.swift
+[169/179] Compiling Clocks ImmediateClock.swift
+[170/179] Compiling Clocks Lock.swift
+[171/181] Compiling Clocks Timer.swift
+[172/181] Compiling Clocks UnimplementedClock.swift
+[173/181] Emitting module Clocks
+[174/181] Compiling Clocks _AsyncTimerSequence.swift
+[175/181] Compiling Clocks SwiftUI.swift
+[176/181] Compiling Clocks TestClock.swift
+[177/198] Compiling Helpers HTTPClient.swift
+[178/198] Compiling Helpers HTTPFields.swift
+[179/198] Compiling Helpers HTTPRequest.swift
+[180/198] Compiling Helpers HTTPResponse.swift
+[181/198] Compiling Helpers LoggerInterceptor.swift
+[182/198] Compiling Helpers RetryRequestInterceptor.swift
+[183/198] Compiling Helpers JWT.swift
+[184/198] Compiling Helpers LogRedaction.swift
+[185/198] Compiling Helpers APIKeyFormat.swift
+[186/198] Compiling Helpers AnyJSON+Codable.swift
+[187/198] Compiling Helpers AnyJSON.swift
+[188/198] Compiling Helpers Base64URL.swift
+[189/198] Compiling Helpers Codable.swift
+[190/198] Compiling Helpers DateFormatter.swift
+[191/198] Compiling Helpers EventEmitter.swift
+[192/198] Compiling Helpers FoundationExtensions.swift
+[193/198] Emitting module Helpers
+[194/206] Compiling Helpers OSLogSupabaseLogger.swift
+[195/206] Compiling Helpers SupabaseLogger.swift
+[196/206] Compiling Helpers PostgRESTFilterValue.swift
+[197/206] Compiling Helpers HTTPError.swift
+[198/206] Compiling Helpers PostgrestError.swift
+[199/206] Compiling Helpers Task+withTimeout.swift
+[200/206] Compiling Helpers TaskLocalHelpers.swift
+[201/206] Compiling Helpers Version.swift
+[202/243] Emitting module Storage
+[203/248] Compiling RealtimeV2 RealtimeChannel+AsyncAwait.swift
+[204/248] Compiling RealtimeV2 RealtimeChannel+Status.swift
+[205/248] Compiling RealtimeV2 RealtimeChannelV2.swift
+[206/248] Compiling RealtimeV2 RealtimeClient+HeartbeatStatus.swift
+[207/248] Emitting module PostgREST
+[208/248] Compiling RealtimeV2 RealtimeClient+Status.swift
+[209/248] Compiling RealtimeV2 RealtimeClientV2.swift
+[210/248] Compiling RealtimeV2 RealtimeError.swift
+[213/251] Compiling PostgREST PostgrestQueryBuilder.swift
+[214/251] Compiling PostgREST PostgrestTransformBuilder.swift
+[215/251] Compiling PostgREST Types.swift
+[224/254] Emitting module Functions
+[225/254] Compiling Functions FunctionsClient.swift
+[226/254] Compiling Functions Exports.swift
+[227/255] Compiling Functions Types.swift
+[228/255] Compiling Storage StorageVectorsClient.swift
+[229/255] Compiling Storage SupabaseStorage.swift
+[230/255] Compiling Storage Types.swift
+[231/255] Compiling Storage VectorBucketClient.swift
+[232/255] Compiling Storage VectorIndexClient.swift
+[233/279] Emitting module RealtimeV2
+[234/287] Compiling Auth Keychain.swift
+[235/287] Compiling Auth PKCE.swift
+[236/287] Compiling Auth SessionManager.swift
+[237/287] Compiling Auth AuthAdmin.swift
+[238/287] Compiling Auth AuthAdminOAuth.swift
+[239/287] Compiling Auth AuthClient.swift
+[240/287] Compiling Auth AuthClientConfiguration.swift
+[241/287] Compiling Auth AuthError.swift
+[242/287] Compiling Auth AuthMFA.swift
+[243/287] Emitting module Auth
+[244/298] Compiling Auth CodeVerifierStorage.swift
+[245/298] Compiling Auth Constants.swift
+[246/298] Compiling Auth Dependencies.swift
+[247/298] Compiling Auth EventEmitter.swift
+[248/298] Compiling Auth FixedWidthInteger+Random.swift
+[249/298] Compiling Auth Helpers.swift
+[250/298] Compiling Auth JWK+RSA.swift
+[251/298] Compiling Auth JWTAlgorithm.swift
+[263/298] Compiling RealtimeV2 RealtimeLifecycleManager.swift
+[264/298] Compiling RealtimeV2 RealtimeMessageV2.swift
+[265/298] Compiling RealtimeV2 RealtimePostgresFilter.swift
+[266/298] Compiling RealtimeV2 RealtimePostgresFilterValue.swift
+[267/298] Compiling RealtimeV2 RealtimeSerializer.swift
+[268/298] Compiling RealtimeV2 Types.swift
+[269/298] Compiling Auth SessionStorage.swift
+[270/298] Compiling Auth URLOpener.swift
+[285/307] Compiling Auth AuthLocalStorage.swift
+[286/307] Compiling Auth KeychainLocalStorage.swift
+[287/307] Compiling Auth WinCredLocalStorage.swift
+[288/307] Compiling Auth Types.swift
+[289/307] Compiling Auth AuthAdmin+Passkey.swift
+[290/307] Compiling Auth AuthClient+Passkey.swift
+[291/307] Compiling Auth AuthMFA+WebAuthn.swift
+[292/307] Compiling Auth WebAuthnAuthenticator.swift
+[293/307] Compiling Auth WebAuthnTypes.swift
+[294/307] Emitting module Realtime
+[295/311] Compiling Realtime Defaults.swift
+[296/311] Compiling Realtime Delegated.swift
+[297/311] Compiling Realtime Deprecated.swift
+[298/311] Compiling Realtime HeartbeatTimer.swift
+[299/311] Compiling Realtime PhoenixTransport.swift
+[300/311] Compiling Realtime Presence.swift
+[301/311] Compiling Realtime Push.swift
+[302/311] Compiling Realtime RealtimeChannel.swift
+[303/311] Compiling Realtime RealtimeClient.swift
+[304/311] Compiling Realtime RealtimeMessage.swift
+[305/311] Compiling Realtime TimeoutTimer.swift
+[306/311] Compiling Realtime Exports.swift
+[307/316] Compiling Supabase Constants.swift
+[308/316] Compiling Supabase Deprecated.swift
+[309/318] Compiling Supabase Exports.swift
+[310/318] Compiling Supabase SupabaseClient.swift
+[311/318] Emitting module Supabase
+[312/318] Compiling Supabase Tracing.swift
+[313/318] Compiling Supabase Types.swift
+[314/343] Emitting module MinimaStudio
+[315/343] Compiling MinimaStudio AppLifecycle.swift
+[316/343] Compiling MinimaStudio AppState.swift
+[317/343] Compiling MinimaStudio DataStore.swift
+[318/343] Compiling MinimaStudio FinanceMath.swift
+[319/343] Compiling MinimaStudio MenuBar.swift
+[320/343] Compiling MinimaStudio MiniWindow.swift
+[321/343] Compiling MinimaStudio MinimaStudioApp.swift
+[322/343] Compiling MinimaStudio Models.swift
+[323/343] Compiling MinimaStudio SystemNotifier.swift
+[324/343] Compiling MinimaStudio Theme.swift
+[325/343] Compiling MinimaStudio TitleBarZoom.swift
+[326/343] Compiling MinimaStudio Tracker.swift
+[327/343] Compiling MinimaStudio Updater.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[328/343] Compiling MinimaStudio AdminPages.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[329/343] Compiling MinimaStudio AgendaView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[330/343] Compiling MinimaStudio AppsStatsView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[331/343] Compiling MinimaStudio AuthViews.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[332/343] Compiling MinimaStudio Components.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[333/343] Compiling MinimaStudio DailyHours.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[334/343] Compiling MinimaStudio DerushView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[335/343] Compiling MinimaStudio DesignKit.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[336/343] Compiling MinimaStudio DiagnosticView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[337/343] Compiling MinimaStudio EditorBilling.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[338/343] Compiling MinimaStudio FinanceAnalysis.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:72:17: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 70 |                 let chunk = h.availableData
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+    |                 `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:73:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 71 |                 if chunk.isEmpty { return }
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:32: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:51: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                   `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:76: warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                            `- warning: mutation of captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:74:98: warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 72 |                 buffer.append(chunk)
+ 73 |                 while let nl = buffer.firstIndex(of: 0x0A) {
+ 74 |                     let line = buffer.subdata(in: buffer.startIndex..<nl); buffer.removeSubrange(buffer.startIndex...nl)
+    |                                                                                                  `- warning: reference to captured var 'buffer' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:77:36: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 75 |                     guard let obj = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+    |                                    `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 78 |                     case "error": err = obj["msg"] as? String
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:78:35: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 76 |                     switch obj["type"] as? String {
+ 77 |                     case "result": result = obj
+ 78 |                     case "error": err = obj["msg"] as? String
+    |                                   `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 79 |                     default: DispatchQueue.main.async { onLine?(obj) }
+ 80 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:67: warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                   `- warning: mutation of captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:88:122: warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 86 |                     for l in rest.split(separator: 0x0A) {
+ 87 |                         if let o = try? JSONSerialization.jsonObject(with: Data(l)) as? [String: Any] {
+ 88 |                             if o["type"] as? String == "result" { result = o } else if o["type"] as? String == "error" { err = o["msg"] as? String }
+    |                                                                                                                          `- warning: mutation of captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 89 |                         }
+ 90 |                     }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:92:24: warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 90 |                     }
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+    |                        `- warning: reference to captured var 'result' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+ 94 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:93:145: warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 91 |                 }
+ 92 |                 if let result { cont.resume(returning: result) }
+ 93 |                 else { cont.resume(throwing: NSError(domain: "derush", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: err ?? "Le moteur s'est arrêté (code \(proc.terminationStatus))."])) }
+    |                                                                                                                                                 `- warning: reference to captured var 'err' in concurrently-executing code; this is an error in the Swift 6 language mode [#SendableClosureCaptures]
+ 94 |             }
+ 95 |             do { try p.run() } catch { cont.resume(throwing: error) }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/DerushView.swift:186:15: warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+184 |     func finalize() {
+185 |         let panel = NSOpenPanel()
+186 |         panel.allowedFileTypes = ["prproj"]
+    |               `- warning: 'allowedFileTypes' was deprecated in macOS 12.0: Use -allowedContentTypes instead [#DeprecatedDeclaration]
+187 |         panel.directoryURL = folder
+188 |         panel.message = "Projet Premiere enregistré (fermé dans Premiere)"
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[339/355] Compiling MinimaStudio FinanceCharts.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[340/355] Compiling MinimaStudio Glass.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[341/355] Compiling MinimaStudio Hubs.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[342/355] Compiling MinimaStudio MissionExtras.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[343/355] Compiling MinimaStudio MissionSheet.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[344/355] Compiling MinimaStudio MoneyAndTime.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[345/355] Compiling MinimaStudio NotificationsView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[346/355] Compiling MinimaStudio PostEditor.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[347/355] Compiling MinimaStudio RoleViews.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[348/355] Compiling MinimaStudio ScheduledPosts.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[349/355] Compiling MinimaStudio ShellView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[350/355] Compiling MinimaStudio TeamView.swift
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:268:17: warning: result of 'try?' is unused [#no-usage]
+266 |             if !files.isEmpty, at < now.addingTimeInterval(-3 * 86400) || (r.status == "Publié" && at < now.addingTimeInterval(-86400)) {
+267 |                 _ = try? await bucket.remove(paths: files.map(\.path))
+268 |                 try? await supa.from("ig_schedule").update(FilesUpdate(files: [], updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |                 `- warning: result of 'try?' is unused [#no-usage]
+269 |                 continue
+270 |             }
+
+/Users/runner/work/minima-studio-windows/minima-studio-windows/mac/Sources/MinimaStudio/Views/ScheduledPosts.swift:287:13: warning: result of 'try?' is unused [#no-usage]
+285 |             }
+286 |             if failed { if !up.isEmpty { _ = try? await bucket.remove(paths: up.map(\.path)) }; continue }
+287 |             try? await supa.from("ig_schedule").update(FilesUpdate(files: up, updated_at: iso.string(from: now))).eq("id", value: r.id).execute()
+    |             `- warning: result of 'try?' is unused [#no-usage]
+288 |         }
+289 |     }
+[350/355] Write Objects.LinkFileList
+[351/355] Linking MinimaStudio
+[352/355] Applying MinimaStudio
+[354/357] Emitting module SnapshotTests
+[355/357] Compiling SnapshotTests SnapshotTests.swift
+[356/359] Compiling MinimaStudioPackageTests runner.swift
+[357/359] Emitting module MinimaStudioPackageTests
+[357/359] Write Objects.LinkFileList
+[358/359] Linking MinimaStudioPackageTests
+Build complete! (140.72s)
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:09.562 xctest[10249:32031] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:09.566 xctest[10249:32031] CoreData: XPC: sendMessage: failed #1
+Test Suite 'All tests' started at 2026-11-26 14:32:10.015.
+Test Suite 'MinimaStudioPackageTests.xctest' started at 2026-11-26 14:32:10.015.
+Test Suite 'SnapshotTests' started at 2026-11-26 14:32:10.015.
+Test Case '-[SnapshotTests.SnapshotTests testSnapshots]' started.
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:12.632 xctest[10249:32031] CoreData: XPC: sendMessage: failed #2
+2026-11-26 14:32:12.632 xctest[10249:32031] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:15.732 xctest[10249:32031] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:18.823 xctest[10249:32031] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:22.004 xctest[10249:32031] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:25.172 xctest[10249:32031] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:28.348 xctest[10249:32031] CoreData: XPC: sendMessage: failed #7
+2026-11-26 14:32:31.447 xctest[10249:32031] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0x826af8870>";
+    skipModelCheck = 1;
+}
+2026-11-26 14:32:31.453 xctest[10249:32031] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0x826af8870>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:31.479 xctest[10249:32031] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:31.481 xctest[10249:32031] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:34.889 xctest[10249:32031] CoreData: XPC: sendMessage: failed #2
+2026-11-26 14:32:34.889 xctest[10249:32031] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:38.024 xctest[10249:32031] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:41.081 xctest[10249:32031] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:44.271 xctest[10249:32031] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:47.375 xctest[10249:32031] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:50.570 xctest[10249:32031] CoreData: XPC: sendMessage: failed #7
+2026-11-26 14:32:53.764 xctest[10249:32031] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0x822a958e0>";
+    skipModelCheck = 1;
+}
+2026-11-26 14:32:53.765 xctest[10249:32031] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0x822a958e0>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:53.840 xctest[10249:32031] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:53.847 xctest[10249:32031] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:32:57.012 xctest[10249:32031] CoreData: XPC: sendMessage: failed #2
+2026-11-26 14:32:57.012 xctest[10249:32031] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:00.288 xctest[10249:32031] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:03.485 xctest[10249:32031] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:06.597 xctest[10249:32031] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:09.725 xctest[10249:32031] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:12.821 xctest[10249:32031] CoreData: XPC: sendMessage: failed #7
+2026-11-26 14:33:15.966 xctest[10249:32031] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0x81ef25370>";
+    skipModelCheck = 1;
+}
+2026-11-26 14:33:15.966 xctest[10249:32031] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0x81ef25370>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:15.997 xctest[10249:32031] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:16.000 xctest[10249:32031] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:19.123 xctest[10249:32031] CoreData: XPC: sendMessage: failed #2
+2026-11-26 14:33:19.123 xctest[10249:32031] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:22.179 xctest[10249:32031] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:25.269 xctest[10249:32031] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:28.445 xctest[10249:32031] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:31.643 xctest[10249:32031] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:34.781 xctest[10249:32031] CoreData: XPC: sendMessage: failed #7
+2026-11-26 14:33:37.918 xctest[10249:32031] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0x81b4db1f0>";
+    skipModelCheck = 1;
+}
+2026-11-26 14:33:37.918 xctest[10249:32031] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0x81b4db1f0>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+2026-11-26 14:33:38.019 xctest[10249:32031] Error obtaining permanent ID: Error Domain=NSCocoaErrorDomain Code=134020 "The model configuration used to open the store is incompatible with the one that was used to create the store."
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:38.500 xctest[10249:35403] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:38.503 xctest[10249:35403] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:41.537 xctest[10249:35403] CoreData: XPC: sendMessage: failed #2
+2026-11-26 14:33:41.537 xctest[10249:35403] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:44.553 xctest[10249:35403] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:47.682 xctest[10249:35403] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:50.819 xctest[10249:35403] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:53.975 xctest[10249:35403] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:33:57.014 xctest[10249:35403] CoreData: XPC: sendMessage: failed #7
+2026-11-26 14:34:00.062 xctest[10249:35403] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0x8160bc630>";
+    skipModelCheck = 1;
+}
+2026-11-26 14:34:00.063 xctest[10249:35403] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0x8160bc630>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:00.113 xctest[10249:35403] CoreData: XPC: sendMessage: failed #0
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:00.116 xctest[10249:35403] CoreData: XPC: sendMessage: failed #1
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:03.269 xctest[10249:35403] CoreData: XPC: sendMessage: failed #2
+2026-11-26 14:34:03.269 xctest[10249:35403] CoreData: XPC: Unable to sendMessage: to server
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:06.419 xctest[10249:35403] CoreData: XPC: sendMessage: failed #3
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:09.558 xctest[10249:35403] CoreData: XPC: sendMessage: failed #4
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:12.669 xctest[10249:35403] CoreData: XPC: sendMessage: failed #5
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:15.836 xctest[10249:35403] CoreData: XPC: sendMessage: failed #6
+CoreData: error: Failed to create NSXPCConnection
+2026-11-26 14:34:18.942 xctest[10249:35403] CoreData: XPC: sendMessage: failed #7
+2026-11-26 14:34:22.082 xctest[10249:35403] CoreData: XPC: Unable to connect to server with options {
+    NSPersistentHistoryTrackingKey = 1;
+    NSReadOnlyPersistentStoreOption = 0;
+    NSXPCStoreServerEndpointFactory = "<CNCDRemotePersistentStoreEndpointFactory: 0x81186cee0>";
+    skipModelCheck = 1;
+}
+2026-11-26 14:34:22.082 xctest[10249:35403] CoreData: XPC: Unable to load metadata: Error Domain=NSCocoaErrorDomain Code=134060 "A Core Data error occurred." UserInfo={Problem=Unable to send to server; failed after 8 attempts.}
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: Failed to create NSXPCConnection
+CoreData: error: addPersistentStoreWithType:configuration:URL:options:error: returned error NSCocoaErrorDomain (134060)
+CoreData: error: userInfo:
+CoreData: error: 	Problem : Unable to send to server; failed after 8 attempts.
+CoreData: error: storeType: NSXPCStore
+CoreData: error: configuration: (null)
+CoreData: error: URL: file:///Users/runner/Library/Application%20Support/AddressBook/AddressBook-v22.abcddb
+CoreData: annotation: options:
+CoreData: annotation: 	NSReadOnlyPersistentStoreOption : 0
+CoreData: annotation: 	NSXPCStoreServerEndpointFactory : <CNCDRemotePersistentStoreEndpointFactory: 0x81186cee0>
+CoreData: annotation: 	skipModelCheck : 1
+CoreData: annotation: 	NSPersistentHistoryTrackingKey : 1
+Test Case '-[SnapshotTests.SnapshotTests testSnapshots]' passed (216.224 seconds).
+Test Suite 'SnapshotTests' passed at 2026-11-26 14:35:46.240.
+	 Executed 1 test, with 0 failures (0 unexpected) in 216.224 (216.225) seconds
+Test Suite 'MinimaStudioPackageTests.xctest' passed at 2026-11-26 14:35:46.240.
+	 Executed 1 test, with 0 failures (0 unexpected) in 216.224 (216.225) seconds
+Test Suite 'All tests' passed at 2026-11-26 14:35:46.240.
+	 Executed 1 test, with 0 failures (0 unexpected) in 216.224 (216.225) seconds
+evolution barres largeur 544 sombre: sans survol 1152x896, avec survol 1152x896, tailles identiques, pixels differents dans x 72...937, y 176...727
+evolution courbes largeur 544 sombre: sans survol 1152x896, avec survol 1152x896, tailles identiques, pixels differents dans x 72...937, y 176...727
+evolution barres largeur 760 sombre: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1261, y 176...727
+evolution barres largeur 760 clair: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1261, y 177...727
+evolution courbes largeur 760 sombre: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1261, y 176...727
+evolution courbes largeur 760 clair: sans survol 1584x896, avec survol 1584x896, tailles identiques, pixels differents dans x 72...1261, y 177...727
+evolution barres largeur 1100 sombre: sans survol 2264x896, avec survol 2264x896, tailles identiques, pixels differents dans x 72...1675, y 176...727
+evolution courbes largeur 1100 sombre: sans survol 2264x896, avec survol 2264x896, tailles identiques, pixels differents dans x 72...1675, y 176...727
+repartition largeur 260: sans survol 584x642, avec survol 584x642, tailles identiques, pixels differents dans x 56...527, y 140...558
+repartition largeur 366: sans survol 796x642, avec survol 796x642, tailles identiques, pixels differents dans x 56...739, y 140...558
+repartition largeur 760: sans survol 1584x642, avec survol 1584x642, tailles identiques, pixels differents dans x 56...1527, y 140...558
+gains jour largeur 420: sans survol 904x848, avec survol 904x848, tailles identiques, pixels differents dans x 72...841, y 180...653
+gains cumul largeur 420: sans survol 904x848, avec survol 904x848, tailles identiques, pixels differents dans x 72...841, y 180...653
+gains jour largeur 544: sans survol 1152x844, avec survol 1152x844, tailles identiques, pixels differents dans x 72...1089, y 176...649
+gains cumul largeur 544: sans survol 1152x844, avec survol 1152x844, tailles identiques, pixels differents dans x 72...1089, y 176...649
+gains jour largeur 1100: sans survol 2264x816, avec survol 2264x816, tailles identiques, pixels differents dans x 72...2201, y 176...649
+gains cumul largeur 1100: sans survol 2264x816, avec survol 2264x816, tailles identiques, pixels differents dans x 72...2201, y 176...649
+captures: 159 fichiers
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.002 seconds.
+TESTS=0

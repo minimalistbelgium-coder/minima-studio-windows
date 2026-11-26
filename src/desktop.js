@@ -63,7 +63,10 @@ function start() {
   document.getElementById('tracker-root').addEventListener('change', onCardChange);
 
   invoke('plugin:app|version').then((v) => { st.version = v; checkUpdate(); });
-  setInterval(checkUpdate, 3 * 3600 * 1000);
+  setInterval(checkUpdate, 3600 * 1000);
+  // L'app vit souvent cachée dans la zone de notification : on revérifie à chaque retour sur la fenêtre.
+  window.addEventListener('focus', () => { if (Date.now() - (st.lastCheck || 0) > 15 * 60 * 1000) checkUpdate(); });
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-update-now]')) runUpdate(); });
   // Deux horloges : celle de la page et un battement envoyé par l'app (Rust), qui continue
   // quand Windows ralentit la page cachée. tickOnce évite de compter deux fois.
   setInterval(tickOnce, TICK * 1000);
@@ -298,7 +301,7 @@ async function onCardClick(e) {
   else if (a === 'stop') await stopManual();
   else if (a === 'dismiss') { st.dismissed.add(st.unlinked); st.unlinked = null; renderCard(); }
   else if (a === 'diag') { st.showDiag = !st.showDiag; renderCard(); }
-  else if (a === 'update' && st.update) { await openUrl(st.update.url); window.MS.toast("Lance l'installeur téléchargé, l'app se mettra à jour"); }
+  else if (a === 'update') await runUpdate();
 }
 async function onCardChange(e) {
   if (e.target.dataset.tr === 'link' && e.target.value && st.unlinked) await linkProject(st.unlinked, e.target.value);
@@ -375,6 +378,7 @@ function newer(a, b) {
 }
 async function checkUpdate() {
   if (!st.version) return;
+  st.lastCheck = Date.now();
   try {
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
     if (!r.ok) return;
@@ -382,13 +386,36 @@ async function checkUpdate() {
     const v = (j.tag_name || '').replace(/^v/, '');
     if (v && newer(v, st.version)) {
       const asset = (j.assets || []).find((x) => /setup\.exe$/i.test(x.name));
-      st.update = { version: v, url: asset ? asset.browser_download_url : j.html_url };
-      renderCard();
+      const first = !st.update || st.update.version !== v;
+      st.update = { version: v, url: asset ? asset.browser_download_url : j.html_url, direct: !!asset };
+      renderCard(); renderUpdateBar();
+      if (first) notify('Minima Studio ' + v + ' est disponible', "Ouvre Minima Studio et clique sur « Installer maintenant » : l'app se met à jour et redémarre toute seule.");
     }
   } catch {}
 }
+// Bandeau en haut de toutes les pages tant qu'une version plus récente existe.
+function renderUpdateBar() {
+  let bar = document.getElementById('ms-update');
+  if (!st.update) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'ms-update'; document.body.appendChild(bar); }
+  bar.innerHTML = st.updating
+    ? `<span>Mise à jour vers ${window.MS.esc(st.update.version)} : l'app va se fermer puis se rouvrir toute seule…</span>`
+    : `<span>Nouvelle version ${window.MS.esc(st.update.version)} disponible</span><button class="btn pri" data-update-now>Installer maintenant</button>`;
+}
+async function runUpdate() {
+  if (!st.update || st.updating) return;
+  if (!st.update.direct) { await openUrl(st.update.url); return; }
+  st.updating = true; renderUpdateBar(); renderCard();
+  try { tickOnce(); } catch {}
+  try { await invoke('install_update', { url: st.update.url }); }
+  catch (e) {
+    st.updating = false; renderUpdateBar(); renderCard();
+    await openUrl(st.update.url);
+    window.MS.toast("Installation automatique impossible : lance l'installeur téléchargé");
+  }
+}
 function updateBanner() {
-  return st.update ? `<button class="tr-update" data-tr="update">Nouvelle version ${window.MS.esc(st.update.version)} : télécharger</button>` : '';
+  return st.update ? `<button class="tr-update" data-tr="update">${st.updating ? 'Mise à jour en cours…' : `Installer la version ${window.MS.esc(st.update.version)}`}</button>` : '';
 }
 
 // Ouverture au démarrage de Windows (activée par défaut une fois)

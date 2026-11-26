@@ -22,7 +22,7 @@ body:has(#sheet-root .scrim) #tracker-root,body:has(#dialog-root .scrim) #tracke
 .tr-text{background:none;border:0;color:var(--muted);font-size:11px;padding:6px 0 0;cursor:pointer;text-decoration:underline}
 .tr-text:hover{color:var(--text)}
 .tr-diag{font-size:10.5px;color:var(--text2);margin-top:6px;line-height:1.5;word-break:break-all;max-height:140px;overflow:auto}
-.tr-update{display:block;width:100%;margin-top:8px;background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--link);border:1px solid color-mix(in srgb,var(--blue) 40%,transparent);border-radius:10px;padding:7px;font-size:12px;cursor:pointer}
+.tr-update{display:block;width:100%;margin-top:8px;background:var(--blue);color:var(--on-blue);font-weight:600;border:0;border-radius:10px;padding:7px;font-size:12px;cursor:pointer}
 /* Ordinateur : la carte vit dans la barre latérale, juste au-dessus du compte */
 @media (min-width:821px){
   body.desktop .side-foot{margin-top:0}
@@ -40,3 +40,7 @@ body:has(#sheet-root .scrim) #tracker-root,body:has(#dialog-root .scrim) #tracke
 .chrono-btn.live{border-color:color-mix(in srgb,var(--green) 50%,transparent)}
 .chrono-btn.live .dot{background:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 25%,transparent)}
 .chrono-btn .chr{font-weight:600}
+
+/* Bandeau de mise à jour, en haut de toutes les pages */
+#ms-update{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:999px;background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--line);box-shadow:var(--spec),var(--sh2);font-size:13px;font-weight:600;max-width:calc(100vw - 24px)}
+#ms-update .btn{min-height:32px;padding:0 14px;border-radius:999px;font-size:12.5px;white-space:nowrap}

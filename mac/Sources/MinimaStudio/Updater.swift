@@ -9,6 +9,11 @@ final class Updater: ObservableObject {
     @Published private(set) var installing = false
     @Published private(set) var progressText: String?
     @Published var error: String?
+    /// Dernière erreur de publication, affichée en clair dans Mises à jour.
+    @Published var publishError: String?
+
+    /// Le stockage gratuit refuse les fichiers de plus de 50 Mo : au-delà, l'archive part en morceaux.
+    static let chunkSize = 45 * 1024 * 1024
 
     private var timer: Timer?
 
@@ -23,7 +28,7 @@ final class Updater: ObservableObject {
     func start() {
         Task { await check() }
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 3 * 3600, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.check() }
         }
     }
@@ -48,18 +53,26 @@ final class Updater: ObservableObject {
     // MARK: Installation
 
     func install(_ release: AppRelease, tracker: Tracker) async {
-        guard let url = Self.publicURL(release.zip_path) else { return }
         installing = true
         error = nil
         progressText = "Téléchargement…"
         do {
-            let (tmpFile, response) = try await URLSession.shared.download(from: url)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.message("Téléchargement impossible") }
-
             let work = FileManager.default.temporaryDirectory.appendingPathComponent("MinimaUpdate-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
             let zip = work.appendingPathComponent("update.zip")
-            try FileManager.default.moveItem(at: tmpFile, to: zip)
+            let n = max(release.parts ?? 1, 1)
+            let paths = n == 1 ? [release.zip_path] : (1...n).map { "\(release.zip_path).part\($0)" }
+            FileManager.default.createFile(atPath: zip.path, contents: nil)
+            let out = try FileHandle(forWritingTo: zip)
+            for (i, path) in paths.enumerated() {
+                if n > 1 { progressText = "Téléchargement \(i + 1)/\(n)…" }
+                guard let url = Self.publicURL(path) else { throw UpdateError.message("Téléchargement impossible") }
+                let (tmpFile, response) = try await URLSession.shared.download(from: url)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.message("Téléchargement impossible") }
+                try out.write(contentsOf: try Data(contentsOf: tmpFile, options: .mappedIfSafe))
+                try? FileManager.default.removeItem(at: tmpFile)
+            }
+            try out.close()
 
             progressText = "Vérification…"
             try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, work.path])
@@ -142,14 +155,37 @@ final class Updater: ObservableObject {
 
     /// Envoie le .zip (et le .dmg s'il est à côté) produits par release.sh, puis annonce la version.
     func publish(zipURL: URL, version: String, notes: String) async throws {
+        publishError = nil
+        do { try await doPublish(zipURL: zipURL, version: version, notes: notes) }
+        catch {
+            progressText = nil
+            publishError = "La version \(version) n'a pas été publiée : \(error.localizedDescription). Les monteurs ne la verront pas."
+            throw error
+        }
+    }
+
+    private func doPublish(zipURL: URL, version: String, notes: String) async throws {
         let bucket = supa.storage.from("releases")
         let zipPath = "v\(version)/MinimaStudio-\(version).zip"
-        progressText = "Envoi de la mise à jour…"
-        try await bucket.upload(zipPath, fileURL: zipURL, options: FileOptions(contentType: "application/zip", upsert: true))
+        let data = try Data(contentsOf: zipURL, options: .mappedIfSafe)
+        var parts: Int? = nil
+        if data.count <= Self.chunkSize {
+            progressText = "Envoi de la mise à jour…"
+            try await bucket.upload(zipPath, data: data, options: FileOptions(contentType: "application/zip", upsert: true))
+        } else {
+            let n = (data.count + Self.chunkSize - 1) / Self.chunkSize
+            for i in 0..<n {
+                progressText = "Envoi de la mise à jour \(i + 1)/\(n)…"
+                let chunk = data.subdata(in: (i * Self.chunkSize)..<min((i + 1) * Self.chunkSize, data.count))
+                try await bucket.upload("\(zipPath).part\(i + 1)", data: chunk, options: FileOptions(contentType: "application/octet-stream", upsert: true))
+            }
+            parts = n
+        }
 
         var dmgPath: String?
         let dmgURL = zipURL.deletingPathExtension().appendingPathExtension("dmg")
-        if FileManager.default.fileExists(atPath: dmgURL.path) {
+        let dmgSize = ((try? FileManager.default.attributesOfItem(atPath: dmgURL.path))?[.size] as? Int) ?? 0
+        if FileManager.default.fileExists(atPath: dmgURL.path), dmgSize < 49 * 1024 * 1024 {
             progressText = "Envoi de l'installeur…"
             let p = "v\(version)/MinimaStudio-\(version).dmg"
             try await bucket.upload(p, fileURL: dmgURL, options: FileOptions(contentType: "application/x-apple-diskimage", upsert: true))
@@ -158,7 +194,7 @@ final class Updater: ObservableObject {
         }
 
         try await supa.from("app_releases").upsert(
-            AppReleaseInsert(version: version, zip_path: zipPath, dmg_path: dmgPath, notes: notes.isEmpty ? nil : notes),
+            AppReleaseInsert(version: version, zip_path: zipPath, dmg_path: dmgPath, notes: notes.isEmpty ? nil : notes, parts: parts),
             onConflict: "version"
         ).execute()
         progressText = "Nettoyage des anciennes versions…"

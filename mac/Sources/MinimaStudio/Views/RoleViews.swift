@@ -576,6 +576,10 @@ struct UpdatesView: View {
                         Text(t).font(.system(size: 12.5)).foregroundStyle(Theme.muted).lineLimit(1)
                     }
                 }
+                if let e = updater.publishError {
+                    Text(e).font(.system(size: 12.5)).foregroundStyle(Theme.red)
+                        .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                }
             }
             .card()
 

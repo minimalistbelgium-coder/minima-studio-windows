@@ -459,6 +459,8 @@ struct AppRelease: Codable, Identifiable, Hashable {
     let dmg_path: String?
     let notes: String?
     let created_at: String
+    /// Nombre de morceaux quand l'archive dépasse la limite de 50 Mo du stockage (nil = un seul fichier).
+    var parts: Int? = nil
 }
 
 struct AppReleaseInsert: Encodable {
@@ -466,6 +468,7 @@ struct AppReleaseInsert: Encodable {
     let zip_path: String
     let dmg_path: String?
     let notes: String?
+    let parts: Int?
 }
 
 enum AppVersion {
